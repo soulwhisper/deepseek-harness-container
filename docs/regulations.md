@@ -33,12 +33,18 @@ is Apache-2.0; bundled upstream components keep their own licenses.
 | --- | --- | --- |
 | DeepSeek Harness | MIT | Host/manager/app-boot patched at build time; upstream notice retained |
 | DSH Market | MIT | Managed-runtime bridge patch applied |
+| `dsh-context` | Apache-2.0 | Web only; installed from npm `latest` at build time; packaged LICENSE retained |
+| Caveman skill | Apache-2.0 | Fetched from upstream `main`; `LICENSE` and `NOTICE` retained in the skill seed |
+| RTK OSS | Apache-2.0 | `rtk-oss-*` release asset only; the BUSL-1.1 edition is not bundled; LICENSE retained |
 | Tavern ecosystem packages | MIT | Installed in the Tavern image only |
 | Tavern itself | **AGPL-3.0-only** | Not Apache-2.0 or MIT |
 
 Installed dependency trees retain their packaged license files. The root
 [NOTICE](../NOTICE) records the DSH, market, ecosystem, Tavern and inspiration
 notices. An OCI SBOM is an inventory, not a substitute for those licenses.
+Floating assets retain their upstream license/notice files in the image:
+`dsh-context` under the immutable runtime `node_modules`, Caveman under the skill
+seed, and RTK under `/usr/local/share/rtk`.
 
 The distribution patches DSH Host/manager/app-boot and applies the recorded
 Tavern route/theme modifications. Those modifications are not upstream
@@ -70,10 +76,13 @@ Tavern AGPL license. See [Corresponding source](source-build.md).
 
 ## Reproducibility and attestations
 
-The build pins Node, pnpm, sources, patches, theme files and locks. The current
-release index has no BuildKit provenance or SBOM attestation attached; verify
-deployments by digest and preserve the previous digest plus volume snapshots. Do
-not describe an unrun local build as a certified release.
+The build pins Node, pnpm, DSH/Tavern sources, patches, theme files and profile
+locks. The optional `dsh-context`, Caveman skill and RTK OSS binary are
+deliberately floating upstream inputs resolved at build time, so exact-bytes
+reproduction also requires the same upstream state or the published image
+digest. The current release index has no BuildKit provenance or SBOM attestation
+attached; verify deployments by digest and preserve the previous digest plus
+volume snapshots. Do not describe an unrun local build as a certified release.
 
 ## Secrets and user data
 

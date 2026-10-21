@@ -291,9 +291,15 @@ async function runtime() {
   const manifestPath = `/data/dsh/profiles/${profile}/package.json`;
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const profileRequire = createRequire(manifestPath);
-  const expected = profile === 'web' ? ['@soulwhisper/dsh-forward-auth', 'dshmarket']
+  const expected = profile === 'web' ? ['@soulwhisper/dsh-forward-auth', 'dshmarket', 'dsh-context']
     : ['@soulwhisper/dsh-forward-auth', 'dsh-tavern-wrongbook', 'dsh-tavern-comfy', 'dsh-tavern-knock-knock', 'narrative-anchor'];
   for (const name of expected) check(Object.hasOwn(manifest.dependencies, name), 'Required profile package');
+  check((await stat('/opt/dsh-seed/skills/rtk/SKILL.md')).isFile(), 'RTK skill seed');
+  check((await stat('/opt/dsh-seed/skills/caveman/SKILL.md')).isFile(), 'Caveman skill seed');
+  check((await stat('/opt/dsh-seed/skills/caveman/LICENSE')).isFile(), 'Caveman license retained');
+  check((await stat('/opt/dsh-seed/skills/caveman/NOTICE')).isFile(), 'Caveman notice retained');
+  check((await stat('/usr/local/share/rtk/LICENSE')).isFile(), 'RTK license retained');
+  check(spawnSync('/usr/local/bin/rtk', ['--version'], { encoding: 'utf8' }).status === 0, 'RTK binary runs');
   for (const name of Object.keys(manifest.dependencies)) {
     await import(pathToFileURL(profileRequire.resolve(name)).href);
   }

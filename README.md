@@ -10,7 +10,7 @@ An independent, self-packaged [DeepSeek Harness](https://github.com/deepseek-ai/
 
 | Image | Release tag | Profile |
 | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web + `dshmarket` + required forward-auth |
+| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web + `dshmarket` + `dsh-context` + required forward-auth |
 | `ghcr.io/soulwhisper/dsh-tavern:3.0` | `tavern-3.0` | Custom Tavern workspace + forward-auth + bundled ecosystem |
 
 Web follows the DSH upstream version; Tavern follows dsh-tavern. They are
@@ -19,6 +19,13 @@ exactly one concrete IP on port `3080`, and use a read-only root filesystem.
 Both are built natively for `linux/amd64` and `linux/arm64` (no QEMU). The
 images contain no Chromium, GUI, X11, VNC, local password database, OIDC client
 or replacement mux server.
+
+Both images seed the optional Caveman and RTK skills and install the RTK OSS
+binary. Web additionally bundles `dsh-context`. These three upstream assets are
+resolved at image-build time from their latest upstream state; they are not
+version-pinned or tracked by Renovate, so deploy the published digest rather
+than expecting a reproducible rebuild from `latest`. See
+[build](docs/build.md#floating-optional-assets).
 
 ## Documentation
 
@@ -140,8 +147,10 @@ that token; treat logs as sensitive. Status logs report `waiting-for-edge`,
 
 Only `web-<dsh-version>` and `tavern-<version>` tags publish. Each tag must match
 `versions.json`, point into `main`, is built and smoked on native amd64/arm64
-runners, and is combined into one multi-arch index. There is no `latest`, no
-branch publication and no candidate `sha-` image. PRs run static checks, tests
+runners, and is combined into one multi-arch index. There is no `latest` image
+tag, no branch publication and no candidate `sha-` image; the optional
+`dsh-context`, Caveman and RTK inputs are floating build-time upstream assets,
+not release tags. PRs run static checks, tests
 and native image smoke; they receive no repository secrets. The same-repo PR
 labeler and scheduled label sync use job-scoped default tokens with only
 `pull-requests: write` or `issues: write`. Registry pushes use the job-scoped

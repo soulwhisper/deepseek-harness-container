@@ -21,8 +21,8 @@ tavern.tar.gz
     patches/dsh/ patches/market/ patches/tavern/
     plugins/forward-auth/ (source, notices, licenses)
     scripts/entrypoint.sh, materialize-state.mjs, normalize-locks.mjs,
-            materialize-profiles.mjs, readiness.mjs, finalize-profile.mjs,
-            link-tavern-core.mjs
+            materialize-profiles.mjs, floating-bundles.mjs, readiness.mjs,
+            finalize-profile.mjs, link-tavern-core.mjs
     versions.json, package.json, pnpm-lock.yaml
     LICENSE, NOTICE, README.md, README.zh-CN.md
     docs/source-build.md, docs/regulations.md
@@ -36,10 +36,18 @@ workflows or general documentation. The image retains the Tavern checkout at
 `/distribution/source.tar.gz` and `DSH_SOURCE_URL` identifies the distribution
 commit.
 
+The optional `dsh-context`, Caveman skill and RTK OSS binary are deliberately
+floating upstream assets resolved during the build. Their exact bytes are not
+pinned in this archive; the build recipe, upstream URLs and the licenses
+retained in the final image are included. Reproducing those exact bytes
+requires the same upstream state or the published image digest. See
+[Build](build.md#floating-optional-assets).
+
 ## Rebuild from the archive
 
-The original build is reproducible from the distribution commit identified by
-`DSH_SOURCE_URL`:
+The pinned DSH/Tavern source graph is reproducible from the distribution commit
+identified by `DSH_SOURCE_URL`; the three floating optional assets additionally
+require their upstream state to be unchanged, or use the published digest:
 
 ```bash
 docker buildx build -f docker/Dockerfile --target tavern \

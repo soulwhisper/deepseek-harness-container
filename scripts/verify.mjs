@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { join, relative } from 'node:path';
 import { parse } from 'yaml';
 import { relativeLinkCount } from './normalize-locks.mjs';
+import { floatingBundles } from './floating-bundles.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const text = path => readFile(join(root, path), 'utf8');
@@ -62,9 +63,10 @@ assert.ok(!forwardAuthManifest.files.includes('upstream-MIT-LICENSE'), 'forward-
 assert.equal(await present('plugins/forward-auth/upstream-MIT-LICENSE'), false, 'Upstream DSH MIT notice belongs under patches/dsh');
 assert.ok(await present('patches/dsh/upstream-MIT-LICENSE'), 'Patched upstream DSH notice must remain in the distribution');
 for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/profiles/web/pnpm-lock.yaml',
-  'docker/skills/README',
+  'docker/skills/README', 'docker/skills/rtk/SKILL.md',
   'patches/dsh/patch-host.mjs', 'patches/market/patch-market.mjs', 'patches/tavern/patch-tavern.mjs',
-  'plugins/forward-auth/index.mjs', 'scripts/normalize-locks.mjs', 'scripts/field-test.mjs', 'test/packaging.test.mjs',
+  'plugins/forward-auth/index.mjs', 'scripts/normalize-locks.mjs', 'scripts/floating-bundles.mjs',
+  'scripts/field-test.mjs', 'test/packaging.test.mjs',
   'deploy/docker/compose.yaml', 'deploy/kubernetes/dsh-web.yaml',
   'docs/index.md', 'docs/architecture.md', 'docs/constraints.md', 'docs/build.md', 'docs/deploy.md',
   'docs/operations.md', 'docs/data-layout.md', 'docs/patches.md', 'docs/source-build.md',
@@ -92,6 +94,18 @@ assert.doesNotMatch(dockerfile, /DSH_BUNDLED_SKILL_DIR/u, 'Bundled skills are no
 assert.doesNotMatch(dockerfile, /COPY docker\/skills\/ \/opt\/dsh\/skills\//u, 'Skills must not be mounted as immutable runtime content');
 assert.doesNotMatch(dockerfile, /scripts\/smoke\.mjs|test\/|deploy\/|\.github\//u,
   'Test, smoke, deploy and CI inputs must not be copied into images');
+assert.match(dockerfile, /dsh-context@latest/u, 'Web runtime resolves dsh-context from npm latest');
+assert.match(dockerfile, /floating-bundles\.mjs add web/u, 'Web build links and enables the floating dsh-context bundle');
+assert.match(dockerfile, /pnpm --dir \/opt\/dsh-seed\/profiles\/web install --no-frozen-lockfile/u,
+  'The floating dsh-context link gets a generated profile lock, not a stale committed pin');
+assert.match(dockerfile, /caveman\/main\/skills\/caveman\/SKILL\.md/u, 'Caveman skill is fetched from upstream latest');
+assert.match(dockerfile, /rtk-oss-/u, 'Only the Apache-2.0 RTK OSS asset may be bundled');
+assert.doesNotMatch(JSON.stringify(versions), /dsh-context|caveman|rtk/iu,
+  'Floating assets are not version-pinned in versions.json');
+assert.deepEqual([...floatingBundles.web], ['dsh-context'], 'Only dsh-context is a floating web bundle');
+const floatingText = await text('scripts/floating-bundles.mjs');
+assert.match(floatingText, /link:\$\{runtime\}/u, 'The floating package is linked from the immutable runtime');
+assert.match(floatingText, /dsh\.bundle/u, 'Build verification rejects an upstream package without a bundle patch');
 const ignore = await text('.gitignore');
 assert.match(ignore, /^handoff-\*\.md$/mu, 'Handoff files are ignored');
 assert.match(await text('.github/workflows/label-sync.yaml'), /sparse-checkout-cone-mode:\s*false/u,

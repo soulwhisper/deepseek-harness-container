@@ -22,6 +22,21 @@ Source: https://github.com/dsh-market/dsh-market/tree/29dcbd78290be89d83771e3734
 MIT License
 Copyright (c) 2026 fkysly and dsh-market contributors
 
+Optional floating components (resolved from upstream at image-build time;
+their version is not pinned in this repository)
+dsh-context — Apache License 2.0
+Source: https://github.com/bowenliang123/dsh-context
+Web image only. The installed package retains its LICENSE.
+
+Caveman skill — Apache License 2.0
+Source: https://github.com/JuliusBrussee/caveman
+The skill seed retains the upstream LICENSE and NOTICE.
+
+RTK OSS — Apache License 2.0
+Source: https://github.com/rtk-ai/rtk
+The image uses the rtk-oss release asset and retains its LICENSE at
+/usr/local/share/rtk/LICENSE. The BUSL-1.1 rtk release is not bundled.
+
 Tavern ecosystem (tavern image only)
 dsh-tavern-wrongbook v1.33.0 — MIT License
 Copyright (c) 2026 XGUIMAX

@@ -25,12 +25,13 @@ COPY patches /patches
 COPY plugins/forward-auth /plugins/forward-auth
 COPY --chmod=0755 scripts/entrypoint.sh /scripts/entrypoint.sh
 COPY scripts/materialize-state.mjs scripts/normalize-locks.mjs \
-     scripts/materialize-profiles.mjs scripts/readiness.mjs \
-     scripts/finalize-profile.mjs scripts/link-tavern-core.mjs /scripts/
+     scripts/materialize-profiles.mjs scripts/floating-bundles.mjs \
+     scripts/readiness.mjs scripts/finalize-profile.mjs scripts/link-tavern-core.mjs /scripts/
 COPY versions.json package.json pnpm-lock.yaml LICENSE NOTICE README.md README.zh-CN.md /
 COPY docs/source-build.md docs/regulations.md /docs/
 
 FROM tools AS runtime-build
+ARG TARGETARCH
 # The runtime manifest's file: dependency is ../../plugins/forward-auth. Keep that
 # relative layout in the image and expose the stable /opt/dsh/runtime alias
 # used by runtime scripts, PATH and generated profile links.
@@ -45,7 +46,7 @@ RUN pnpm install --frozen-lockfile --prod \
 # architecture (a stale multi-arch cache can otherwise hide this until boot).
 RUN node -e "const {createRequire}=require('node:module'); const r=createRequire('/opt/dsh/docker/runtime/package.json'); const name='node-addon-require-builtin-linux-'+(process.arch==='arm64'?'arm64':'x64')+'-gnu'; require(r.resolve(name));"
 COPY versions.json /opt/dsh/versions.json
-COPY scripts/entrypoint.sh scripts/materialize-state.mjs scripts/normalize-locks.mjs scripts/materialize-profiles.mjs scripts/readiness.mjs scripts/finalize-profile.mjs scripts/link-tavern-core.mjs /opt/dsh/scripts/
+COPY scripts/entrypoint.sh scripts/materialize-state.mjs scripts/normalize-locks.mjs scripts/materialize-profiles.mjs scripts/floating-bundles.mjs scripts/readiness.mjs scripts/finalize-profile.mjs scripts/link-tavern-core.mjs /opt/dsh/scripts/
 RUN chmod 0755 /opt/dsh/scripts/entrypoint.sh
 COPY docker/profiles/web/pnpm-workspace.yaml /opt/dsh/profiles/web/pnpm-workspace.yaml
 COPY docker/profiles/tavern/pnpm-workspace.yaml /opt/dsh/profiles/tavern/pnpm-workspace.yaml
@@ -53,6 +54,69 @@ COPY docker/profiles/distribution.patch.yml /opt/dsh/profiles/distribution.patch
 # Seed-only skill recommendations. These are copied into DSH_HOME/skills on
 # first seed or explicit migration and may be edited or deleted by the user.
 COPY docker/skills/ /opt/dsh-seed/skills/
+
+# Floating optional assets are deliberately resolved from upstream at build
+# time, never pinned in versions.json or Renovate. The published image digest,
+# not a mutable tag, is the reproducibility boundary. A moved skill path,
+# changed frontmatter or missing release asset fails the build instead of
+# silently shipping stale content.
+RUN set -eux; \
+    mkdir -p /opt/dsh-seed/skills/caveman /usr/local/share/rtk; \
+    curl --fail --show-error --silent --location --retry 3 --retry-delay 2 \
+      https://raw.githubusercontent.com/JuliusBrussee/caveman/main/skills/caveman/SKILL.md \
+      -o /opt/dsh-seed/skills/caveman/SKILL.md; \
+    curl --fail --show-error --silent --location --retry 3 --retry-delay 2 \
+      https://raw.githubusercontent.com/JuliusBrussee/caveman/main/LICENSE \
+      -o /opt/dsh-seed/skills/caveman/LICENSE; \
+    curl --fail --show-error --silent --location --retry 3 --retry-delay 2 \
+      https://raw.githubusercontent.com/JuliusBrussee/caveman/main/NOTICE \
+      -o /opt/dsh-seed/skills/caveman/NOTICE; \
+    grep -q '^name: caveman$' /opt/dsh-seed/skills/caveman/SKILL.md; \
+    printf '%s\n' \
+      'Fetched at image build from https://github.com/JuliusBrussee/caveman' \
+      'Path: skills/caveman/SKILL.md' \
+      'Floating: no commit or version pin is tracked in this repository.' \
+      > /opt/dsh-seed/skills/caveman/SOURCE
+
+# Use the Apache-2.0 "oss" edition (rtk-oss-*), never the release asset whose
+# compression engine is BUSL-1.1. The target triple follows BuildKit's
+# TARGETARCH; the fallback keeps plain docker build usable.
+RUN set -eux; \
+    arch="${TARGETARCH:-$(uname -m)}"; \
+    case "$arch" in \
+      amd64|x86_64) rtk_target=x86_64-unknown-linux-musl ;; \
+      arm64|aarch64) rtk_target=aarch64-unknown-linux-gnu ;; \
+      *) echo "Unsupported RTK architecture: $arch" >&2; exit 1 ;; \
+    esac; \
+    rtk_tag="$(curl -fsSIL -o /dev/null -w '%{url_effective}' https://github.com/rtk-ai/rtk/releases/latest | sed -n 's#.*/tag/##p')"; \
+    test -n "$rtk_tag"; \
+    rtk_asset="rtk-oss-${rtk_target}.tar.gz"; \
+    rtk_dir="$(mktemp -d)"; \
+    trap 'rm -rf "$rtk_dir"' EXIT; \
+    base="https://github.com/rtk-ai/rtk/releases/download/${rtk_tag}"; \
+    curl --fail --show-error --silent --location --retry 3 --retry-delay 2 \
+      "${base}/${rtk_asset}" -o "$rtk_dir/$rtk_asset"; \
+    curl --fail --show-error --silent --location --retry 3 --retry-delay 2 \
+      "${base}/checksums.txt" -o "$rtk_dir/checksums.txt"; \
+    expected="$(awk -v asset="$rtk_asset" '$2 == asset { print $1 }' "$rtk_dir/checksums.txt")"; \
+    test -n "$expected"; \
+    actual="$(sha256sum "$rtk_dir/$rtk_asset" | awk '{ print $1 }')"; \
+    test "$expected" = "$actual"; \
+    if tar -tzf "$rtk_dir/$rtk_asset" | grep -qE '^/|(^|/)\.\.(/|$)'; then \
+      echo 'Unsafe path in RTK archive' >&2; exit 1; \
+    fi; \
+    tar -xzf "$rtk_dir/$rtk_asset" -C "$rtk_dir"; \
+    test -x "$rtk_dir/rtk"; \
+    install -m 0755 "$rtk_dir/rtk" /usr/local/bin/rtk; \
+    test -f "$rtk_dir/LICENSE"; \
+    install -m 0644 "$rtk_dir/LICENSE" /usr/local/share/rtk/LICENSE; \
+    printf '%s\n' \
+      "Downloaded at image build: ${base}/${rtk_asset}" \
+      "Resolved release: ${rtk_tag}" \
+      'Edition: rtk-oss (Apache-2.0; no BUSL-1.1 compression engine)' \
+      'Floating: no release version is tracked in this repository.' \
+      > /usr/local/share/rtk/SOURCE; \
+    rtk --version
 
 FROM runtime-build AS tavern-source
 COPY patches/tavern /opt/dsh/patches/tavern
@@ -82,9 +146,18 @@ COPY --from=profile-lock-builder /opt/dsh-seed/profiles/tavern/pnpm-lock.yaml /p
 FROM runtime-build AS web-build
 COPY docker/profiles/web/pnpm-lock.yaml /opt/dsh/profiles/web/pnpm-lock.yaml
 COPY patches/market /opt/dsh/patches/market
+# dsh-context is a floating optional Web plugin, not a pinned runtime input.
+# Install it into the immutable runtime from npm latest, then link it into the
+# profile. Keeping it out of the writable profile lets state migration restore
+# the link without running pnpm or copying a registry tree.
+RUN pnpm --dir /opt/dsh/runtime add dsh-context@latest --prod --ignore-scripts \
+      --config.auto-install-peers=false
 RUN DSH_BUILD_PROFILE=web node /opt/dsh/scripts/materialize-profiles.mjs \
     && cp /opt/dsh/profiles/web/pnpm-lock.yaml /opt/dsh-seed/profiles/web/pnpm-lock.yaml \
-    && pnpm --dir /opt/dsh-seed/profiles/web install --frozen-lockfile --prod \
+    && node /opt/dsh/scripts/floating-bundles.mjs add web /opt/dsh-seed/profiles/web \
+    && pnpm --dir /opt/dsh-seed/profiles/web install --no-frozen-lockfile --prod \
+    && DSH_VERSION="$(node -p 'require("/opt/dsh/versions.json").dsh.version')" \
+       node /opt/dsh/scripts/floating-bundles.mjs verify web /opt/dsh-seed/profiles/web \
     && node /opt/dsh/scripts/finalize-profile.mjs /opt/dsh-seed/profiles/web \
     && node /opt/dsh/patches/market/patch-market.mjs /opt/dsh/runtime/node_modules/dshmarket
 
@@ -117,6 +190,10 @@ ENV DSH_HOME=/data/dsh \
     DSH_PORT=3080 \
     TMPDIR=/tmp
 WORKDIR /workspace
+# RTK is installed in the common runtime stage, but the final base starts from
+# tools; copy the verified OSS binary and license explicitly.
+COPY --from=runtime-build /usr/local/bin/rtk /usr/local/bin/rtk
+COPY --from=runtime-build /usr/local/share/rtk /usr/local/share/rtk
 # Exact build/patch inputs, not the repository's test and deploy trees.
 COPY --from=distribution-source / /opt/dsh/distribution-source
 EXPOSE 3080
@@ -131,7 +208,7 @@ FROM application AS web
 ENV DSH_PROFILE=web
 COPY --from=web-build /opt/dsh /opt/dsh
 COPY --from=web-build /opt/dsh-seed /opt/dsh-seed
-LABEL org.opencontainers.image.title="DeepSeek Harness Web with dshmarket and forward-auth" \
+LABEL org.opencontainers.image.title="DeepSeek Harness Web with dshmarket, dsh-context and forward-auth" \
       org.opencontainers.image.version="0.2.1-rc.2" \
       org.opencontainers.image.licenses="Apache-2.0 AND MIT"
 
@@ -146,7 +223,7 @@ COPY --from=tavern-build /opt/dsh-seed /opt/dsh-seed
 COPY --from=tavern-build /opt/dsh-tavern /opt/dsh-tavern
 COPY --from=tavern-build /opt/dsh-source /opt/dsh-source
 RUN test "${#IMAGE_REVISION}" -eq 40 && test -z "$(printf '%s' "$IMAGE_REVISION" | tr -d '0-9a-f')"
-LABEL org.opencontainers.image.title="DeepSeek Harness Tavern with forward-auth" \
+LABEL org.opencontainers.image.title="DeepSeek Harness Tavern with bundled skills, RTK and forward-auth" \
       org.opencontainers.image.version="3.0" \
       org.opencontainers.image.licenses="Apache-2.0 AND MIT AND AGPL-3.0-only" \
       io.github.soulwhisper.dsh-tavern.commit="7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d"

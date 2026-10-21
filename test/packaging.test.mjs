@@ -9,6 +9,7 @@ import YAML from 'yaml';
 import { materializeState, mergeManifest, mergeLock, migrateOverlay } from '../scripts/materialize-state.mjs';
 import { normalizeLockText, relativeLinkCount } from '../scripts/normalize-locks.mjs';
 import { stableImmutableTarget } from '../scripts/finalize-profile.mjs';
+import { addFloatingBundles, verifyFloatingBundles } from '../scripts/floating-bundles.mjs';
 import { patchRoutes, verifyTheme } from '../patches/tavern/patch-tavern.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -43,6 +44,30 @@ async function fixture(t) {
   }
   return { dir, home, seed, profile: 'web', legacy: join(dir, 'absent-legacy'), runtimeManifest };
 }
+
+test('floating bundles are linked from the runtime and verified before image publication', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'dsh-floating-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  await writeFile(join(dir, 'package.json'), JSON.stringify({
+    dependencies: {}, dsh: { profile: { bundles: [] } },
+  }));
+  await addFloatingBundles(dir, 'web');
+  const manifest = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8'));
+  assert.equal(manifest.dependencies['dsh-context'], 'link:/opt/dsh/runtime/node_modules/dsh-context');
+  assert.equal(Object.hasOwn(manifest.dependencies, '@deepseek-ai/dsh-session'), false);
+  assert.deepEqual(manifest.dsh.profile.bundles, ['dsh-context']);
+  await mkdir(join(dir, 'node_modules/dsh-context'), { recursive: true });
+  await writeFile(join(dir, 'node_modules/dsh-context/package.json'), JSON.stringify({
+    name: 'dsh-context', version: 'test',
+    dsh: { bundle: { patch: './cordis.patch.yml' }, compatibility: { dshReleases: { '0.2.1-rc.2': 'compatible' } } },
+  }));
+  await verifyFloatingBundles(dir, 'web', '0.2.1-rc.2');
+  await assert.rejects(verifyFloatingBundles(dir, 'web', '9.9.9'), /no compatibility declaration/u);
+  await writeFile(join(dir, 'node_modules/dsh-context/package.json'), JSON.stringify({
+    name: 'dsh-context', version: 'test',
+  }));
+  await assert.rejects(verifyFloatingBundles(dir, 'web'), /no longer declares dsh\.bundle/u);
+});
 
 test('new state is seeded once, then user mutations remain untouched', async t => {
   const options = await fixture(t);

@@ -10,10 +10,10 @@
 
 | 镜像 | Release 标签 | Profile |
 | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web + `dshmarket` + 必需 forward-auth |
+| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web + `dshmarket` + `dsh-context` + 必需 forward-auth |
 | `ghcr.io/soulwhisper/dsh-tavern:3.0` | `tavern-3.0` | 自定义 Tavern workspace + forward-auth + 配套插件 |
 
-Web 跟随 DSH 上游版本，Tavern 跟随 dsh-tavern；两者独立发版。镜像使用 Node 24/glibc、UID/GID `1000:1000`、单一具体 IP 的 `3080` 监听和只读根文件系统。CI 在原生 `linux/amd64` 与 `linux/arm64` runner 上构建，不使用 QEMU。镜像不包含 Chromium、GUI、X11、VNC、本地密码库、OIDC 客户端或替代 mux 服务。
+Web 跟随 DSH 上游版本，Tavern 跟随 dsh-tavern；两者独立发版。镜像使用 Node 24/glibc、UID/GID `1000:1000`、单一具体 IP 的 `3080` 监听和只读根文件系统。两个镜像都会 seed 可选的 Caveman、RTK skill，并安装 RTK OSS binary；Web 额外捆绑 `dsh-context`。这三项上游资产在镜像构建时取各自最新状态，不在仓库中锁定版本，也不由 Renovate 跟踪；因此部署应使用发布 digest，不能假设从 `latest` 重建完全可复现。详见 [build](docs/build.md#floating-optional-assets)。CI 在原生 `linux/amd64` 与 `linux/arm64` runner 上构建，不使用 QEMU。镜像不包含 Chromium、GUI、X11、VNC、本地密码库、OIDC 客户端或替代 mux 服务。
 
 ## 文档
 
@@ -108,7 +108,7 @@ gate 还会拒绝任何查询字符串包含 `token` 的请求，包括 upstream
 
 ## 发布与自动化
 
-只有 `web-<dsh-version>` 与 `tavern-<version>` 标签会发布。标签必须匹配 `versions.json`、位于 `main`，在原生 amd64/arm64 runner 上构建并 smoke，再合并为一个多架构 index。没有 `latest`、分支发布或 candidate `sha-` 镜像。PR 只运行静态检查、测试和原生镜像 smoke，不获取仓库 secrets。同仓库 PR labeler 与定时 label sync 只使用 job 级默认 token（`pull-requests: write` / `issues: write`）；registry push 使用 job 级 `GITHUB_TOKEN` + `packages: write`，release notes 与 cleanup 使用 GitHub App。构建/测试 job 不获取 App 凭据。
+只有 `web-<dsh-version>` 与 `tavern-<version>` 标签会发布。标签必须匹配 `versions.json`、位于 `main`，在原生 amd64/arm64 runner 上构建并 smoke，再合并为一个多架构 index。没有 `latest` 镜像标签、分支发布或 candidate `sha-` 镜像；`dsh-context`、Caveman、RTK 是构建时浮动上游资产，不是发布标签。PR 只运行静态检查、测试和原生镜像 smoke，不获取仓库 secrets。同仓库 PR labeler 与定时 label sync 只使用 job 级默认 token（`pull-requests: write` / `issues: write`）；registry push 使用 job 级 `GITHUB_TOKEN` + `packages: write`，release notes 与 cleanup 使用 GitHub App。构建/测试 job 不获取 App 凭据。
 
 Renovate 仅提供提示，从不自动合并。源码 commit、精确补丁/主题哈希、锁和 release tag 必须由人工一起更新。
 

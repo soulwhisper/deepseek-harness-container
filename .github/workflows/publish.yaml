@@ -216,8 +216,6 @@ jobs:
 
       - name: Verify published index and write release notes
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GHCR_USERNAME: x-access-token
           IMAGE_DIGEST: ${{ env.INDEX_DIGEST }}
         run: node scripts/verify-release.mjs record "${{ needs.prepare.outputs.target }}"
 

@@ -36,4 +36,5 @@ area/github:
       - any-glob-to-any-file:
           - ".github/**"
           - "renovate.json"
+          - ".renovate/**"
           - ".coderabbit.yaml"

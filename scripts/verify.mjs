@@ -58,6 +58,7 @@ for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/
   'deploy/docker/compose.yaml', 'deploy/kubernetes/dsh-web.yaml',
   '.github/CODEOWNERS', '.github/PULL_REQUEST_TEMPLATE.md', '.github/labels.yaml',
   '.github/labeler.yaml', '.github/workflows/labeler.yaml', '.github/workflows/label-sync.yaml',
+  '.renovate/customManagers.json', '.renovate/groups.json', '.renovate/packageRules.json',
   '.github/workflows/schedule-cleanup.yaml', '.github/workflows/field-test.yaml', '.coderabbit.yaml', 'renovate.json']) {
   assert.ok(await present(path), `Repository layout requires ${path}`);
 }
@@ -108,11 +109,22 @@ for (const workflow of ['ci.yaml', 'publish.yaml']) {
 }
 assert.doesNotMatch(await text('.github/workflows/field-test.yaml'), /docker (?:run|build|pull|login)|setup-qemu/iu, 'Field test runs directly on the runner');
 const renovate = JSON.parse(await text('renovate.json'));
-assert.ok(renovate.extends.includes('github>soulwhisper/renovate-config'), 'Renovate extends the shared preset');
-assert.equal(renovate.packageRules.some(rule => rule.automerge === true), false, 'Renovate must never automerge');
-assert.ok(renovate.packageRules.some(rule => rule.addLabels?.includes('review/required')), 'Renovate PRs require human review');
+assert.ok(renovate.extends.includes('github>soulwhisper/renovate-config'), 'Renovate extends the shared runner preset');
+const fragmentPaths = ['.renovate/customManagers.json', '.renovate/groups.json', '.renovate/packageRules.json'];
+for (const path of fragmentPaths) {
+  assert.ok(await present(path), `Renovate override fragment ${path}`);
+  assert.ok(renovate.extends.some(item => item.endsWith(path)), `Renovate root extends ${path}`);
+}
+const customManagers = JSON.parse(await text(fragmentPaths[0])).customManagers;
+const groupRules = JSON.parse(await text(fragmentPaths[1])).packageRules;
+const packageRules = JSON.parse(await text(fragmentPaths[2])).packageRules;
+assert.equal([...groupRules, ...packageRules].some(rule => rule.automerge === true), false, 'Renovate must never automerge');
+assert.ok(packageRules.some(rule => rule.addLabels?.includes('review/required')), 'Renovate PRs require human review');
 for (const dep of ['@deepseek-ai/dsh', 'flizzywine/dsh-tavern']) {
-  assert.ok(renovate.customManagers.some(manager => manager.depNameTemplate === dep), `Renovate must track ${dep}`);
+  assert.ok(customManagers.some(manager => manager.depNameTemplate === dep), `Renovate must track ${dep}`);
+}
+for (const group of ['dsh-web-upstream', 'dsh-tavern-upstream', 'dsh-market']) {
+  assert.ok(groupRules.some(rule => rule.groupName === group), `Renovate group ${group}`);
 }
 const coderabbit = parse(await text('.coderabbit.yaml'));
 assert.equal(coderabbit.reviews?.tools?.actionlint?.enabled, true, 'CodeRabbit actionlint enabled');

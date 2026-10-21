@@ -1,0 +1,42 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "DSH npm version pinned in versions.json",
+      "managerFilePatterns": [
+        "/(^|/)versions\\.json$/"
+      ],
+      "matchStrings": [
+        "\"dsh\": \\{\\s*\"version\": \"(?<currentValue>[^\"]+)\","
+      ],
+      "depNameTemplate": "@deepseek-ai/dsh",
+      "datasourceTemplate": "npm"
+    },
+    {
+      "customType": "regex",
+      "description": "Tavern upstream tag pinned in versions.json",
+      "managerFilePatterns": [
+        "/(^|/)versions\\.json$/"
+      ],
+      "matchStrings": [
+        "\"upstreamTag\": \"(?<currentValue>[^\"]+)\""
+      ],
+      "depNameTemplate": "flizzywine/dsh-tavern",
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "semver-coerced"
+    },
+    {
+      "customType": "regex",
+      "description": "dshmarket version pinned in versions.json; the exact-hash patch must be rebased",
+      "managerFilePatterns": [
+        "/(^|/)versions\\.json$/"
+      ],
+      "matchStrings": [
+        "\"market\": \"(?<currentValue>[^\"]+)\""
+      ],
+      "depNameTemplate": "dshmarket",
+      "datasourceTemplate": "npm"
+    }
+  ]
+}

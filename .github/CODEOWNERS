@@ -12,3 +12,4 @@
 /versions.json                 @soulwhisper
 /.github/workflows/            @soulwhisper
 /renovate.json                 @soulwhisper
+/.renovate/                    @soulwhisper

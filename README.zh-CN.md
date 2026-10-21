@@ -37,7 +37,7 @@ CI 在原生 GitHub runner（`ubuntu-24.04` 与 `ubuntu-24.04-arm`）上构建 *
 - **发布路径。** 只有 `web-<dsh-version>` 与 `tavern-<version>` 标签会发布。标签须与 `versions.json` 一致且位于 `main`；每个标签在原生 amd64+arm64 runner 上只构建对应目标并分别 smoke，然后把已测试 manifest 合并为版本 index。分支 push 永不发布，也不再生成 candidate `sha-` 镜像。
 - **定时清理。** `schedule-cleanup.yaml` 清理取消/跳过及过旧运行；`label-sync.yaml` 恢复受审阅的标签集合。两者都使用 GitHub App token。
 - **直接 field test。** `field-test.yaml` 在 Release 标签与手动触发时、不依赖 Docker：在原生 amd64/arm64 runner 安装生产 runtime 闭包，应用精确哈希 host/market 补丁，并验证打补丁后的 host/manager/app-boot/market 与原生 PTY。它是最终镜像 smoke 的补充，不是替代。
-- **Renovate 仅供提示。** 跟踪 DSH npm 上游、Tavern GitHub tag、`dshmarket`、根/dev 依赖和 SHA 固定的 Actions；从不自动合并，每个 PR 都带 `review/required`。DSH 仍是 developer preview，即使 patch/digest 更新也必须人工检查并修复。
+- **Renovate 仅供提示。** Renovate runner 与主配置位于 [`soulwhisper/renovate-config`](https://github.com/soulwhisper/renovate-config)；本仓库只在 [`renovate.json`](renovate.json) 中引用 [`.renovate/`](.renovate/) 下的覆盖配置。它跟踪 DSH npm 上游、Tavern GitHub tag、`dshmarket`、根/dev 依赖和 SHA 固定的 Actions；从不自动合并，每个 PR 都带 `review/required`。DSH 仍是 developer preview，即使 patch/digest 更新也必须人工检查并修复。
 - **耦合 pin 必须手动。** Node digest、pnpm、源码 commit、精确补丁哈希、Tavern 配套插件和 Profile 锁文件不会自动漂移。Renovate 只改版本号的 PR 预期会验证失败，直到人工补上 commit/hash/lock/release tag。
 - **CodeRabbit 仅提供建议。** 需在本仓库安装 CodeRabbit GitHub App。它对非 Renovate PR 运行 actionlint、zizmor、shellcheck、yamllint、gitleaks，不批准、不合并。GitHub App 的 `APP_CLIENT_ID`/`APP_PRIVATE_KEY` 需要 Actions write（清理）、Contents write（Release）、Packages write（GHCR）、Issues write（label sync）和 Pull requests write（独立 labeler）。所有写 token 都由 GitHub App 生成；默认 bot token 只用于只读 checkout。
 - **Renovate 启用条件。** 共享 Renovate runner 按 topic 选择仓库，因此本仓库带有 `managed-by-renovate`。删除该 topic 或 App 安装后，更新会静默停止；仅保留 `renovate.json` 不够。

@@ -177,6 +177,12 @@ async function manager() {
   const protectedName = '@soulwhisper/dsh-forward-auth';
   const before = await rpc('listBundles', {});
   check(before.some(bundle => bundle.name === protectedName && bundle.enabled), 'Required forward-auth bundle selected');
+  if (process.env.DSH_PROFILE === 'web') {
+    const context = before.find(bundle => bundle.name === 'dsh-context');
+    check(context?.enabled === true && context.installed === true
+      && context.availability === 'profile' && context.removable === true
+      && context.readOnlyReason === undefined, 'dsh-context is profile-owned and removable');
+  }
   const rows = await rpc('listPlugins', {});
   const authRow = rows.find(row => row.moduleName === protectedName);
   check(typeof authRow?.entryId === 'string', 'Native forward-auth inventory entry');
@@ -279,7 +285,7 @@ async function architecture() {
   const profile = process.env.DSH_PROFILE;
   check(['web', 'tavern'].includes(profile), 'Known profile');
   if (profile === 'tavern') {
-    check((await stat('/opt/dsh-tavern/apps/dsh-tavern/LICENSE')).isFile(), 'Tavern original license');
+    check((await stat('/opt/apps/dsh-tavern/LICENSE')).isFile(), 'Tavern original license');
   }
 }
 
@@ -301,6 +307,7 @@ async function runtime() {
     : ['@soulwhisper/dsh-forward-auth', 'dsh-tavern-wrongbook', 'dsh-tavern-comfy', 'dsh-tavern-knock-knock', 'narrative-anchor'];
   for (const name of expected) check(Object.hasOwn(manifest.dependencies, name), 'Required profile package');
   if (profile === 'web') {
+    check(await absent('/opt/dsh/runtime/node_modules/dsh-context'), 'dsh-context is not immutable runtime content');
     check((await stat('/opt/dsh-seed/skills/rtk/SKILL.md')).isFile(), 'RTK skill seed');
     check((await stat('/opt/dsh-seed/skills/caveman/SKILL.md')).isFile(), 'Caveman skill seed');
     check((await stat('/opt/dsh-seed/skills/caveman/LICENSE')).isFile(), 'Caveman license retained');
@@ -321,8 +328,8 @@ async function runtime() {
     await import(pathToFileURL(profileRequire.resolve(name)).href);
   }
   if (profile === 'tavern') {
-    check((await stat('/opt/dsh-tavern/apps/dsh-tavern/node_modules/jsdom')).isDirectory(), 'Tavern workspace dependency');
-    check((await stat('/opt/dsh-tavern/apps/dsh-tavern/LICENSE')).isFile(), 'Tavern original license');
+    check((await stat('/opt/apps/dsh-tavern/node_modules/jsdom')).isDirectory(), 'Tavern workspace dependency');
+    check((await stat('/opt/apps/dsh-tavern/LICENSE')).isFile(), 'Tavern original license');
     const archive = spawnSync('tar', ['-tzf', process.env.DSH_SOURCE_ARCHIVE], { encoding: 'utf8' });
     check(archive.status === 0 && archive.stdout.includes('dsh-tavern/LICENSE')
       && archive.stdout.includes('dsh-tavern/tavern-plugin/src/')

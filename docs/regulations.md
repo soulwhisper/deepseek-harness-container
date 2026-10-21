@@ -43,8 +43,8 @@ Installed dependency trees retain their packaged license files. The root
 [NOTICE](../NOTICE) records the DSH, market, ecosystem, Tavern and inspiration
 notices. An OCI SBOM is an inventory, not a substitute for those licenses.
 The Web image retains the floating assets' upstream license/notice files:
-`dsh-context` under the immutable runtime `node_modules`, Caveman under the skill
-seed, and RTK under `/usr/local/share/rtk`. Tavern does not include them.
+`dsh-context` under the writable Web profile `node_modules` seed, Caveman under
+the skill seed, and RTK under `/usr/local/share/rtk`. Tavern does not include them.
 
 The distribution patches DSH Host/manager/app-boot and applies the recorded
 Tavern route/theme modifications. Those modifications are not upstream
@@ -55,7 +55,7 @@ endorsements.
 The Tavern image retains:
 
 - the complete modified Tavern source and original license at
-  `/opt/dsh-tavern/apps/dsh-tavern`;
+  `/opt/apps/dsh-tavern`;
 - the distribution build inputs at `/opt/dsh/distribution-source`;
 - an authenticated archive at `/opt/dsh-source/tavern.tar.gz`, served at
   `/distribution/source.tar.gz` through the mandatory forward-auth gate;

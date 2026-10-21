@@ -11,7 +11,13 @@ export const floatingBundles = Object.freeze({
 });
 
 const runtime = '/opt/dsh/runtime/node_modules';
-const linkSpec = name => `link:${runtime}/${name}`;
+const runtimeLinks = Object.freeze({
+  web: Object.freeze({
+    '@deepseek-ai/dsh-session': `link:${runtime}/@deepseek-ai/dsh-session`,
+    '@deepseek-ai/schemastery': `link:${runtime}/@deepseek-ai/schemastery`,
+  }),
+  tavern: Object.freeze({}),
+});
 
 const manifestPath = profileDir => join(profileDir, 'package.json');
 
@@ -27,11 +33,12 @@ export async function addFloatingBundles(profileDir, profile) {
   manifest.dsh ??= {};
   manifest.dsh.profile ??= {};
   manifest.dsh.profile.bundles ??= [];
+  // Runtime peers are immutable links; dsh-context itself remains a normal
+  // registry package in the writable profile, so the manager owns it and users
+  // can remove it. Only the forward-auth bundle is manager-protected.
+  Object.assign(manifest.dependencies, runtimeLinks[profile]);
   for (const name of names) {
-    // The package was installed into the immutable runtime at build time from
-    // npm latest. The profile only receives a link, so a state migration can
-    // restore it without running pnpm or copying a registry tree.
-    manifest.dependencies[name] = linkSpec(name);
+    manifest.dependencies[name] = 'latest';
     if (!manifest.dsh.profile.bundles.includes(name)) {
       manifest.dsh.profile.bundles.push(name);
     }
@@ -45,9 +52,14 @@ export async function verifyFloatingBundles(profileDir, profile, dshVersion) {
   const manifest = await readManifest(profileDir);
   const bundles = manifest.dsh?.profile?.bundles;
   if (!Array.isArray(bundles)) throw new Error(`Profile ${profile} has no bundle list`);
-  for (const name of names) {
-    if (manifest.dependencies?.[name] !== linkSpec(name)) {
+  for (const [name, spec] of Object.entries(runtimeLinks[profile])) {
+    if (manifest.dependencies?.[name] !== spec) {
       throw new Error(`${name} must resolve through the immutable runtime link`);
+    }
+  }
+  for (const name of names) {
+    if (manifest.dependencies?.[name] !== 'latest') {
+      throw new Error(`${name} must remain a latest dist-tag, not a version pin`);
     }
     if (!bundles.includes(name)) throw new Error(`${name} is installed but not enabled as a bundle`);
     const installed = JSON.parse(await readFile(join(profileDir, 'node_modules', name, 'package.json'), 'utf8'));

@@ -3,27 +3,38 @@ name: dsh-maintainer
 description: >
   Use when changing, building, verifying or releasing this DeepSeek Harness
   container distribution. Records the Web/Tavern optional-asset boundary,
-  floating upstream inputs, patch ordering and CI-only image verification.
+  user-removable plugin ownership, floating upstream inputs and CI verification.
 ---
 # DSH distribution maintenance
 
 This is a repository-maintainer skill. Do not move it to `docker/skills/`; that
 directory is seeded into the Web image as user-facing skills.
 
-## Core rules
+## Working policy
 
-- Use GitHub Actions for image builds and final-image smoke. Do not build
-  images locally by default: the local VM and network are limited.
-- Local verification is limited to cheap static checks:
+- If the user asks for an evaluation, report findings first and do not edit.
+- If a change needs a judgment call, present the options and ask the user
+  before proceeding.
+- Prefer GitHub Actions for image builds and final-image smoke. Do not run a
+  local image build unless the user explicitly asks.
+- Local checks are limited to static and behavioral tests:
   `node scripts/verify.mjs` and `node --test test/*.test.mjs`.
-- The authoritative image check is the GitHub Actions matrix:
-  Web and Tavern, each on native amd64 and arm64, followed by
-  `CI checks passed`.
+- The authoritative image check is the GitHub Actions matrix for the changed
+  image inputs, followed by `CI checks passed`.
+- Deploy and compare published image digests, not mutable tags.
+
+## CI gating
+
 - CI keeps the workflow and required static check running for every same-repo
   PR, but skips the four image jobs when only docs, tests, scaffold, deploy
-  examples or non-critical dotfiles changed. `.dockerignore` is an intentional
-  image-input exception.
-- Deploy and compare published image digests, not mutable tags.
+  examples or non-critical dotfiles changed.
+- `.dockerignore` is an intentional image-input exception.
+- Do not replace this with workflow-level `paths-ignore`: that can leave the
+  required `CI checks passed` status missing and block the PR.
+- For image-input changes, the matrix must show Web and Tavern on native amd64
+  and arm64, including the final-image smoke; `ci-pass` must succeed.
+- For docs/test/scaffold/dot-only changes, static verification plus a skipped
+  image matrix is the expected success path.
 
 ## Web and Tavern boundary
 
@@ -42,6 +53,15 @@ directory is seeded into the Web image as user-facing skills.
   build context and must never appear in either image.
 - Do not remove Tavern's own ecosystem packages when tightening this boundary.
 
+## Immutable layout
+
+- Tavern application root: `/opt/apps/dsh-tavern`.
+- Web seed: `/opt/dsh-seed`.
+- Runtime: `/opt/dsh/runtime`.
+- Source archive: `/opt/dsh-source`.
+- Keep `/opt` entries short and explicit; do not add an app-under-apps nested
+  path.
+
 ## Floating optional assets
 
 These upstream inputs are deliberately **not version-pinned** in this
@@ -49,7 +69,7 @@ repository:
 
 | Asset | Source | Resolution |
 | --- | --- | --- |
-| `dsh-context` | npm `latest` | Installed into the immutable Web runtime, linked into the Web profile |
+| `dsh-context` | npm `latest` | Installed as a normal package in the generated Web profile; runtime peers stay immutable links |
 | Caveman skill | `JuliusBrussee/caveman` latest GitHub release tag | Resolve the tag, then fetch into the Web seed; upstream LICENSE and NOTICE retained |
 | RTK | `rtk-ai/rtk` latest release, `rtk-oss-*` only | Verified and installed into the Web image |
 
@@ -63,36 +83,21 @@ Rules:
 - Docker layers may cache old upstream bytes. Use a clean runner or bypass the
   relevant build cache when an explicit refresh is required.
 
-## dsh-context
+## dsh-context ownership
 
-Build order matters:
-
-1. Install the latest package into the immutable runtime.
-2. Re-run the host patch repair.
-3. Link the runtime package into the generated Web profile and add it to
-   `dsh.profile.bundles`.
-4. Verify the installed package still declares `dsh.bundle` and a compatible
-   current DSH release.
-
-`pnpm add` into the runtime can replace the already-patched
-`@deepseek-ai/dsh-plugin-manager`. Always run:
-
-```text
-node /opt/dsh/patches/dsh/patch-host.mjs --repair /opt/dsh/runtime
-```
-
-immediately after the runtime install. Repair skips files that still contain the
-expected patch markers and patches only the replaced files. Never weaken the
-exact upstream hash check to make repair pass.
-
-The profile dependency must be:
-
-```text
-dsh-context -> link:/opt/dsh/runtime/node_modules/dsh-context
-```
-
-This keeps state migration able to restore the link without running pnpm or
-copying a registry tree.
+- Install `dsh-context` from npm `latest` as a normal dependency in the
+  generated Web profile, not in `/opt/dsh/runtime`.
+- Add it to `dsh.profile.bundles`.
+- Keep its `@deepseek-ai/dsh-session` and `@deepseek-ai/schemastery` peers as
+  immutable runtime links.
+- Verify the installed package still declares `dsh.bundle` and a compatible
+  current DSH release.
+- The manager must report `dsh-context` as `availability: profile`,
+  `installed: true`, and `removable: true`.
+- Only `@soulwhisper/dsh-forward-auth` is manager-protected. Do not add plugin
+  installs to the runtime and do not reintroduce `patch-host.mjs --repair` just
+  to support one.
+- Removal by the user is intended and must persist across restarts.
 
 ## Caveman skill
 
@@ -115,24 +120,32 @@ copying a registry tree.
   bundled skill only wraps explicit `rtk <command>` calls, so the engine is not
   required.
 - Verify the release checksum, install the binary at `/usr/local/bin/rtk`, and
-  retain the upstream LICENSE at `/usr/local/share/rtk/LICENSE`.
+  retain the upstream LICENSE at `/usr/local/share/rtk`.
 - Keep the skill manual. Do not add automatic bash rewriting, hooks, or a
   provider-API proxy.
 
+## Post-merge cleanup
+
+After the PR is merged and the user authorizes cleanup:
+
+1. Switch to the released base branch and synchronize:
+   `git switch main`, then `git pull --ff-only`.
+2. Review local branches already merged into `main`.
+3. Delete only local stale branches after review. Do not delete remote branches.
+4. Clean local build images, cached layers and transient artifacts; report what
+   was removed and how much space was reclaimed.
+5. Never delete remote branches, unmerged branches, user data or shared caches
+   without explicit confirmation.
+
 ## Verification checklist
 
-Run locally only:
+Local static checks only:
 
 ```text
 node scripts/verify.mjs
 node --test test/*.test.mjs
 ```
 
-Then push and wait for GitHub Actions. The image matrix must show:
-
-- Web amd64 and arm64: build, native addon, final-image smoke
-- Tavern amd64 and arm64: build, native addon, final-image smoke
-- Required `CI checks passed` gate
-
-Do not claim image/test completion from source inspection alone. Do not run a
-full local image build unless the user explicitly asks for it.
+Then push and use GitHub Actions. Do not claim image/test completion from source
+inspection alone. Do not run a full local image build unless the user explicitly
+asks for it.

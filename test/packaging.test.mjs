@@ -45,7 +45,7 @@ async function fixture(t) {
   return { dir, home, seed, profile: 'web', legacy: join(dir, 'absent-legacy'), runtimeManifest };
 }
 
-test('floating bundles are linked from the runtime and verified before image publication', async t => {
+test('floating bundles stay profile-owned and verified before image publication', async t => {
   const dir = await mkdtemp(join(tmpdir(), 'dsh-floating-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
   await writeFile(join(dir, 'package.json'), JSON.stringify({
@@ -53,8 +53,9 @@ test('floating bundles are linked from the runtime and verified before image pub
   }));
   await addFloatingBundles(dir, 'web');
   const manifest = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8'));
-  assert.equal(manifest.dependencies['dsh-context'], 'link:/opt/dsh/runtime/node_modules/dsh-context');
-  assert.equal(Object.hasOwn(manifest.dependencies, '@deepseek-ai/dsh-session'), false);
+  assert.equal(manifest.dependencies['dsh-context'], 'latest');
+  assert.equal(manifest.dependencies['@deepseek-ai/dsh-session'], 'link:/opt/dsh/runtime/node_modules/@deepseek-ai/dsh-session');
+  assert.equal(manifest.dependencies['@deepseek-ai/schemastery'], 'link:/opt/dsh/runtime/node_modules/@deepseek-ai/schemastery');
   assert.deepEqual(manifest.dsh.profile.bundles, ['dsh-context']);
   await mkdir(join(dir, 'node_modules/dsh-context'), { recursive: true });
   await writeFile(join(dir, 'node_modules/dsh-context/package.json'), JSON.stringify({
@@ -334,7 +335,7 @@ test('theme patch verifies exact package and file hashes', async t => {
 
 test('migration retains Tavern user metadata but updates managed absolute data root', () => {
   const seed = makeManifest();
-  seed.dshTavern = { source: '/opt/dsh-tavern/apps/dsh-tavern', dataRoot: '/data/dsh/profile-data/tavern/data', managedBundles: base };
+  seed.dshTavern = { source: '/opt/apps/dsh-tavern', dataRoot: '/data/dsh/profile-data/tavern/data', managedBundles: base };
   const result = mergeManifest({ dshTavern: { userPreference: 42, dataRoot: '/home/node/.dsh/profile-data/tavern/data' }, dependencies: { 'some-user-package': '3.0.0', '@deepseek-ai/user-added-optional-bundle': '0.2.1-rc.2' } }, seed, '/custom/dsh', 'tavern');
   assert.equal(result.dshTavern.userPreference, 42);
   assert.equal(result.dshTavern.dataRoot, '/custom/dsh/profile-data/tavern/data');

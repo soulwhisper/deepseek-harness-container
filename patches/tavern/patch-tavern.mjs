@@ -30,7 +30,7 @@ export function patchRoutes(text, expectedHash) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const source = '/opt/dsh-tavern/apps/dsh-tavern';
+  const source = '/opt/apps/dsh-tavern';
   const versions = JSON.parse(await readFile(new URL('../../versions.json', import.meta.url), 'utf8'));
   const file = join(source, 'tavern-plugin/lib/http/routes.js');
   const theme = '/opt/dsh/runtime/node_modules/@deepseek-ai/dsh-client-ui-theme';

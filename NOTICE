@@ -78,7 +78,7 @@ SOFTWARE.
 DSH Tavern v3.0 is AGPL-3.0-only, NOT Apache-2.0 or MIT.
 Source: https://github.com/flizzywine/dsh-tavern/tree/7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d
 Its original complete LICENSE and source remain at
-/opt/dsh-tavern/apps/dsh-tavern in the tavern image.
+/opt/apps/dsh-tavern in the tavern image.
 Container-specific modifications: pinned-source custom workspace build,
 pruned profile installation, stable absolute links and the recorded Tavern
 patches. The modifications and build recipe are present in this repository

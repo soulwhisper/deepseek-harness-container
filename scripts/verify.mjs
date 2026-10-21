@@ -94,10 +94,12 @@ assert.doesNotMatch(dockerfile, /DSH_BUNDLED_SKILL_DIR/u, 'Bundled skills are no
 assert.doesNotMatch(dockerfile, /COPY docker\/skills\/ \/opt\/dsh\/skills\//u, 'Skills must not be mounted as immutable runtime content');
 assert.doesNotMatch(dockerfile, /scripts\/smoke\.mjs|test\/|deploy\/|\.github\//u,
   'Test, smoke, deploy and CI inputs must not be copied into images');
-assert.match(dockerfile, /dsh-context@latest/u, 'Web runtime resolves dsh-context from npm latest');
-assert.match(dockerfile, /floating-bundles\.mjs add web/u, 'Web build links and enables the floating dsh-context bundle');
+assert.doesNotMatch(dockerfile, /pnpm --dir \/opt\/dsh\/runtime add dsh-context/u,
+  'dsh-context must not be installed into the immutable runtime');
+assert.doesNotMatch(dockerfile, /patch-host\.mjs --repair/u, 'Runtime plugin installs must not require patch repair');
+assert.match(dockerfile, /floating-bundles\.mjs add web/u, 'Web build adds the profile-owned dsh-context bundle');
 assert.match(dockerfile, /pnpm --dir \/opt\/dsh-seed\/profiles\/web install --no-frozen-lockfile/u,
-  'The floating dsh-context link gets a generated profile lock, not a stale committed pin');
+  'The profile-owned dsh-context gets a generated profile lock, not a stale committed pin');
 assert.match(dockerfile, /JuliusBrussee\/caveman\/releases\/latest/u, 'Caveman skill resolves the latest release tag');
 assert.match(dockerfile, /skills\/caveman\/SKILL\.md/u, 'Caveman skill is fetched from the resolved release');
 assert.doesNotMatch(dockerfile, /caveman\/main\//u, 'Caveman skill must not follow the moving main branch');
@@ -114,7 +116,8 @@ assert.doesNotMatch(JSON.stringify(versions), /dsh-context|caveman|rtk/iu,
   'Floating assets are not version-pinned in versions.json');
 assert.deepEqual([...floatingBundles.web], ['dsh-context'], 'Only dsh-context is a floating web bundle');
 const floatingText = await text('scripts/floating-bundles.mjs');
-assert.match(floatingText, /link:\$\{runtime\}/u, 'The floating package is linked from the immutable runtime');
+assert.match(floatingText, /runtimeLinks/u, 'dsh-context runtime peers stay immutable links');
+assert.match(floatingText, /manifest\.dependencies\[name\] = 'latest'/u, 'dsh-context remains a latest profile package');
 assert.match(floatingText, /dsh\.bundle/u, 'Build verification rejects an upstream package without a bundle patch');
 const ignore = await text('.gitignore');
 assert.match(ignore, /^handoff-\*\.md$/mu, 'Handoff files are ignored');

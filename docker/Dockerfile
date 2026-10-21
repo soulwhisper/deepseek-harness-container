@@ -57,7 +57,7 @@ COPY docker/profiles/tavern/pnpm-workspace.yaml /opt/dsh/profiles/tavern/pnpm-wo
 COPY docker/profiles/distribution.patch.yml /opt/dsh/profiles/distribution.patch.yml
 FROM runtime-build AS tavern-source
 COPY patches/tavern /opt/dsh/patches/tavern
-WORKDIR /opt/dsh-tavern/apps/dsh-tavern
+WORKDIR /opt/apps/dsh-tavern
 RUN git init . \
     && git remote add origin https://github.com/flizzywine/dsh-tavern.git \
     && git fetch --depth=1 origin 7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d \
@@ -155,12 +155,9 @@ RUN set -eux; \
     rtk --version
 
 # dsh-context is a floating optional Web plugin, not a pinned runtime input.
-# Install it into the immutable runtime from npm latest, then link it into the
-# profile. Keeping it out of the writable profile lets state migration restore
-# the link without running pnpm or copying a registry tree.
-RUN pnpm --dir /opt/dsh/runtime add dsh-context@latest --prod --ignore-scripts \
-      --config.auto-install-peers=false \
-    && node /opt/dsh/patches/dsh/patch-host.mjs --repair /opt/dsh/runtime
+# It is installed as a normal package in the writable Web profile, so the
+# plugin manager owns it and users may remove it. Only forward-auth is
+# manager-protected. Host/manager patches are never rewritten by this install.
 RUN DSH_BUILD_PROFILE=web node /opt/dsh/scripts/materialize-profiles.mjs \
     && cp /opt/dsh/profiles/web/pnpm-lock.yaml /opt/dsh-seed/profiles/web/pnpm-lock.yaml \
     && node /opt/dsh/scripts/floating-bundles.mjs add web /opt/dsh-seed/profiles/web \
@@ -182,7 +179,7 @@ RUN DSH_BUILD_PROFILE=tavern node /opt/dsh/scripts/materialize-profiles.mjs \
     && node /opt/dsh/scripts/finalize-profile.mjs /opt/dsh-seed/profiles/tavern
 COPY --from=distribution-source / /opt/dsh-source/distribution
 RUN tar --exclude=.git --exclude=node_modules -czf /opt/dsh-source/tavern.tar.gz \
-      -C /opt/dsh-source distribution -C /opt/dsh-tavern/apps dsh-tavern \
+      -C /opt/dsh-source distribution -C /opt/apps dsh-tavern \
     && rm -rf /opt/dsh-source/distribution
 
 FROM tools AS application
@@ -232,7 +229,7 @@ ENV DSH_PROFILE=tavern \
 COPY --from=tavern-build /opt/dsh /opt/dsh
 COPY --from=tavern-build /opt/dsh-seed /opt/dsh-seed
 # Full upstream source, lock, patches, client assets and LICENSE are retained.
-COPY --from=tavern-build /opt/dsh-tavern /opt/dsh-tavern
+COPY --from=tavern-build /opt/apps/dsh-tavern /opt/apps/dsh-tavern
 COPY --from=tavern-build /opt/dsh-source /opt/dsh-source
 RUN test "${#IMAGE_REVISION}" -eq 40 && test -z "$(printf '%s' "$IMAGE_REVISION" | tr -d '0-9a-f')"
 LABEL org.opencontainers.image.title="DeepSeek Harness Tavern with forward-auth" \

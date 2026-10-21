@@ -7,7 +7,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const versions = JSON.parse(await readFile(join(root, 'versions.json'), 'utf8'));
 const seed = process.env.DSH_SEED_DIR ?? '/opt/dsh-seed';
 const runtime = '/opt/dsh/runtime';
-const source = '/opt/dsh-tavern/apps/dsh-tavern';
+const source = '/opt/apps/dsh-tavern';
 const YAML = createRequire(join(runtime, 'package.json'))('yaml');
 const base = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@soulwhisper/dsh-forward-auth'];
 const link = name => `link:${runtime}/node_modules/${name}`;

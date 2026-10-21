@@ -15,7 +15,7 @@ filesystem, and a native DSH listener on port `3080`. They are built natively fo
 `linux/amd64` and `linux/arm64`; there is no QEMU path.
 
 The Tavern image additionally retains the complete modified Tavern source at
-`/opt/dsh-tavern` and an authenticated corresponding-source archive at
+`/opt/apps/dsh-tavern` and an authenticated corresponding-source archive at
 `/opt/dsh-source/tavern.tar.gz`. The archive contains Tavern source plus the
 distribution build inputs, not installed dependencies or user data. See
 [Corresponding source](source-build.md).
@@ -72,7 +72,7 @@ documentation trees are not copied into either image.
 
 | Area | Examples | Nature |
 | --- | --- | --- |
-| Immutable image | `/opt/dsh/runtime`, `/opt/dsh-seed`, `/opt/dsh/profiles`, `/opt/dsh-tavern`, `/opt/dsh-source` | Read-only, replaced by image |
+| Immutable image | `/opt/dsh/runtime`, `/opt/dsh-seed`, `/opt/dsh/profiles`, `/opt/apps/dsh-tavern`, `/opt/dsh-source` | Read-only, replaced by image |
 | Durable DSH state | `/data/dsh` profiles, sessions, storages, attachments, credentials | Back up encrypted |
 | Durable home | `/data/home` HOME, XDG config/data, pnpm home | Back up |
 | Durable projects | `/workspace` | Back up consistently with DSH state |

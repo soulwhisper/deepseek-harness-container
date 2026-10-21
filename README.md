@@ -21,11 +21,13 @@ images contain no Chromium, GUI, X11, VNC, local password database, OIDC client
 or replacement mux server.
 
 The Web image seeds the optional Caveman and RTK skills, installs the RTK OSS
-binary and bundles `dsh-context`. Tavern intentionally includes none of these
-optional assets. The three upstream inputs are resolved at Web image-build time
-from their latest upstream state; they are not version-pinned or tracked by
-Renovate, so deploy the published digest rather than expecting a reproducible
-rebuild from `latest`. See [build](docs/build.md#floating-optional-assets).
+binary and seeds `dsh-context` in the removable Web profile. Tavern
+intentionally includes none of these optional assets. Only the forward-auth
+bundle is manager-protected. The three upstream inputs are resolved at Web
+image-build time from their latest upstream state; they are not pinned or
+tracked by Renovate, so deploy the published digest rather than expecting a
+reproducible rebuild from `latest`. See
+[build](docs/build.md#floating-optional-assets).
 
 ## Documentation
 
@@ -114,7 +116,7 @@ Tavern. Compose and Kubernetes examples are in
 | `/logs` | DSH startup diagnostics; `$DSH_HOME/logs` is a symlink here. Sensitive, non-authoritative. |
 | `/backups` | Local migration rollback copy under `DSH_BACKUP_ROOT`; not an independent backup. |
 | `/tmp` | Per-container tmpfs scratch; may be `noexec`. |
-| `/opt/dsh`, `/opt/dsh-seed`, `/opt/dsh-tavern`, `/opt/dsh-source` | Immutable image content. |
+| `/opt/dsh`, `/opt/dsh-seed`, `/opt/apps/dsh-tavern`, `/opt/dsh-source` | Immutable image content. |
 
 Do not place cache, logs, rollback copies or scratch inside `/data`; the
 entrypoint moves legacy `cache`/`logs` directories once and excludes them from

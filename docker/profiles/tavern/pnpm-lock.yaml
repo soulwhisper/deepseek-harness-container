@@ -332,8 +332,8 @@ importers:
         specifier: 0.28.0
         version: 0.28.0(patch_hash=4f54fe004a0c388c920fb4827618d7795673580b54a583675b959a2b3fa7fac6)
       dsh-dream-skin:
-        specifier: link:/opt/dsh-tavern/apps/dsh-tavern/tavern-plugin/packages/dsh-dream-skin
-        version: link:/opt/dsh-tavern/apps/dsh-tavern/tavern-plugin/packages/dsh-dream-skin
+        specifier: link:/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-dream-skin
+        version: link:/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-dream-skin
       dsh-tavern-comfy:
         specifier: github:weixinlll/dsh-tavern-image#v2.9.0
         version: https://codeload.github.com/weixinlll/dsh-tavern-image/tar.gz/9200ae00f5792c08dd694cf910e70847e95a8f3a
@@ -341,11 +341,11 @@ importers:
         specifier: github:dearacknowl/dsh-tavern-knock-knock#v0.7.1
         version: https://codeload.github.com/dearacknowl/dsh-tavern-knock-knock/tar.gz/c05699d741caf7fd330856df0b877a6f0a5626d8
       dsh-tavern-plugin:
-        specifier: link:/opt/dsh-tavern/apps/dsh-tavern/tavern-plugin
-        version: link:/opt/dsh-tavern/apps/dsh-tavern/tavern-plugin
+        specifier: link:/opt/apps/dsh-tavern/tavern-plugin
+        version: link:/opt/apps/dsh-tavern/tavern-plugin
       dsh-tavern-remote:
-        specifier: link:/opt/dsh-tavern/apps/dsh-tavern/tavern-plugin/packages/dsh-tavern-remote
-        version: link:/opt/dsh-tavern/apps/dsh-tavern/tavern-plugin/packages/dsh-tavern-remote
+        specifier: link:/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-tavern-remote
+        version: link:/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-tavern-remote
       dsh-tavern-wrongbook:
         specifier: github:XGUIMAX/dsh-tavern-wrongbook#v1.33.0
         version: https://codeload.github.com/XGUIMAX/dsh-tavern-wrongbook/tar.gz/13cfdb032aa47eb6288960c80e6ebd26a66e5c3a

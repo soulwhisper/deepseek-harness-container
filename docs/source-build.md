@@ -32,7 +32,7 @@ The archive does **not** contain user state, credentials, `/workspace`, installe
 `node_modules`, Git object databases, test/smoke harnesses, deploy examples, CI
 workflows, general documentation, the repository `.agents/` maintainer skill or
 the Web-only `docker/skills/` source payload. The image retains the Tavern
-checkout at `/opt/dsh-tavern/apps/dsh-tavern` and the distribution inputs at
+checkout at `/opt/apps/dsh-tavern` and the distribution inputs at
 `/opt/dsh/distribution-source`; the authenticated route is
 `/distribution/source.tar.gz` and `DSH_SOURCE_URL` identifies the distribution
 commit.
@@ -68,7 +68,7 @@ redownloading the Tavern Git tree:
 2. Copy `dsh-tavern/` into `distribution/local-tavern-source/`.
 3. In the `tavern-source` stage, replace the Git init/fetch/checkout and
    `patch-tavern.mjs` invocation with a `COPY local-tavern-source/
-   /opt/dsh-tavern/apps/dsh-tavern/` step. The route file is already patched, so
+   /opt/apps/dsh-tavern/` step. The route file is already patched, so
    do not apply the route patch twice.
 4. Apply the theme-font-limit helper exactly as invoked at the bottom of
    `distribution/patches/tavern/patch-tavern.mjs`; the route file is already

@@ -109,23 +109,24 @@ image-build time and are tracked only by the published image digest:
 
 | Asset | Source | Build behavior |
 | --- | --- | --- |
-| `dsh-context` | npm `latest` dist-tag | **Web only.** Installed into the immutable Web runtime, then linked into the Web seed profile; its `dsh.bundle` and current-DSH compatibility declaration are verified before the image is published |
+| `dsh-context` | npm `latest` dist-tag | **Web only.** Installed as a normal package in the Web seed profile, so the manager owns it and users may remove it; its `dsh.bundle` and current-DSH compatibility declaration are verified before the image is published |
 | Caveman skill | `JuliusBrussee/caveman` latest GitHub release tag, `skills/caveman/SKILL.md` | **Web only.** The tag is resolved at build time, then fetched into `/opt/dsh-seed/skills/caveman`; the upstream `LICENSE` and a `SOURCE` record are included. The moving `main` branch is not used |
 | RTK binary | `rtk-ai/rtk` latest release, **`rtk-oss-*` Apache-2.0 edition** | **Web only.** Checksum-verified and installed at `/usr/local/bin/rtk`; the normal BUSL-1.1 asset is never used |
 
-The Web build installs `dsh-context` into the immutable runtime from npm
-`latest`, then adds an immutable `link:` dependency and bundle entry to the
-generated profile. It leaves the committed profile lock unchanged and
-regenerates the in-image lock with `--no-frozen-lockfile`; state migration can
-restore the link without running pnpm or copying a registry tree. Because a
-runtime install can replace the patched manager package, the build immediately
-runs `patch-host.mjs --repair` to restore any missing forward-auth patch while
-leaving already patched host/app-boot files untouched. A moved skill
-path, changed package identity, missing release asset, absent `dsh.bundle` or
-unsupported current-DSH declaration fails the build; it does not silently ship
-stale content. This is a deliberate upstream-tracking tradeoff: reproducing the
-*exact* optional bytes requires the same upstream state or the published
-digest, not just the repository commit.
+The Web build installs `dsh-context` from npm `latest` as a normal dependency
+in the generated Web profile (`/opt/dsh-seed/profiles/web`), with immutable
+runtime peer links for `@deepseek-ai/dsh-session` and
+`@deepseek-ai/schemastery`. It leaves the committed profile lock unchanged and
+regenerates the in-image lock with `--no-frozen-lockfile`. The package is never
+installed into `/opt/dsh/runtime`, so host/manager patches are not rewritten and
+no repair step is needed. On first seed it is copied to
+`/data/dsh/profiles/web`, where the plugin manager owns it; users may remove it
+like any market-installed package. Only `@soulwhisper/dsh-forward-auth` remains
+manager-protected. A moved skill path, changed package identity, missing
+release asset, absent `dsh.bundle` or unsupported current-DSH declaration fails
+the build; it does not silently ship stale content. This is a deliberate
+upstream-tracking tradeoff: reproducing the *exact* optional bytes requires the
+same upstream state or the published digest, not just the repository commit.
 
 The RTK skill is maintained under `docker/skills/rtk/SKILL.md`. It tells the
 model when the proxy is appropriate and when to run the raw command. Neither

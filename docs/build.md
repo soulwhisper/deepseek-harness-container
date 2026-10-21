@@ -110,7 +110,7 @@ image-build time and are tracked only by the published image digest:
 | Asset | Source | Build behavior |
 | --- | --- | --- |
 | `dsh-context` | npm `latest` dist-tag | **Web only.** Installed into the immutable Web runtime, then linked into the Web seed profile; its `dsh.bundle` and current-DSH compatibility declaration are verified before the image is published |
-| Caveman skill | `JuliusBrussee/caveman` `main` branch, `skills/caveman/SKILL.md` | **Web only.** Fetched into `/opt/dsh-seed/skills/caveman`; the upstream `LICENSE` and a `SOURCE` record are included |
+| Caveman skill | `JuliusBrussee/caveman` latest GitHub release tag, `skills/caveman/SKILL.md` | **Web only.** The tag is resolved at build time, then fetched into `/opt/dsh-seed/skills/caveman`; the upstream `LICENSE` and a `SOURCE` record are included. The moving `main` branch is not used |
 | RTK binary | `rtk-ai/rtk` latest release, **`rtk-oss-*` Apache-2.0 edition** | **Web only.** Checksum-verified and installed at `/usr/local/bin/rtk`; the normal BUSL-1.1 asset is never used |
 
 The Web build installs `dsh-context` into the immutable runtime from npm

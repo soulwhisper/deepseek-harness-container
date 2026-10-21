@@ -50,7 +50,7 @@ repository:
 | Asset | Source | Resolution |
 | --- | --- | --- |
 | `dsh-context` | npm `latest` | Installed into the immutable Web runtime, linked into the Web profile |
-| Caveman skill | `JuliusBrussee/caveman` `main` | Fetched into the Web seed; upstream LICENSE and NOTICE retained |
+| Caveman skill | `JuliusBrussee/caveman` latest GitHub release tag | Resolve the tag, then fetch into the Web seed; upstream LICENSE and NOTICE retained |
 | RTK | `rtk-ai/rtk` latest release, `rtk-oss-*` only | Verified and installed into the Web image |
 
 Rules:
@@ -96,8 +96,10 @@ copying a registry tree.
 
 ## Caveman skill
 
-- Fetch `skills/caveman/SKILL.md` from upstream `main`.
-- Fetch and retain its `LICENSE` and `NOTICE`.
+- Resolve the latest GitHub **release tag**; do not follow the moving `main`
+  branch.
+- Fetch `skills/caveman/SKILL.md` at that tag.
+- Fetch and retain the tag's `LICENSE` and `NOTICE`.
 - Validate the frontmatter name before accepting the file.
 - It is a skill only; do not install the full Caveman CLI, hooks or companion
   binaries.

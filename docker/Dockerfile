@@ -94,18 +94,22 @@ COPY docker/skills/ /opt/dsh-seed/skills/
 # silently shipping stale content.
 RUN set -eux; \
     mkdir -p /opt/dsh-seed/skills/caveman /usr/local/share/rtk; \
+    caveman_tag="$(curl -fsSIL -o /dev/null -w '%{url_effective}' https://github.com/JuliusBrussee/caveman/releases/latest | sed -n 's#.*/tag/##p')"; \
+    test -n "$caveman_tag"; \
+    caveman_base="https://raw.githubusercontent.com/JuliusBrussee/caveman/${caveman_tag}"; \
     curl --fail --show-error --silent --location --retry 3 --retry-delay 2 \
-      https://raw.githubusercontent.com/JuliusBrussee/caveman/main/skills/caveman/SKILL.md \
+      "${caveman_base}/skills/caveman/SKILL.md" \
       -o /opt/dsh-seed/skills/caveman/SKILL.md; \
     curl --fail --show-error --silent --location --retry 3 --retry-delay 2 \
-      https://raw.githubusercontent.com/JuliusBrussee/caveman/main/LICENSE \
+      "${caveman_base}/LICENSE" \
       -o /opt/dsh-seed/skills/caveman/LICENSE; \
     curl --fail --show-error --silent --location --retry 3 --retry-delay 2 \
-      https://raw.githubusercontent.com/JuliusBrussee/caveman/main/NOTICE \
+      "${caveman_base}/NOTICE" \
       -o /opt/dsh-seed/skills/caveman/NOTICE; \
     grep -q '^name: caveman$' /opt/dsh-seed/skills/caveman/SKILL.md; \
     printf '%s\n' \
-      'Fetched at image build from https://github.com/JuliusBrussee/caveman' \
+      "Fetched at image build from https://github.com/JuliusBrussee/caveman/releases/tag/${caveman_tag}" \
+      "Resolved release: ${caveman_tag}" \
       'Path: skills/caveman/SKILL.md' \
       'Floating: no commit or version pin is tracked in this repository.' \
       > /opt/dsh-seed/skills/caveman/SOURCE

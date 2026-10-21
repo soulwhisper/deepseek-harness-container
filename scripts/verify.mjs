@@ -98,7 +98,9 @@ assert.match(dockerfile, /dsh-context@latest/u, 'Web runtime resolves dsh-contex
 assert.match(dockerfile, /floating-bundles\.mjs add web/u, 'Web build links and enables the floating dsh-context bundle');
 assert.match(dockerfile, /pnpm --dir \/opt\/dsh-seed\/profiles\/web install --no-frozen-lockfile/u,
   'The floating dsh-context link gets a generated profile lock, not a stale committed pin');
-assert.match(dockerfile, /caveman\/main\/skills\/caveman\/SKILL\.md/u, 'Caveman skill is fetched from upstream latest');
+assert.match(dockerfile, /JuliusBrussee\/caveman\/releases\/latest/u, 'Caveman skill resolves the latest release tag');
+assert.match(dockerfile, /skills\/caveman\/SKILL\.md/u, 'Caveman skill is fetched from the resolved release');
+assert.doesNotMatch(dockerfile, /caveman\/main\//u, 'Caveman skill must not follow the moving main branch');
 assert.match(dockerfile, /rtk-oss-/u, 'Only the Apache-2.0 RTK OSS asset may be bundled');
 assert.equal((dockerfile.match(/COPY docker\/skills\/ \/opt\/dsh-seed\/skills\//gu) ?? []).length, 1,
   'Only one final stage may receive the optional skill seed');

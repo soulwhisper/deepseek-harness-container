@@ -109,6 +109,17 @@ jobs:
             test -d "$p"
             find "$p" -maxdepth 3 -type f | sort
             node -e "require(process.argv[1])" "$p"
+            node -e "
+              const loader = require('/opt/dsh/docker/runtime/node_modules/node-addon-native-custom-loader');
+              try {
+                loader.createEntryApi('/opt/dsh/docker/runtime/node_modules/node-addon-require-builtin');
+                console.log('entry api ok');
+              } catch (error) {
+                console.error(error.message);
+                console.error(JSON.stringify(error.attempts ?? null));
+                process.exit(1);
+              }
+            "
           '
 
       - name: Run final-image smoke (${{ matrix.arch }})

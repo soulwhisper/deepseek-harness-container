@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 2,
+  "distribution": "0.2.1-rc.2-r1",
+  "registry": "ghcr.io/soulwhisper",
+  "release": {
+    "web": {
+      "tag": "web-0.2.1-rc.2",
+      "image": "dsh-web"
+    },
+    "tavern": {
+      "tag": "tavern-v3.0",
+      "image": "dsh-tavern"
+    }
+  },
+  "node": {
+    "version": "24.22.0",
+    "image": "node:24.22.0-trixie-slim@sha256:7f486cabe892bff8fef04c0f7da8dba84a560be3e4e2740b7a86afc57ebec315",
+    "metadata": "https://registry-1.docker.io/v2/library/node/manifests/24.22.0-trixie-slim"
+  },
+  "pnpm": "11.25.0",
+  "dsh": {
+    "version": "0.2.1-rc.2",
+    "commit": "687f282e8625c6b8d11ff58211a90524be2e4317"
+  },
+  "market": "1.66.44",
+  "tavern": {
+    "repository": "https://github.com/flizzywine/dsh-tavern.git",
+    "version": "v3.0",
+    "commit": "7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d",
+    "routesSha256": "91c78c5d8d3e19dc2084c2b3241ef7e0bdf761107f6c034c35a359201e8431f7"
+  },
+  "ecosystem": {
+    "dsh-tavern-wrongbook": "github:XGUIMAX/dsh-tavern-wrongbook#v1.33.0",
+    "dsh-tavern-comfy": "github:weixinlll/dsh-tavern-image#v2.9.0",
+    "dsh-tavern-knock-knock": "github:dearacknowl/dsh-tavern-knock-knock#v0.7.1",
+    "narrative-anchor": "github:ActivityTime/narrative-anchor#2ee3da047e5fd6056aef361744655be99b4f7713"
+  }
+}

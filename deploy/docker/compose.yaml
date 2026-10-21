@@ -1,0 +1,68 @@
+# Application-side example only. The verified edge performs OIDC/MFA,
+# strips client x-authentik-* headers and sets exactly one verified UID.
+# This file publishes no host port and does not configure the edge.
+name: dsh
+
+services:
+  web:
+    image: ${DSH_WEB_IMAGE:-ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2}
+    container_name: dsh-web
+    restart: unless-stopped
+    user: "1000:1000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 512
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,mode=1777,size=256m
+    volumes:
+      - dsh-web-data:/data
+      - dsh-web-workspace:/workspace
+    environment:
+      DSH_HOST: ${DSH_WEB_IP:-172.30.80.3}
+      DSH_PORT: "3080"
+      DSH_PUBLIC_URL: ${DSH_PUBLIC_URL:-}
+      DSH_TRUSTED_HOSTS: ${DSH_TRUSTED_HOST:-}
+      DSH_SSO_ALLOWED_UIDS: ${DSH_SSO_ALLOWED_UIDS:-}
+      DSH_SSO_TRUSTED_PROXY_CIDRS: ${DSH_SSO_TRUSTED_PROXY_CIDRS:-}
+      DSH_SSO_MAX_CONNECTION_SECONDS: "${DSH_SSO_MAX_CONNECTION_SECONDS:-900}"
+    networks:
+      dsh-private:
+        ipv4_address: ${DSH_WEB_IP:-172.30.80.3}
+
+  tavern:
+    profiles: [tavern]
+    image: ${DSH_TAVERN_IMAGE:-ghcr.io/soulwhisper/dsh-tavern:v3.0}
+    container_name: dsh-tavern
+    restart: unless-stopped
+    user: "1000:1000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 512
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,mode=1777,size=256m
+    volumes:
+      - dsh-tavern-data:/data
+      - dsh-tavern-workspace:/workspace
+    environment:
+      DSH_HOST: ${DSH_TAVERN_IP:-172.30.80.4}
+      DSH_PORT: "3080"
+      DSH_PUBLIC_URL: ${DSH_TAVERN_PUBLIC_URL:-}
+      DSH_TRUSTED_HOSTS: ${DSH_TAVERN_TRUSTED_HOST:-}
+      DSH_SSO_ALLOWED_UIDS: ${DSH_TAVERN_SSO_ALLOWED_UIDS:-}
+      DSH_SSO_TRUSTED_PROXY_CIDRS: ${DSH_TAVERN_SSO_TRUSTED_PROXY_CIDRS:-}
+      DSH_SSO_MAX_CONNECTION_SECONDS: "${DSH_TAVERN_SSO_MAX_CONNECTION_SECONDS:-900}"
+    networks:
+      dsh-private:
+        ipv4_address: ${DSH_TAVERN_IP:-172.30.80.4}
+
+networks:
+  dsh-private:
+    external: true
+
+volumes:
+  dsh-web-data:
+  dsh-web-workspace:
+  dsh-tavern-data:
+  dsh-tavern-workspace:

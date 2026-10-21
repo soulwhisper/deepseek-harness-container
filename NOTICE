@@ -1,0 +1,79 @@
+DeepSeek Harness Container
+https://github.com/soulwhisper/deepseek-harness-container
+
+Original distribution packaging, CI, documentation and @soulwhisper/dsh-sso
+are licensed under Apache License 2.0; see the unchanged root LICENSE.
+This notice does not relicense upstream software or its dependencies.
+
+Bundled upstream components retain their own licenses and copyright notices.
+The complete installed dependency trees retain their packaged license files.
+The OCI SBOM is an inventory, not a substitute for those licenses.
+
+DeepSeek Harness 0.2.1-rc.2
+Source: https://github.com/deepseek-ai/deepseek-harness/tree/687f282e8625c6b8d11ff58211a90524be2e4317
+MIT License
+Copyright (c) 2026 DeepSeek
+The distribution applies an exact-hash host-webserver pre-dispatch gate and
+plugin-manager policy patch; these changes are not upstream endorsements.
+plugins/sso/upstream-MIT-LICENSE preserves the upstream license text.
+
+DSH Market 1.66.44
+Source: https://github.com/dsh-market/dsh-market/tree/29dcbd78290be89d83771e3734b128be110645c5
+MIT License
+Copyright (c) 2026 fkysly and dsh-market contributors
+
+Tavern ecosystem (tavern image only)
+dsh-tavern-wrongbook v1.33.0 — MIT License
+Copyright (c) 2026 XGUIMAX
+https://github.com/XGUIMAX/dsh-tavern-wrongbook/tree/v1.33.0
+
+dsh-tavern-image v2.9.0 (package dsh-tavern-comfy) — MIT License
+Copyright (c) 2026 dsh-tavern-image contributors
+https://github.com/weixinlll/dsh-tavern-image/tree/v2.9.0
+
+dsh-tavern-knock-knock v0.7.1 — MIT License
+Copyright (c) 2026 Knock Knock contributors
+https://github.com/dearacknowl/dsh-tavern-knock-knock/tree/v0.7.1
+
+narrative-anchor — MIT License
+Copyright (c) 2026 narrative-anchor contributors
+https://github.com/ActivityTime/narrative-anchor/tree/2ee3da047e5fd6056aef361744655be99b4f7713
+
+MIT permission and warranty notice applicable to the MIT components above:
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+DSH Tavern v3.0 is AGPL-3.0-only, NOT Apache-2.0 or MIT.
+Source: https://github.com/flizzywine/dsh-tavern/tree/7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d
+Its original complete LICENSE and source remain at
+/opt/dsh-tavern/apps/dsh-tavern in the tavern image.
+Container-specific modifications: pinned-source custom workspace build,
+pruned profile installation, stable absolute links and the recorded Tavern
+patches. The modifications and build recipe are present in this repository
+and in /opt/dsh/distribution-source. See docker/profiles/tavern/SOURCE-BUILD.txt.
+The complete modified Tavern source plus distribution build inputs, excluding
+.git and installed node_modules, is /opt/dsh-source/tavern.tar.gz. Authenticated
+users can download it at /distribution/source.tar.gz from the Tavern UI source
+link. Keep this source offer accessible to the users of your deployed Tavern;
+redistributors and operators must satisfy the applicable AGPL obligations.
+
+This project is an independent community distribution, not an official image
+or an endorsement by DeepSeek, Authentik, Tavern or plugin maintainers.
+README organization was inspired by runzhliu/deepseek-harness-docker and other
+community distributions; no desktop/browser/noVNC implementation is included.

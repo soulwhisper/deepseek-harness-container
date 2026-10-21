@@ -1,0 +1,10 @@
+packages:
+  - .
+nodeLinker: hoisted
+storeDir: /data/cache/pnpm/store
+autoInstallPeers: false
+confirmModulesPurge: false
+ignorePnpmfile: true
+minimumReleaseAge: 0
+allowBuilds:
+  node-pty: false

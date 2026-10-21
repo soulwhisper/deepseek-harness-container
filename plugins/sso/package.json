@@ -1,0 +1,14 @@
+{
+  "name": "@soulwhisper/dsh-sso",
+  "version": "0.1.0",
+  "description": "Required trusted-proxy identity gate for the self-packaged DSH Host",
+  "type": "module",
+  "license": "Apache-2.0",
+  "main": "index.mjs",
+  "exports": { ".": "./index.mjs", "./cordis.patch.yml": "./cordis.patch.yml", "./package.json": "./package.json" },
+  "files": ["*.mjs", "*.yml", "LICENSE", "NOTICE", "upstream-MIT-LICENSE"],
+  "dsh": { "bundle": { "patch": ["./cordis.patch.yml"] } },
+  "dependencies": { "ipaddr.js": "2.5.0" },
+  "peerDependencies": { "@deepseek-ai/cordis": "~4.0.5", "@deepseek-ai/dsh-host-webserver": "0.2.1-rc.2", "@deepseek-ai/dsh-client-connection": "0.2.1-rc.2" },
+  "engines": { "node": ">=24" }
+}

@@ -1,0 +1,7 @@
+- id: web-runtime
+  name: '@deepseek-ai/dsh-web-app'
+  config:
+    openBrowser: false
+    printUrl: false
+    publicUrl: !!js ctx.webStartup.publicUrl
+    surfaceContext: true

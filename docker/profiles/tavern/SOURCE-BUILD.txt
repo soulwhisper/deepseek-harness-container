@@ -1,0 +1,46 @@
+Corresponding source for the Tavern image
+
+The source archive contains:
+- dsh-tavern/: complete flizzywine/dsh-tavern source at
+  7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d, including its AGPL license,
+  upstream pnpm lock, checked-in client output and source, and the modified
+  tavern-plugin/lib/http/routes.js public-Origin guard.
+- distribution/: this distribution's docker/Dockerfile, pinned versions,
+  docker/runtime manifest and lock, docker/profile locks, local plugins/sso,
+  exact-hash patches, source materializer, lifecycle migration and build
+  helper scripts.
+
+No user state, credentials, workspace, node_modules, or Git object database is
+part of the archive. The image also keeps the source checkout at
+/opt/dsh-tavern/apps/dsh-tavern and the distribution at
+/opt/dsh/distribution-source. The authenticated source endpoint is
+/distribution/source.tar.gz; DSH_SOURCE_URL identifies the distribution commit.
+
+Reproduce the original image using the distribution commit recorded by
+DSH_SOURCE_URL (run from that distribution checkout):
+  docker buildx build -f docker/Dockerfile --target tavern --build-arg IMAGE_REVISION=<that-40-hex-commit> .
+The Dockerfile verifies the upstream Git commit, installs all committed locks
+with pnpm 11.25.0, applies the hash-pinned patch, retains the full linked source,
+and builds the source archive. It does not download browsers or a desktop.
+
+Rebuild from the already-modified source supplied in this archive without
+redownloading the Tavern Git tree: use distribution/ as the Docker context;
+copy dsh-tavern/ into distribution/local-tavern-source/; in the tavern-source
+stage replace the git init/fetch/checkout/remove and patch-tavern invocation
+with COPY local-tavern-source/ /opt/dsh-tavern/apps/dsh-tavern/. The route file
+is already patched. Apply the theme-font-limit helper exactly as invoked at
+the bottom of distribution/patches/tavern/patch-tavern.mjs, then retain every later
+stage unchanged. The frozen source install and profile locks are unchanged.
+
+For deliberate dependency changes, regenerate the runtime lock with Node24:
+  pnpm --dir docker/runtime install --lockfile-only --ignore-scripts
+Then regenerate profile locks from the exact in-image absolute source paths:
+  docker buildx build -f docker/Dockerfile --target profile-locks --output type=local,dest=. .
+Review and commit all changed locks before rebuilding. These are maintainer
+operations; application startup performs no package installation or network
+fetch. Dependency tarballs remain obtainable from the sources and integrity
+hashes in the included locks.
+
+Distribution Apache-2.0 licensing does not replace the Tavern AGPL license.
+Retain LICENSE files, applicable copyright notices, these source/build inputs,
+and the visible corresponding-source offer when redistributing Tavern.

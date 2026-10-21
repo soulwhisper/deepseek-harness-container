@@ -1,0 +1,12 @@
+.git
+node_modules
+**/node_modules
+.data
+artifacts
+coverage
+*.log
+.env
+.env.*
+**/*.pem
+**/*.key
+**/.credentials.yaml

@@ -1,0 +1,93 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { access, readFile, readdir } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { join, relative } from 'node:path';
+import { parse } from 'yaml';
+import { relativeLinkCount } from './normalize-locks.mjs';
+
+const root = fileURLToPath(new URL('../', import.meta.url));
+const text = path => readFile(join(root, path), 'utf8');
+const versions = JSON.parse(await text('versions.json'));
+const packageJson = JSON.parse(await text('package.json'));
+assert.equal(packageJson.version, versions.distribution, 'Distribution and package version must agree');
+assert.equal(packageJson.license, 'Apache-2.0');
+assert.match(await text('LICENSE'), /Apache License\s+Version 2\.0/u);
+assert.equal(versions.schemaVersion, 2);
+assert.equal(versions.registry, 'ghcr.io/soulwhisper');
+for (const [target, version] of Object.entries({ web: versions.dsh.version, tavern: versions.tavern.version })) {
+  const release = versions.release?.[target];
+  assert.equal(release?.tag, `${target}-${version}`, `${target} release tag must track its upstream version`);
+  assert.equal(release?.image, `dsh-${target}`, `${target} image name`);
+}
+assert.match(versions.node.image, new RegExp(`^node:${versions.node.version.replaceAll('.', '\\.')}-.+@sha256:[a-f0-9]{64}$`));
+assert.match(await text('docker/Dockerfile'), new RegExp(`org\\.opencontainers\\.image\\.version="${versions.dsh.version}"`, 'u'));
+assert.match(await text('docker/Dockerfile'), new RegExp(`org\\.opencontainers\\.image\\.version="${versions.tavern.version}"`, 'u'));
+assert.match(versions.dsh.commit, /^[a-f0-9]{40}$/u);
+assert.match(versions.tavern.commit, /^[a-f0-9]{40}$/u);
+assert.match(versions.tavern.routesSha256, /^[a-f0-9]{64}$/u);
+assert.match(versions.pnpm, /^\d+\.\d+\.\d+$/u);
+assert.equal(packageJson.packageManager, `pnpm@${versions.pnpm}`);
+const rootLock = parse(await text('pnpm-lock.yaml'));
+assert.ok(rootLock.importers?.['.'], 'Committed root dependency closure');
+const runtime = JSON.parse(await text('docker/runtime/package.json'));
+assert.equal(runtime.dependencies['@deepseek-ai/dsh'], versions.dsh.version);
+assert.equal(runtime.dependencies.dshmarket, versions.market);
+const runtimeLock = parse(await text('docker/runtime/pnpm-lock.yaml'));
+assert.ok(runtimeLock.importers?.['.'], 'Committed runtime dependency closure');
+for (const [name, spec] of Object.entries(versions.ecosystem)) {
+  assert.match(name, /^[a-z][a-z0-9-]*$/u);
+  assert.match(spec, /^github:[^/]+\/[^#]+#[^#]+$/u);
+}
+for (const profile of ['web', 'tavern']) {
+  const lockText = await text(`docker/profiles/${profile}/pnpm-lock.yaml`);
+  const lock = parse(lockText);
+  assert.ok(lock.importers?.['.'], `Committed ${profile} lock required; use explicit bootstrap workflow, review and commit its artifact`);
+  assert.equal(relativeLinkCount(lockText), 0, `${profile} lock link versions must be absolute; run scripts/normalize-locks.mjs`);
+}
+// Keep local patches, the SSO plugin, image build, scaffold and examples in
+// separate trees so an upstream break stays local to its patch surface.
+async function present(path) { try { await access(join(root, path)); return true; } catch { return false; } }
+for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/profiles/web/pnpm-lock.yaml',
+  'patches/dsh/patch-host.mjs', 'patches/market/patch-market.mjs', 'patches/tavern/patch-tavern.mjs',
+  'plugins/sso/index.mjs', 'scripts/normalize-locks.mjs', 'test/packaging.test.mjs',
+  'deploy/docker/compose.yaml', 'deploy/kubernetes/dsh-web.yaml']) {
+  assert.ok(await present(path), `Repository layout requires ${path}`);
+}
+for (const legacy of ['Dockerfile', 'profiles', 'runtime']) {
+  assert.equal(await present(legacy), false, `Repository layout: move ${legacy} out of the root category tree`);
+}
+for (const directory of ['plugins/sso', 'scripts']) {
+  for (const name of await readdir(join(root, directory))) {
+    assert.doesNotMatch(name, /^patch-.*\.mjs$/u, `Patches belong under patches/, not ${directory}/${name}`);
+  }
+}
+async function files(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const result = [];
+  for (const entry of entries) {
+    if (['node_modules', '.git'].includes(entry.name)) continue;
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) result.push(...await files(path));
+    else if (entry.isFile()) result.push(path);
+  }
+  return result;
+}
+for (const path of await files(root)) {
+  const name = relative(root, path);
+  if (name.endsWith('.mjs')) {
+    const result = spawnSync(process.execPath, ['--check', path], { encoding: 'utf8' });
+    assert.equal(result.status, 0, `JavaScript syntax: ${name}`);
+  }
+  if (name.startsWith('.github/') && /\.ya?ml$/u.test(name)) {
+    const contents = await readFile(path, 'utf8');
+    parse(contents, { uniqueKeys: true });
+    assert.doesNotMatch(contents, /pull_request_target|workflow_run|--auto(?:\s|$)/u, 'No elevated untrusted or auto-merge workflow');
+    for (const match of contents.matchAll(/\buses:\s*([^\s#]+)/gu)) {
+      if (!match[1].startsWith('./')) assert.match(match[1], /@[a-f0-9]{40}$/u, `Pinned Action: ${name}`);
+    }
+  }
+}
+assert.doesNotMatch(await text('.github/workflows/ci.yaml'), /secrets\./u, 'Untrusted CI must not reference repository secrets');
+console.log('PASS source pins, licenses, committed locks, JavaScript syntax, workflow policy');

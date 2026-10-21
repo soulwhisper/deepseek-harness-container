@@ -1,0 +1,13 @@
+packages:
+  - .
+nodeLinker: hoisted
+storeDir: /data/cache/pnpm/store
+autoInstallPeers: true
+confirmModulesPurge: false
+minimumReleaseAge: 0
+allowBuilds:
+  '@deepseek-ai/dsh-subprocess-local': true
+  koffi: true
+  node-pty: true
+  '@google/genai': false
+  protobufjs: false

@@ -1,0 +1,121 @@
+name: Publish tested distribution
+on:
+  push:
+    branches: [main, feat/sso-distribution]
+    tags: ['web-*', 'tavern-*']
+permissions:
+  contents: read
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  candidate:
+    if: github.repository == 'soulwhisper/deepseek-harness-container' && !startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      # The feature branch is explicitly trusted for initial candidate publication.
+      # No registry or App credential is passed to build/test/runtime containers.
+      - uses: ./.github/actions/validate
+        id: images
+      - name: Install registry-copy tooling
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends skopeo
+      - name: Publish exact tested OCI graphs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WEB_DIGEST: ${{ steps.images.outputs.web-digest }}
+          TAVERN_DIGEST: ${{ steps.images.outputs.tavern-digest }}
+        run: node scripts/verify-release.mjs publish
+      - name: Remove temporary build registry
+        if: always()
+        run: docker rm --force dsh-build-registry || true
+  release-web:
+    if: github.repository == 'soulwhisper/deepseek-harness-container' && startsWith(github.ref, 'refs/tags/web-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.22.0'
+      - name: Install registry-copy tooling
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends skopeo
+      # Promotion never rebuilds a previously tested commit or drops its attestations.
+      - name: Promote tested Web SHA
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/verify-release.mjs promote web
+      - name: Create narrowly scoped repository automation token
+        id: app
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: deepseek-harness-container
+          permission-contents: write
+      - name: Publish Web release notes
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/dsh-release-notes.txt" --prerelease
+          fi
+  release-tavern:
+    if: github.repository == 'soulwhisper/deepseek-harness-container' && startsWith(github.ref, 'refs/tags/tavern-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.22.0'
+      - name: Install registry-copy tooling
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends skopeo
+      # Tavern follows its own upstream line; it never waits for a Web release.
+      - name: Promote tested Tavern SHA
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/verify-release.mjs promote tavern
+      - name: Create narrowly scoped repository automation token
+        id: app
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: deepseek-harness-container
+          permission-contents: write
+      - name: Publish Tavern release notes
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/dsh-release-notes.txt" --prerelease
+          fi

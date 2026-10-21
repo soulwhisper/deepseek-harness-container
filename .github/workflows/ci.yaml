@@ -1,0 +1,22 @@
+name: Validate
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: validate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  native-amd64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      # No repository secrets, App tokens, package writes, or elevated untrusted triggers.
+      - uses: ./.github/actions/validate
+      - name: Remove temporary build registry
+        if: always()
+        run: docker rm --force dsh-build-registry || true

@@ -32,7 +32,9 @@ async function docker(args, input, allowFailure = false) {
       clearTimeout(timer);
       if (code !== 0 && !allowFailure) {
         // Docker stderr may include credentials, native startup URLs, or response data.
-        reject(new Error(`Docker ${args[0]} failed (exit ${code}); raw output withheld`));
+        // A `docker run` failure line is daemon/option diagnostics, not app output.
+        const diagnostic = args[0] === 'run' ? stderr.trim().split('\n').at(-1) : '';
+        reject(new Error(`Docker ${args[0]} failed (exit ${code})${diagnostic ? `: ${diagnostic}` : ''}; raw output withheld`));
       } else resolve({ code, stdout, stderr });
     });
     child.stdin.on('error', () => {});

@@ -1,8 +1,10 @@
-# Build
+# Build and release
 
-Build context is the repository root; the Dockerfile is
-`docker/Dockerfile`. The build-only inputs are separate from patches, the
+The build context is the repository root; the Dockerfile is
+`docker/Dockerfile`. Build-only inputs are separate from patches, the
 forward-auth plugin, tests and deploy examples.
+
+## Build locally
 
 ```bash
 docker buildx build -f docker/Dockerfile --platform linux/amd64 --target web \
@@ -12,7 +14,7 @@ docker buildx build -f docker/Dockerfile --platform linux/amd64 --target tavern 
 ```
 
 Use the native architecture matching the runner or host. CI builds
-`linux/amd64` and `linux/arm64` on native GitHub runners.
+`linux/amd64` and `linux/arm64` on native GitHub runners; there is no QEMU path.
 
 ## Targets
 
@@ -26,10 +28,10 @@ Use the native architecture matching the runner or host. CI builds
 | `distribution-source` | Whitelisted build/source payload used by both images |
 | `tavern-source` | Pinned Tavern checkout plus exact-hash patches |
 
-## Source payload
+## What ships in the image
 
-The final images do **not** copy the repository root. `distribution-source`
-contains only:
+The final images do **not** copy the repository root. The
+`distribution-source` stage contains only:
 
 - `docker/` build inputs: Dockerfile, runtime manifest/workspace/lock, profile
   workspaces and committed locks, distribution patch;
@@ -45,7 +47,7 @@ scripts are excluded. The Tavern source archive is built from that same
 whitelisted tree plus the complete Tavern checkout, so test and deployment
 harnesses do not ship with the release image.
 
-## Runtime paths and locks
+## Pins and locks
 
 The runtime is installed under `/opt/dsh/docker/runtime`, with
 `/opt/dsh/runtime` as the stable alias. Profile locks use absolute
@@ -58,15 +60,13 @@ the **Bootstrap missing profile locks** workflow, downloads the `profile-locks`
 artifact, reviews both files, commits them under `docker/profiles/*`, and then
 rebuilds normally. Final CI deliberately fails until both locks are committed.
 
-## Theme and route patches
-
 Tavern routes and theme files are pinned by SHA-256 in `versions.json`.
 `patches/tavern/patch-tavern.mjs` validates the theme package name/version and
-the exact `lib/index.js` and `lib/client.js` hashes before invoking the
-upstream theme helper. A changed upstream file is a build failure, not a
-warning or a silent skip.
+the exact `lib/index.js` and `lib/client.js` hashes before invoking the upstream
+theme helper. A changed upstream file is a build failure, not a warning or a
+silent skip. See [Upstream patches](patches.md).
 
-## Persistence defaults in the image
+## Runtime defaults
 
 The final image sets:
 
@@ -85,7 +85,18 @@ TMPDIR=/tmp
 The entrypoint creates `/cache/dsh` and symlinks `$DSH_HOME/cache` and
 `$DSH_HOME/logs` to their dedicated roots after state materialization. Mount
 `/data`, `/workspace`, `/cache`, `/logs` and `/backups` as described in
-[data layout](data-layout.md); never mount test or source trees over `/opt`.
+[State and backup](data-layout.md); never mount test or source trees over `/opt`.
 
 Do not add `latest`, publish host ports, or bake credentials, subject values,
 edge keys or proxy private keys into build arguments or labels.
+
+## Release route
+
+Only `web-<dsh-version>` and `tavern-<version>` tags publish. Each tag must match
+`versions.json`, point into `main`, and pass a native amd64 and arm64 build plus
+final-image smoke. The publish workflow creates one multi-arch index per tag.
+There is no floating tag, branch publication or candidate `sha-` image.
+
+A release tag is not proof that a state migration, community plugin or model
+configuration is approved. Startup installs nothing. See
+[Deployment](deploy.md) and [Operations](operations.md).

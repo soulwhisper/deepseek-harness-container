@@ -9,6 +9,7 @@ handoff-*.md
 .data
 artifacts
 coverage
+site
 *.log
 .env
 .env.*

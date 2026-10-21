@@ -19,6 +19,7 @@ Web 跟随 DSH 上游版本，Tavern 跟随 dsh-tavern；两者独立发版。�
 
 | 文档 | 内容 |
 | --- | --- |
+| [文档首页](docs/index.md) | 阅读路径、镜像与安全摘要 |
 | [Architecture](docs/architecture.md) | 镜像、信任边界、仓库布局 |
 | [Constraints](docs/constraints.md) | 安全与兼容性约束 |
 | [Build](docs/build.md) | Docker target、源码载荷、锁文件 |
@@ -27,11 +28,11 @@ Web 跟随 DSH 上游版本，Tavern 跟随 dsh-tavern；两者独立发版。�
 | [Data layout](docs/data-layout.md) | 持久状态与 cache/logs/backup/tmp 边界 |
 | [Patches](docs/patches.md) | 精确哈希上游补丁 |
 | [Source build](docs/source-build.md) | Tavern 对应源码与重建配方 |
-| [Regulations](docs/regulations.md) | Apache/MIT/AGPL 义务 |
+| [Licensing](docs/regulations.md) | Apache/MIT/AGPL 义务 |
 | [Forward-auth](docs/forward-auth.md) | trusted-edge 认证、状态日志、token URL |
 | [HA plan](docs/ha-plan.md) | replica、PDB、RWX 与 DSH 限制 |
 
-`handoff-*.md` 是本地工作记录，已加入 `.gitignore`。
+`docs/` 仅维护英文文档；根目录中文 README 是本地化入口，不建立第二套文档树。
 
 ## 构建
 

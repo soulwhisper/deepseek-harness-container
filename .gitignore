@@ -13,6 +13,7 @@ node_modules/
 /playwright-report/
 /test-results/
 /coverage/
+/site/
 handoff-*.md
 *.log
 *.oci

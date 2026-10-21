@@ -1,24 +1,45 @@
 # Operations
 
+This page covers the normal lifecycle: first boot, upgrade, rollback, backup,
+readiness and plugin changes. The authoritative path table is in
+[State and backup](data-layout.md).
+
+## Lifecycle at a glance
+
+| Task | Short version |
+| --- | --- |
+| First boot | Set `DSH_HOST` and the three forward-auth variables, then start one process |
+| Upgrade | Stop the old instance, snapshot `/data` and `/workspace`, start the new pinned digest |
+| State migration | Start once with `DSH_STATE_MIGRATION=apply` when the marker requires it |
+| Rollback | Restore both snapshots, restore the previous edge/TLS config, run the old digest |
+| Backup | Capture `/data/dsh`, `/data/home` and `/workspace` at one consistent point |
+| Readiness | Run `node /opt/dsh/scripts/readiness.mjs` inside the container or Pod |
+
 ## First boot
 
-The entrypoint requires `DSH_HOST` (a concrete container/Pod IP). The plugin
-requires `DSH_FORWARD_AUTH_HEADER`, `DSH_FORWARD_AUTH_ALLOWED_SUBJECTS` and
-`DSH_FORWARD_AUTH_TRUSTED_PROXY_CIDRS`; it logs `state=broken` if they are
-missing or invalid. The entrypoint creates the declared
-persistent/cache/log/rollback roots, materializes `/data/dsh`, links DSH's cache
-and logs to their dedicated roots, and starts one DSH process.
+The entrypoint requires `DSH_HOST`, a concrete container/Pod IP. The plugin
+requires:
+
+- `DSH_FORWARD_AUTH_HEADER`
+- `DSH_FORWARD_AUTH_ALLOWED_SUBJECTS`
+- `DSH_FORWARD_AUTH_TRUSTED_PROXY_CIDRS`
+
+Missing or invalid values make the plugin log `state=broken` and deny
+application routes. The entrypoint creates the declared persistent, cache, log
+and rollback roots, materializes `/data/dsh`, links DSH's cache and logs to their
+dedicated roots, and starts one DSH process.
 
 Fresh state is seeded once. The marker `/data/dsh/.distribution-state.json`
 records schema, distribution and profile. Existing state from another
 version/profile or an unrecognized layout is refused unless you explicitly set
 `DSH_STATE_MIGRATION=apply`.
 
-Do not run two DSH processes against one home, even if a shared volume claims to
-support RWX. DSH has per-session file locking, not a home-wide leader or live
-session handoff. See [HA plan](ha-plan.md).
+!!! danger "One writer per home"
+    Do not run two DSH processes against one home, even if a shared volume claims
+    to support RWX. DSH has per-session file locking, not a home-wide leader or
+    live session handoff. See [HA limits](ha-plan.md).
 
-## Migration
+## Upgrade and migration
 
 Before migrating:
 
@@ -56,12 +77,14 @@ the forward-auth plugin has no local password and cannot decrypt them.
 
 ## Backup and restore
 
-See [data layout](data-layout.md) for the authoritative path/backup table.
-Short version: back up `/data/dsh`, `/data/home` and `/workspace`; exclude
-`/cache`, `/logs`, `/backups` and `/tmp`; encrypt; restore all three together.
+Back up `/data/dsh`, `/data/home` and `/workspace`; exclude `/cache`, `/logs`,
+`/backups` and `/tmp`; encrypt the result; restore all three together. Use a
+filesystem snapshot or stop DSH before tar/rsync. See
+[State and backup](data-layout.md) for the full table and capacity guidance.
 
-Backups contain credentials, attachments and conversations. Never upload raw
-archives, cookies or startup reports to an issue or PR.
+!!! warning "Backups are sensitive"
+    Backups contain credentials, attachments and conversations. Never upload raw
+    archives, cookies or startup reports to an issue or pull request.
 
 ## Logs and cache
 
@@ -85,14 +108,15 @@ Readiness is local-only:
 node /opt/dsh/scripts/readiness.mjs
 ```
 
-It succeeds only after the startup audit and while the mandatory gate is
-active. There is no anonymous HTTP health endpoint. Readiness does not test the
-IdP, model provider, database, edge or agent sandbox.
+It connects to `/tmp/dsh-forward-auth-ready.sock` and succeeds only after the
+startup audit and while the mandatory gate is active. There is no anonymous HTTP
+health endpoint. Readiness does not test the IdP, model provider, database, edge
+or agent sandbox.
 
 ## Plugin updates
 
-Distribution-owned DSH, forward-auth, guard patches and bundled baseline packages change
-through reviewed source/lock updates and a rebuilt image. User-added Web
+Distribution-owned DSH, forward-auth, guard patches and bundled baseline packages
+change through reviewed source/lock updates and a rebuilt image. User-added Web
 plugins go through the native manager and its explicit script approvals; the
 market is not a privileged installer. Tavern core requires its pinned custom
 workspace recipe; runtime `plugin add` of the core is not supported.
@@ -102,6 +126,6 @@ plugin or prove compatibility. Startup installs nothing.
 
 ## Source offer
 
-The Tavern UI source link and `/distribution/source.tar.gz` must remain
-available to users. See [regulations](regulations.md) and
-[source build](source-build.md).
+The Tavern UI source link and `/distribution/source.tar.gz` must remain available
+to users. See [Licensing](regulations.md) and
+[Corresponding source](source-build.md).

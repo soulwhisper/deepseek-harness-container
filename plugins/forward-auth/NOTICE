@@ -1,6 +1,9 @@
 @soulwhisper/dsh-forward-auth
 Copyright 2026 soulwhisper
 Own implementation licensed under Apache-2.0; see LICENSE.
+upstream-MIT-LICENSE is not a second license for this package. It preserves
+the notice for the pinned upstream DSH files and snippets that the distribution
+patches and redistributes; those portions remain MIT-licensed.
 
 The exact-source patcher modifies @deepseek-ai/dsh-host-webserver,
 @deepseek-ai/dsh-plugin-manager and @deepseek-ai/dsh-app-boot 0.2.1-rc.2,

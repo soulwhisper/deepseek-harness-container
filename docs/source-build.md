@@ -1,8 +1,8 @@
-# Tavern corresponding source and build recipe
+# Corresponding source
 
-This document is included in the Tavern source archive at
-`distribution/docs/source-build.md`. It describes the complete modified source
-and the inputs needed to rebuild the image.
+This page describes the complete modified Tavern source and the inputs needed to
+rebuild the Tavern image. It is included in the source archive at
+`distribution/docs/source-build.md`.
 
 ## What the archive contains
 
@@ -28,10 +28,10 @@ tavern.tar.gz
     docs/source-build.md, docs/regulations.md
 ```
 
-The archive does **not** contain user state, credentials, `/workspace`,
-installed `node_modules`, Git object databases, test/smoke harnesses, deploy
-examples, CI workflows or general documentation. The image retains the Tavern
-checkout at `/opt/dsh-tavern/apps/dsh-tavern` and the distribution inputs at
+The archive does **not** contain user state, credentials, `/workspace`, installed
+`node_modules`, Git object databases, test/smoke harnesses, deploy examples, CI
+workflows or general documentation. The image retains the Tavern checkout at
+`/opt/dsh-tavern/apps/dsh-tavern` and the distribution inputs at
 `/opt/dsh/distribution-source`; the authenticated route is
 `/distribution/source.tar.gz` and `DSH_SOURCE_URL` identifies the distribution
 commit.
@@ -47,8 +47,8 @@ docker buildx build -f docker/Dockerfile --target tavern \
 ```
 
 The Dockerfile verifies the pinned Tavern commit, installs the committed locks
-with pnpm 11.25.0, applies the exact-hash patches, retains the full linked
-source and builds the archive. It installs no browser or desktop stack.
+with pnpm 11.25.0, applies the exact-hash patches, retains the full linked source
+and builds the archive. It installs no browser or desktop stack.
 
 To rebuild from the already-modified source supplied in the archive without
 redownloading the Tavern Git tree:
@@ -90,6 +90,6 @@ from the sources and integrity hashes in the included locks.
 ## Licensing
 
 Distribution Apache-2.0 licensing does not replace the Tavern AGPL license.
-Retain the Tavern `LICENSE`, copyright notices, these source/build inputs and
-the visible corresponding-source offer when redistributing Tavern. See
-[regulations](regulations.md).
+Retain the Tavern `LICENSE`, copyright notices, these source/build inputs and the
+visible corresponding-source offer when redistributing Tavern. See
+[Licensing](regulations.md).

@@ -24,6 +24,7 @@ or replacement mux server.
 
 | Document | Contents |
 | --- | --- |
+| [Documentation home](docs/index.md) | Reading paths, images and safety summary |
 | [Architecture](docs/architecture.md) | Images, trust boundary, repository layout |
 | [Constraints](docs/constraints.md) | Security and compatibility rules |
 | [Build](docs/build.md) | Docker targets, source payload, locks |
@@ -32,11 +33,12 @@ or replacement mux server.
 | [Data layout](docs/data-layout.md) | Durable state vs cache/logs/rollback/tmp |
 | [Patches](docs/patches.md) | Exact-hash upstream modifications |
 | [Source build](docs/source-build.md) | Tavern corresponding source |
-| [Regulations](docs/regulations.md) | Apache/MIT/AGPL obligations |
+| [Licensing](docs/regulations.md) | Apache/MIT/AGPL obligations |
 | [Forward-auth](docs/forward-auth.md) | Trusted-edge authentication, status logs, token URL |
 | [HA plan](docs/ha-plan.md) | Replicas, PDB, RWX and DSH limits |
 
-`handoff-*.md` files are local working notes and are ignored by Git.
+Documentation is English-only under `docs/`; the root Chinese README is a
+localized entry point, not a second docs tree.
 
 ## Build
 

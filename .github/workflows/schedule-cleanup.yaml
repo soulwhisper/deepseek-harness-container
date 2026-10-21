@@ -58,6 +58,19 @@ jobs:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     permissions:
-      actions: write
+      contents: read
     steps:
-      - uses: liskin/gh-workflow-keepalive@f72ff1a1336129f29bf0166c0fd0ca6cf1bcb38c # v1
+      - name: Generate Token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        id: app-token
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-actions: write
+          permission-contents: read
+
+      - name: Dispatch the cleanup workflow
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        shell: bash
+        run: gh workflow run schedule-cleanup.yaml --repo "$GITHUB_REPOSITORY" --ref main

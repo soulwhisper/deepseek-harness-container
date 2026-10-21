@@ -1,9 +1,10 @@
 name: Validate Pull Request
 
-# Pull requests are the only path for changes. This workflow builds both final
-# images and runs the behavioral/smoke tests without repository secrets or
-# package write access. merge_group keeps the same required check usable with a
-# GitHub merge queue; it is not a release trigger.
+# PR-only change flow with regular build/test steps (containers repo pattern).
+# No custom composite action: the exact build, smoke and arm64 probe are
+# visible here. Builds are multi-arch; the full browser smoke runs on amd64 and
+# an arm64 runtime/native-module probe runs under QEMU. Public/fork PRs are not
+# a supported submission path; their jobs are skipped.
 on:
   pull_request:
   merge_group:
@@ -17,34 +18,163 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  native-amd64:
+  build:
     name: Build, smoke and verify
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 150
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      # No repository secrets, App tokens, package writes, or elevated untrusted triggers.
-      - uses: ./.github/actions/validate
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.22.0'
+
+      - name: Install locked test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global --ignore-scripts pnpm@11.25.0
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Validate source and behavioral tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify.mjs
+          node --test test/*.test.mjs
+
+      - name: Start loopback-only build registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --detach --name dsh-build-registry \
+            --publish 127.0.0.1:5000:5000 \
+            registry:3.0.0@sha256:6c5666b861f3505b116bb9aa9b25175e71210414bd010d92035ff64018f9457e
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+        with:
+          version: v0.29.1
+          driver-opts: |
+            network=host
+            image=moby/buildkit:v0.25.1@sha256:79cc6476ab1a3371c9afd8b44e7c55610057c43e18d9b39b68e2b0c2475cc1b6
+          buildkitd-config-inline: |
+            [registry."localhost:5000"]
+              http = true
+
+      - name: Build web (amd64 + arm64) with provenance and SBOM
+        id: web
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: web
+          build-args: IMAGE_REVISION=${{ github.sha }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: localhost:5000/dsh-web:tested
+          provenance: mode=max
+          sbom: generator=docker/buildkit-syft-scanner:stable-1@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9
+          cache-from: type=gha,scope=web-multi
+          cache-to: type=gha,mode=max,scope=web-multi
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Build tavern (amd64 + arm64) with provenance and SBOM
+        id: tavern
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: tavern
+          build-args: IMAGE_REVISION=${{ github.sha }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: localhost:5000/dsh-tavern:tested
+          provenance: mode=max
+          sbom: generator=docker/buildkit-syft-scanner:stable-1@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9
+          cache-from: type=gha,scope=tavern-multi
+          cache-to: type=gha,mode=max,scope=tavern-multi
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Run exact final-image integration smoke (amd64)
+        shell: bash
+        env:
+          WEB_DIGEST: ${{ steps.web.outputs.digest }}
+          TAVERN_DIGEST: ${{ steps.tavern.outputs.digest }}
+        run: |
+          set -euo pipefail
+          docker pull "localhost:5000/dsh-web@${WEB_DIGEST}"
+          docker pull "localhost:5000/dsh-tavern@${TAVERN_DIGEST}"
+          node scripts/smoke.mjs "localhost:5000/dsh-web@${WEB_DIGEST}" "localhost:5000/dsh-tavern@${TAVERN_DIGEST}"
+
+      - name: Verify arm64 runtime and native modules
+        shell: bash
+        env:
+          WEB_DIGEST: ${{ steps.web.outputs.digest }}
+          TAVERN_DIGEST: ${{ steps.tavern.outputs.digest }}
+        run: |
+          set -euo pipefail
+          for target in web tavern; do
+            digest_var="${target^^}_DIGEST"
+            image="localhost:5000/dsh-${target}@${!digest_var}"
+            docker pull --platform linux/arm64 "${image}"
+            docker run --rm -i --platform linux/arm64 --entrypoint node "${image}" \
+              --input-type=module - arch '{"arch":"arm64"}' < scripts/verify-runtime.mjs
+          done
+
       - name: Remove temporary build registry
         if: always()
         run: docker rm --force dsh-build-registry || true
 
-  # Single required-status-check target for branch protection. Requiring only
-  # `CI checks passed` keeps the protection rule stable when jobs are added.
+  label:
+    name: Label PR areas
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Generate Token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        id: app-token
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: read
+          permission-pull-requests: write
+
+      - name: Labeler
+        uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7
+        with:
+          repo-token: "${{ steps.app-token.outputs.token }}"
+          configuration-path: .github/labeler.yaml
+
+  # Single required-status-check target for branch protection.
   ci-pass:
     name: CI checks passed
-    needs: [native-amd64]
-    if: always()
+    needs: [build]
+    if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
       - name: Verify required validation succeeded
         shell: bash
         run: |
           set -euo pipefail
-          if [ "${{ needs.native-amd64.result }}" != "success" ]; then
-            echo "::error::Validation did not succeed: ${{ needs.native-amd64.result }}"
+          if [ "${{ needs.build.result }}" != "success" ]; then
+            echo "::error::Validation did not succeed: ${{ needs.build.result }}"
             exit 1
           fi
           echo "Validation passed"

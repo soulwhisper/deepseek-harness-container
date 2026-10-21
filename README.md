@@ -11,13 +11,13 @@ An independent, self-packaged [DeepSeek Harness](https://github.com/deepseek-ai/
 | Image | Release tag | Included profile | Intended use |
 | --- | --- | --- | --- |
 | `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | Official Web + `dshmarket` + `@soulwhisper/dsh-sso` | General DSH Web and user-added community plugins |
-| `ghcr.io/soulwhisper/dsh-tavern:v3.0` | `tavern-v3.0` | Custom Tavern workspace build + SSO + bundled ecosystem | Dedicated Tavern instance |
+| `ghcr.io/soulwhisper/dsh-tavern:3.0` | `tavern-3.0` | Custom Tavern workspace build + SSO + bundled ecosystem | Dedicated Tavern instance |
 
-Each image follows its own upstream version: Web tracks DSH, Tavern tracks dsh-tavern. They are released independently; a Tavern upstream change does not require or delay a Web release, and vice versa.
+Each image follows its own upstream version: Web tracks DSH, Tavern tracks dsh-tavern. Tavern's upstream `v3.0` tag is published as `3.0` to match the Web tag style (no `v` prefix). They are released independently; a Tavern upstream change does not require or delay a Web release, and vice versa.
 
 Both use Node 24/glibc, UID/GID `1000:1000`, `tini`, native DSH binding on port `3080`, and a read-only root filesystem. There is **no Chromium, GUI, X11, VNC, browser desktop, TCP relay, OIDC client, local user/password database or replacement mux server**. Build tools and pnpm remain available for explicitly approved community-plugin operations; startup itself installs nothing.
 
-Native CI currently targets **`linux/amd64` only**. There is no ARM runtime/PTy validation claim. Read workflow results for the exact commit you intend to run; this README does not certify an unrun build. Repository organization takes inspiration from [runzhliu/deepseek-harness-docker](https://github.com/runzhliu/deepseek-harness-docker), but this is a different distribution and trust model, not its desktop image.
+CI builds **`linux/amd64` and `linux/arm64`** OCI indexes. The full Chromium/browser smoke runs on amd64; the arm64 image runs a native runtime probe (ESM imports, `node-pty`, Tavern license tree) under QEMU. Apple Silicon can therefore run the arm64 image natively; this is a Linux container image, not a macOS host application. Read workflow results for the exact commit you intend to run; this README does not certify an unrun build. Repository organization takes inspiration from [runzhliu/deepseek-harness-docker](https://github.com/runzhliu/deepseek-harness-docker), but this is a different distribution and trust model, not its desktop image.
 
 ## Repository layout
 
@@ -33,12 +33,12 @@ Build with `-f docker/Dockerfile`; the BuildKit context remains the repository r
 
 ## Automation and review
 
-- **PR only.** `main` is protected: no direct pushes, no force pushes, linear history, required `CI checks passed`, and an up-to-date branch. CODEOWNERS routes the security-critical paths. `ci.yaml` runs on pull requests and merge groups; feature branches never publish images.
-- **Release path.** A `main` push touching image/build inputs builds and smokes both images, then publishes immutable `sha-<commit>` candidates. Only `web-<dsh-version>` and `tavern-<tavern-version>` tags promote an already-tested graph to its version tag.
-- **Scheduled hygiene.** `schedule-cleanup.yaml` prunes cancelled/skipped and old successful/failed runs using the GitHub App token; `label-sync.yaml` restores the reviewed label set.
+- **PR only.** `main` is protected: no direct pushes, no force pushes, linear history, required `CI checks passed`, and an up-to-date branch. CODEOWNERS routes the security-critical paths. `ci.yaml` runs on pull requests and merge groups, builds both architectures, runs the amd64 browser smoke and the arm64 runtime probe, and labels same-repo PRs. Public/fork PR submissions are intentionally unsupported; their jobs are skipped.
+- **Release path.** Only `web-<dsh-version>` and `tavern-<version>` tags publish. Each tag must match `versions.json`, point into `main`, builds its target for amd64+arm64, smokes amd64, probes arm64, then copies the exact tested OCI index to the version tag. Branch pushes never publish and there are no candidate `sha-` images.
+- **Scheduled hygiene.** `schedule-cleanup.yaml` prunes cancelled/skipped and old successful/failed runs; `label-sync.yaml` restores the reviewed label set. Both use GitHub App tokens.
 - **Renovate is advisory only.** It tracks the DSH npm upstream, the Tavern GitHub tag, `dshmarket`, root/dev dependencies and SHA-pinned Actions. It never auto-merges; every PR gets `review/required`. Because DSH is a developer preview, even patch and digest updates must be inspected and fixed by a human.
 - **Coupled pins are manual.** Node digest, pnpm, source commits, exact patch hashes, Tavern ecosystem plugins and profile locks do not move on their own. A Renovate version-only PR is expected to fail verification until the commit/hash/lock/release-tag updates are added deliberately.
-- **CodeRabbit is advisory.** Install the CodeRabbit GitHub App on this repository. It reviews non-Renovate PRs with actionlint, zizmor, shellcheck, yamllint and gitleaks; it never approves or merges. The GitHub App credentials `APP_CLIENT_ID`/`APP_PRIVATE_KEY` need Actions write for cleanup, Contents write for releases and Pull requests write for labeler.
+- **CodeRabbit is advisory.** Install the CodeRabbit GitHub App on this repository. It reviews non-Renovate PRs with actionlint, zizmor, shellcheck, yamllint and gitleaks; it never approves or merges. The GitHub App credentials `APP_CLIENT_ID`/`APP_PRIVATE_KEY` need Actions write for cleanup, Contents write for releases, Packages write for GHCR, Issues write for label sync and Pull requests write for the in-CI labeler. Every write token is minted by the GitHub App; the default bot token is used only for read-only checkout.
 - **Renovate activation.** The shared Renovate runner selects repositories by topic, so this repository carries `managed-by-renovate`. If the topic or App installation is removed, updates stop silently even though `renovate.json` remains.
 
 ## Pinned baseline
@@ -48,7 +48,7 @@ Build with `-f docker/Dockerfile`; the BuildKit context remains the repository r
 | Component | Pin |
 | --- | --- |
 | Web image / release tag | `dsh-web:0.2.1-rc.2` / `web-0.2.1-rc.2` |
-| Tavern image / release tag | `dsh-tavern:v3.0` / `tavern-v3.0` |
+| Tavern image / release tag | `dsh-tavern:3.0` / `tavern-3.0` |
 | Distribution | `0.2.1-rc.2-r1` |
 | Official DSH | `0.2.1-rc.2`, commit `687f282e8625c6b8d11ff58211a90524be2e4317` |
 | Node / pnpm | `24.22.0` / `11.25.0` |
@@ -205,11 +205,10 @@ If a new recipe does not yet have committed `docker/profiles/{web,tavern}/pnpm-l
 
 ### Publication policy
 
-- Pull requests run tests/build/final-image smoke only; no repository/App secrets, `pull_request_target`, package writes or auto-merge.
-- Only reviewed `main` pushes publish **candidate** `sha-<full-commit>` tags after the required PR check passes. Feature branches and forks never publish.
-- Final Buildx builds carry provenance and an SBOM. CI smokes exact local-registry digests, then copies the **same OCI graph**, including attestations, to GHCR without rebuilding. SBOM/provenance are not vulnerability clearance or a reproducibility proof.
-- To release, first wait for the desired `main` commit's SHA images to publish. Push **one or both** release tags on that commit: `web-0.2.1-rc.2` promotes only `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2`; `tavern-v3.0` promotes only `ghcr.io/soulwhisper/dsh-tavern:v3.0`. Tags must equal `versions.json.release.<target>.tag`; each workflow checks main ancestry and promotes the already-tested SHA graph without rebuilding, refusing to overwrite a different existing digest. The two routes are independent, so one upstream can break or drift without blocking the other. There is no floating `latest`, auto-merge or deployment to other repositories.
-- GHCR publication uses `GITHUB_TOKEN` with `packages:write`; first publication can create the new packages. The narrowly scoped GitHub App credentials **`APP_CLIENT_ID`** and **`APP_PRIVATE_KEY`** are used only afterward to create this repository's release metadata. Install the App only where needed, grant repository Contents write for releases, and protect trusted branches/version tags. No secret is a build arg/image layer. Candidate publication does not require App secrets.
+- Pull requests run source checks, tests, multi-arch builds, amd64 final-image smoke and the arm64 native probe. They receive no repository/App secrets, no `pull_request_target`, no package writes and no auto-merge.
+- A release tag must equal `versions.json.release.<target>.tag` and point into `main`. One job handles either tag: it builds only that target for `linux/amd64,linux/arm64`, smokes the amd64 variant, probes the arm64 variant, then copies the **same OCI index**, including attestations, to its version tag. The two routes are independent; there is no floating `latest` and no branch publication.
+- GHCR publication and GitHub release metadata both use a GitHub App installation token with Contents and Packages write. The App is the only write identity; the default `GITHUB_TOKEN` is used only for read-only checkout. First publication can create the new packages. No secret is a build arg or image layer.
+- Buildx provenance and an SBOM are attached to the index. They are inventory, not vulnerability clearance or a reproducibility proof.
 
 Pin deployments to a digest and retain the previous digest plus volume snapshots. Supported compatibility is the explicitly pinned/tested distribution, not every upstream RC or arbitrary plugin combination. Upstream/SSO changes require new review, exact-hash patch rebasing where necessary, updated locks and the full smoke; there is no LTS/security-audit promise. Report bugs with image digest, architecture, redacted configuration and summary checks—never secrets.
 

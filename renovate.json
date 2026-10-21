@@ -30,7 +30,7 @@
         "/(^|/)versions\\.json$/"
       ],
       "matchStrings": [
-        "\"tavern\": \\{\\s*\"repository\": \"[^\"]+\",\\s*\"version\": \"(?<currentValue>[^\"]+)\","
+        "\"upstreamTag\": \"(?<currentValue>[^\"]+)\""
       ],
       "depNameTemplate": "flizzywine/dsh-tavern",
       "datasourceTemplate": "github-tags",
@@ -67,7 +67,7 @@
       "platformAutomerge": false
     },
     {
-      "description": "Tavern upstream: tag, source commit, route hash, profile lock and docs move together. Human merges.",
+      "description": "Tavern upstream: upstreamTag, release version, source commit, route hash, profile lock and docs move together. Human merges.",
       "matchPackageNames": [
         "flizzywine/dsh-tavern"
       ],

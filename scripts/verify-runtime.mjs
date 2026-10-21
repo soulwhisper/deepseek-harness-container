@@ -236,6 +236,45 @@ async function manager() {
   check(after.some(bundle => bundle.name === protectedName && bundle.enabled), 'SSO remains selected after mutation attempts');
 }
 
+async function nativePty() {
+  const subprocessRequire = createRequire(runtimeRequire.resolve('@deepseek-ai/dsh-subprocess-local'));
+  const pty = subprocessRequire('node-pty');
+  await new Promise((resolve, reject) => {
+    const terminal = pty.spawn('/bin/sh', ['-c', 'test -t 0 && test -t 1 && printf DSH_NATIVE_PTY_OK'], {
+      name: 'xterm-256color', cols: 80, rows: 24, cwd: '/workspace', env: process.env,
+    });
+    let output = '';
+    const timer = setTimeout(() => { terminal.kill(); reject(new Error('Native PTY deadline')); }, 10_000);
+    terminal.onData(data => { output += data; });
+    terminal.onExit(({ exitCode }) => {
+      clearTimeout(timer);
+      if (exitCode === 0 && output.includes('DSH_NATIVE_PTY_OK')) resolve();
+      else reject(new Error('Native PTY failed'));
+    });
+  });
+}
+
+async function architecture() {
+  check(process.arch === config.arch, `Architecture ${process.arch} is not ${config.arch}`);
+  const manifestPath = '/opt/dsh/runtime/package.json';
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const require = createRequire(manifestPath);
+  // The CLI package exposes bin subpaths, not an importable main entry.
+  // Verify presence by path and import ESM packages that exercise the runtime.
+  for (const name of Object.keys(manifest.dependencies)) {
+    await stat(`/opt/dsh/runtime/node_modules/${name}`);
+  }
+  for (const name of ['@soulwhisper/dsh-sso', 'yaml']) {
+    await import(pathToFileURL(require.resolve(name)).href);
+  }
+  await nativePty();
+  const profile = process.env.DSH_PROFILE;
+  check(['web', 'tavern'].includes(profile), 'Known profile');
+  if (profile === 'tavern') {
+    check((await stat('/opt/dsh-tavern/apps/dsh-tavern/LICENSE')).isFile(), 'Tavern original license');
+  }
+}
+
 async function runtime() {
   check(process.getuid() === 1000 && process.getgid() === 1000, 'Non-root runtime');
   check(process.env.DSH_HOME === '/data/dsh' && process.env.HOME === '/data/home'
@@ -262,31 +301,18 @@ async function runtime() {
       && archive.stdout.includes('distribution/patches/dsh/patch-host.mjs')
       && archive.stdout.includes('distribution/patches/tavern/patch-tavern.mjs'), 'Complete Tavern source/build recipe archive');
   }
-  const subprocessRequire = createRequire(runtimeRequire.resolve('@deepseek-ai/dsh-subprocess-local'));
-  const pty = subprocessRequire('node-pty');
-  await new Promise((resolve, reject) => {
-    const terminal = pty.spawn('/bin/sh', ['-c', 'test -t 0 && test -t 1 && printf DSH_NATIVE_PTY_OK'], {
-      name: 'xterm-256color', cols: 80, rows: 24, cwd: '/workspace', env: process.env,
-    });
-    let output = '';
-    const timer = setTimeout(() => { terminal.kill(); reject(new Error('Native PTY deadline')); }, 10_000);
-    terminal.onData(data => { output += data; });
-    terminal.onExit(({ exitCode }) => {
-      clearTimeout(timer);
-      if (exitCode === 0 && output.includes('DSH_NATIVE_PTY_OK')) resolve();
-      else reject(new Error('Native PTY failed'));
-    });
-  });
+  await nativePty();
 }
 try {
   if (mode === 'untrusted') await rejection({ 'x-authentik-uid': config.uid, 'x-forwarded-for': '127.0.0.1' });
   else if (mode === 'trusted') await trusted();
   else if (mode === 'manager') await manager();
   else if (mode === 'runtime') await runtime();
+  else if (mode === 'arch') await architecture();
   else throw new Error('Unknown probe');
   console.log(`PASS ${mode}`);
 } catch (error) {
-  const label = ['trusted', 'untrusted', 'runtime', 'manager'].includes(mode) ? mode : 'probe';
+  const label = ['trusted', 'untrusted', 'runtime', 'manager', 'arch'].includes(mode) ? mode : 'probe';
   const message = error instanceof Error ? error.message : String(error);
   console.error(`FAIL ${label}: ${message}`);
   process.exitCode = 1;

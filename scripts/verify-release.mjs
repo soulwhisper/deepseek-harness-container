@@ -1,4 +1,5 @@
-// Trusted CI only. Copy tested OCI graphs without rebuilding or replacing immutable tags.
+// Trusted release only. Copy a locally built, smoked multi-arch OCI index to
+// its version tag without rebuilding or replacing an immutable tag.
 import { spawnSync } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -10,22 +11,21 @@ const requested = process.argv[3];
 const repository = 'soulwhisper/deepseek-harness-container';
 const sha = process.env.GITHUB_SHA;
 const token = process.env.GITHUB_TOKEN;
+const username = process.env.GHCR_USERNAME ?? process.env.GITHUB_ACTOR;
 const versions = JSON.parse(await readFile(new URL('../versions.json', import.meta.url), 'utf8'));
 const releases = {
   web: { tag: versions.release.web.tag, version: versions.dsh.version },
   tavern: { tag: versions.release.tavern.tag, version: versions.tavern.version },
 };
-if (process.env.GITHUB_REPOSITORY !== repository || !/^[a-f0-9]{40}$/.test(sha ?? '')
-  || !token || !['publish', 'promote'].includes(mode)) {
-  throw new Error('Release requires the trusted repository, exact commit and ephemeral registry token');
-}
-if (mode === 'promote' ? !Object.hasOwn(releases, requested) : requested !== undefined) {
-  throw new Error('Release promotion requires exactly one image target (web or tavern)');
+if (process.env.GITHUB_REPOSITORY !== repository || !/^[a-f0-9]{40}$/u.test(sha ?? '')
+  || !['check', 'release'].includes(mode) || !Object.hasOwn(releases, requested)
+  || (mode === 'release' && (!token || !username))) {
+  throw new Error('Release requires the trusted repository, exact commit, target and release token');
 }
 const imageName = target => `${versions.registry}/${versions.release[target].image}`;
 const reference = new RegExp(`^${versions.registry.replaceAll('.', '\\.')}/` +
   `(${Object.values(versions.release).map(release => release.image).join('|')}):([A-Za-z0-9_.-]+)$`, 'u');
-const directory = await mkdtemp(join(tmpdir(), 'dsh-registry-'));
+const directory = await mkdtemp(join(tmpdir(), 'dsh-release-'));
 const authfile = join(directory, 'auth.json');
 function run(command, args, input, optional = false) {
   const result = spawnSync(command, args, { input, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024,
@@ -45,7 +45,7 @@ async function inspect(image, missingAllowed = false) {
   // first publication. Authentication failures are never treated as absence.
   let bearer = registryTokens.get(name);
   if (!bearer) {
-    const credentials = Buffer.from(`${process.env.GITHUB_ACTOR}:${token}`).toString('base64');
+    const credentials = Buffer.from(`${username}:${token}`).toString('base64');
     const response = await fetch(`https://ghcr.io/token?service=ghcr.io&scope=${encodeURIComponent(`repository:${name}:pull,push`)}`, {
       headers: { Authorization: `Basic ${credentials}` }, signal: AbortSignal.timeout(30_000),
     });
@@ -75,42 +75,24 @@ async function copy(source, destination, expected, local = false) {
   if (await inspect(destination) !== expected) throw new Error('Published OCI graph digest changed');
 }
 try {
-  // Validate the route before asking for registry credentials.
-  if (mode === 'publish') {
-    if (process.env.GITHUB_REF !== 'refs/heads/main') {
-      throw new Error('Candidate publication is restricted to main pushes');
-    }
-    for (const target of Object.keys(releases)) {
-      if (!/^sha256:[a-f0-9]{64}$/.test(process.env[`${target.toUpperCase()}_DIGEST`] ?? '')) {
-        throw new Error('Missing tested image digest');
-      }
-    }
-  } else {
-    const { tag } = releases[requested];
-    if (process.env.GITHUB_REF !== `refs/tags/${tag}`) {
-      throw new Error(`Release tag ${tag} must match versions.json exactly`);
-    }
-    run('git', ['merge-base', '--is-ancestor', sha, 'origin/main']);
+  const { tag, version } = releases[requested];
+  if (process.env.GITHUB_REF !== `refs/tags/${tag}`) {
+    throw new Error(`Release tag ${tag} must match versions.json exactly`);
   }
-  run('skopeo', ['login', '--authfile', authfile, '--username', process.env.GITHUB_ACTOR,
-    '--password-stdin', 'ghcr.io'], token);
-  if (mode === 'publish') {
-    for (const target of Object.keys(releases)) {
-      const image = imageName(target);
-      const expected = process.env[`${target.toUpperCase()}_DIGEST`];
-      await copy(`localhost:5000/dsh-${target}@${expected}`, `${image}:sha-${sha}`, expected, true);
-      console.log(`${target}: ${expected}`);
-    }
+  run('git', ['merge-base', '--is-ancestor', sha, 'origin/main']);
+  if (mode === 'check') {
+    console.log(`release route ok: ${tag} -> ${imageName(requested)}:${version}`);
   } else {
-    const { tag, version } = releases[requested];
+    const expected = process.env.IMAGE_DIGEST;
+    if (!/^sha256:[a-f0-9]{64}$/.test(expected ?? '')) throw new Error('Missing tested image digest');
+    run('skopeo', ['login', '--authfile', authfile, '--username', username,
+      '--password-stdin', 'ghcr.io'], token);
     const image = imageName(requested);
-    // Absence is an error: release only an image already built AND smoked by trusted push CI.
-    const expected = await inspect(`${image}:sha-${sha}`);
-    await copy(`${image}@${expected}`, `${image}:${version}`, expected);
+    await copy(`localhost:5000/dsh-${requested}@${expected}`, `${image}:${version}`, expected, true);
     const notes = ['Self-packaged DSH distribution; upstream remains a developer preview.', '',
       `Release tag: ${tag}`,
       `Image: ${image}:${version}`,
-      'Native linux/amd64 final-image smoke passed before SHA publication.',
+      'Multi-arch linux/amd64 + linux/arm64 index; amd64 final-image smoke and arm64 native-module probe passed before publication.',
       'OCI graph includes BuildKit provenance and SBOM; these are inventory, not a security audit.', '',
       'Immutable image:', `- ${image}@${expected}`];
     if (requested === 'tavern') {

@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { createServer } from 'node:net';
 import { chromium } from 'playwright';
 
 const images = process.argv.slice(2);
@@ -33,7 +34,7 @@ async function docker(args, input, allowFailure = false) {
       if (code !== 0 && !allowFailure) {
         // Docker stderr may include credentials, native startup URLs, or response data.
         // A `docker run` failure line is daemon/option diagnostics, not app output.
-        const diagnostic = args[0] === 'run' ? stderr.trim().split('\n').at(-1) : '';
+        const diagnostic = args[0] === 'run' ? stderr.trim().split('\n')[0] : '';
         reject(new Error(`Docker ${args[0]} failed (exit ${code})${diagnostic ? `: ${diagnostic}` : ''}; raw output withheld`));
       } else resolve({ code, stdout, stderr });
     });
@@ -119,6 +120,16 @@ async function browserSmoke(authority, restart) {
     await browser?.close();
   }
 }
+async function freeLoopbackPort() {
+  return await new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const port = server.address().port;
+      server.close(error => error ? reject(error) : resolve(port));
+    });
+  });
+}
 function hostAddress(subnet, offset) {
   const [address, bits] = subnet.split('/');
   if (!/^\d+\.\d+\.\d+\.\d+$/.test(address) || Number(bits) > 28) {
@@ -140,7 +151,7 @@ async function execute(name, mode, config = {}) {
   const result = await docker(['exec', '-i', name, 'node', '--input-type=module', '-', mode,
     JSON.stringify(config)], probe, true);
   if (result.code !== 0 || !result.stdout.trim().endsWith(`PASS ${mode}`)) {
-    const detail = result.stderr.trim().split('\n').at(-1) || 'probe failed';
+    const detail = result.stderr.trim().split('\n')[0] || 'probe failed';
     throw new Error(`Container probe ${mode} failed: ${detail}`);
   }
 }
@@ -193,15 +204,14 @@ try {
     // Helpers are clients from the SAME final image, not replacement app servers.
     const helperArgs = ['--entrypoint', 'node'];
     const helperCommand = ['-e', 'setInterval(() => {}, 60000)'];
-    await start(edge, image, edgeIP, ['--entrypoint', 'node', '--publish', '127.0.0.1::8080'],
+    const publicPort = await freeLoopbackPort();
+    await start(edge, image, edgeIP, ['--entrypoint', 'node', '--publish', `127.0.0.1:${publicPort}:8080`],
       ['--input-type=module', '-e', edgeSource, JSON.stringify({ host: appIP, port: 3080, uid: 'smoke-owner-uid' })]);
-    const edgeState = JSON.parse((await docker(['inspect', edge])).stdout)[0];
-    const publicPort = edgeState.NetworkSettings.Ports['8080/tcp'][0].HostPort;
     const authority = `dsh.smoke.test:${publicPort}`;
     await start(attacker, image, attackerIP, helperArgs, helperCommand);
     await start(app, image, appIP, [
-      '--mount', `type=volume,src=${stateVolume},dst=/data/dsh`,
-      '--mount', `type=volume,src=${workspaceVolume},dst=/workspace`,
+      '--mount', `type=volume,source=${stateVolume},target=/data/dsh`,
+      '--mount', `type=volume,source=${workspaceVolume},target=/workspace`,
       '--env', `DSH_HOST=${appIP}`, '--env', 'DSH_PORT=3080',
       '--env', `DSH_PUBLIC_URL=http://${authority}`,
       '--env', `DSH_TRUSTED_HOSTS=${authority}`,

@@ -123,6 +123,6 @@ COPY --from=tavern-build /opt/dsh-tavern /opt/dsh-tavern
 COPY --from=tavern-build /opt/dsh-source /opt/dsh-source
 RUN test "${#IMAGE_REVISION}" -eq 40 && test -z "$(printf '%s' "$IMAGE_REVISION" | tr -d '0-9a-f')"
 LABEL org.opencontainers.image.title="DeepSeek Harness Tavern with SSO" \
-      org.opencontainers.image.version="v3.0" \
+      org.opencontainers.image.version="3.0" \
       org.opencontainers.image.licenses="Apache-2.0 AND MIT AND AGPL-3.0-only" \
       io.github.soulwhisper.dsh-tavern.commit="7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d"

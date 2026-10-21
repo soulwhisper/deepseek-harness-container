@@ -8,7 +8,7 @@
       "image": "dsh-web"
     },
     "tavern": {
-      "tag": "tavern-v3.0",
+      "tag": "tavern-3.0",
       "image": "dsh-tavern"
     }
   },
@@ -25,9 +25,10 @@
   "market": "1.66.44",
   "tavern": {
     "repository": "https://github.com/flizzywine/dsh-tavern.git",
-    "version": "v3.0",
+    "version": "3.0",
     "commit": "7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d",
-    "routesSha256": "91c78c5d8d3e19dc2084c2b3241ef7e0bdf761107f6c034c35a359201e8431f7"
+    "routesSha256": "91c78c5d8d3e19dc2084c2b3241ef7e0bdf761107f6c034c35a359201e8431f7",
+    "upstreamTag": "v3.0"
   },
   "ecosystem": {
     "dsh-tavern-wrongbook": "github:XGUIMAX/dsh-tavern-wrongbook#v1.33.0",

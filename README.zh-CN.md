@@ -11,13 +11,13 @@
 | 镜像 | Release 标签 | 内置 Profile | 用途 |
 | --- | --- | --- | --- |
 | `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | 官方 Web + `dshmarket` + `@soulwhisper/dsh-sso` | 通用 DSH Web、用户自行安装的社区插件 |
-| `ghcr.io/soulwhisper/dsh-tavern:v3.0` | `tavern-v3.0` | 自定义 Tavern workspace 构建 + SSO + 配套插件 | 独立 Tavern 实例 |
+| `ghcr.io/soulwhisper/dsh-tavern:3.0` | `tavern-3.0` | 自定义 Tavern workspace 构建 + SSO + 配套插件 | 独立 Tavern 实例 |
 
-两个镜像分别跟随自己的上游版本：Web 跟随 DSH，Tavern 跟随 dsh-tavern。两者独立发版；Tavern 上游变化不要求也不阻塞 Web 发布，反之亦然。
+两个镜像分别跟随自己的上游版本：Web 跟随 DSH，Tavern 跟随 dsh-tavern。Tavern 上游 `v3.0` 在发布时去掉 `v`，写成 `3.0`，与 Web 标签风格一致。两者独立发版；Tavern 上游变化不要求也不阻塞 Web 发布，反之亦然。
 
 两者使用 Node 24/glibc、UID/GID `1000:1000`、`tini`、DSH 原生 `3080` 监听，以及只读根文件系统。**没有 Chromium、GUI、X11、VNC、浏览器桌面、TCP 中继、OIDC 客户端、本地用户名/密码库或替代 mux 服务。** 保留工具链与 pnpm，用于用户显式批准的社区插件操作；启动时不安装依赖。
 
-当前原生 CI 仅覆盖 **`linux/amd64`**，不宣称 ARM 构建或原生 PTY 已验证。部署前查看目标提交的实际 CI 结果，本文不是未执行构建的通过证明。文档组织参考了 [runzhliu/deepseek-harness-docker](https://github.com/runzhliu/deepseek-harness-docker) 等社区项目，但这是不同发行版和不同信任模型，不是其桌面镜像。
+CI 构建 **`linux/amd64` 与 `linux/arm64`** OCI index。完整 Chromium/浏览器 smoke 在 amd64 上运行；arm64 镜像在 QEMU 下执行原生运行时探测（ESM 导入、`node-pty`、Tavern 许可树）。因此 Apple Silicon 可以原生运行 arm64 镜像；这是 Linux 容器镜像，不是 macOS 宿主应用。部署前查看目标提交的实际 CI 结果，本文不是未执行构建的通过证明。文档组织参考了 [runzhliu/deepseek-harness-docker](https://github.com/runzhliu/deepseek-harness-docker) 等社区项目，但这是不同发行版和不同信任模型，不是其桌面镜像。
 
 ## 仓库布局
 
@@ -33,12 +33,12 @@
 
 ## 自动化与审查
 
-- **仅通过 PR。** `main` 已保护：禁止直接 push、禁止 force push、线性历史、必须通过 `CI checks passed` 且分支最新；CODEOWNERS 负责把安全敏感路径路由给审查者。`ci.yaml` 在 PR 与 merge group 上运行；feature 分支不会发布镜像。
-- **发布路径。** 触及镜像/构建输入的 `main` push 会构建并 smoke 两个镜像，发布不可变 `sha-<commit>` candidate；只有 `web-<dsh-version>` 与 `tavern-<tavern-version>` 标签才会把已测试的图提升为版本标签。
-- **定时清理。** `schedule-cleanup.yaml` 用 GitHub App token 清理取消/跳过及过旧的运行；`label-sync.yaml` 恢复受审阅的标签集合。
+- **仅通过 PR。** `main` 已保护：禁止直接 push、禁止 force push、线性历史、必须通过 `CI checks passed` 且分支最新；CODEOWNERS 负责把安全敏感路径路由给审查者。`ci.yaml` 在 PR 与 merge group 上构建双架构、运行 amd64 浏览器 smoke 与 arm64 运行时探测，并用 GitHub App token 给同仓库 PR 打标签。公开/fork PR 提交刻意不支持，其 job 会被跳过。
+- **发布路径。** 只有 `web-<dsh-version>` 与 `tavern-<version>` 标签会发布。标签须与 `versions.json` 一致且位于 `main`；每个标签只构建对应目标（amd64+arm64），smoke amd64、探测 arm64，然后把同一份已测试 OCI index 复制到版本标签。分支 push 永不发布，也不再生成 candidate `sha-` 镜像。
+- **定时清理。** `schedule-cleanup.yaml` 清理取消/跳过及过旧运行；`label-sync.yaml` 恢复受审阅的标签集合。两者都使用 GitHub App token。
 - **Renovate 仅供提示。** 跟踪 DSH npm 上游、Tavern GitHub tag、`dshmarket`、根/dev 依赖和 SHA 固定的 Actions；从不自动合并，每个 PR 都带 `review/required`。DSH 仍是 developer preview，即使 patch/digest 更新也必须人工检查并修复。
 - **耦合 pin 必须手动。** Node digest、pnpm、源码 commit、精确补丁哈希、Tavern 配套插件和 Profile 锁文件不会自动漂移。Renovate 只改版本号的 PR 预期会验证失败，直到人工补上 commit/hash/lock/release tag。
-- **CodeRabbit 仅提供建议。** 需在本仓库安装 CodeRabbit GitHub App。它对非 Renovate PR 运行 actionlint、zizmor、shellcheck、yamllint、gitleaks，不批准、不合并。GitHub App 的 `APP_CLIENT_ID`/`APP_PRIVATE_KEY` 需要 Actions write（清理）、Contents write（Release）和 Pull requests write（labeler）。
+- **CodeRabbit 仅提供建议。** 需在本仓库安装 CodeRabbit GitHub App。它对非 Renovate PR 运行 actionlint、zizmor、shellcheck、yamllint、gitleaks，不批准、不合并。GitHub App 的 `APP_CLIENT_ID`/`APP_PRIVATE_KEY` 需要 Actions write（清理）、Contents write（Release）、Packages write（GHCR）、Issues write（label sync）和 Pull requests write（CI 内 labeler）。所有写 token 都由 GitHub App 生成；默认 bot token 只用于只读 checkout。
 - **Renovate 启用条件。** 共享 Renovate runner 按 topic 选择仓库，因此本仓库带有 `managed-by-renovate`。删除该 topic 或 App 安装后，更新会静默停止；仅保留 `renovate.json` 不够。
 
 ## 固定基线
@@ -48,7 +48,7 @@
 | 组件 | 固定版本 |
 | --- | --- |
 | Web 镜像 / Release 标签 | `dsh-web:0.2.1-rc.2` / `web-0.2.1-rc.2` |
-| Tavern 镜像 / Release 标签 | `dsh-tavern:v3.0` / `tavern-v3.0` |
+| Tavern 镜像 / Release 标签 | `dsh-tavern:3.0` / `tavern-3.0` |
 | 本发行版 | `0.2.1-rc.2-r1` |
 | 官方 DSH | `0.2.1-rc.2`，提交 `687f282e8625c6b8d11ff58211a90524be2e4317` |
 | Node / pnpm | `24.22.0` / `11.25.0` |
@@ -205,11 +205,10 @@ Smoke 使用最终只读、非 root 镜像，隔离 scratch/home，并使用可�
 
 ### 发布策略
 
-- PR 仅运行测试、构建和最终镜像 smoke，不获取仓库/App secrets、使用 `pull_request_target`、写 package 或自动合并。
-- 只有经过审查的 `main` push 才会在所需 PR 检查通过后发布 **candidate** `sha-<完整提交>`；feature 分支和 fork 永不发布。
-- Buildx 生成 provenance 和 SBOM；CI 运行本地 registry 的确切 digest，然后无重建复制**同一 OCI 图及 attestations**到 GHCR。SBOM/provenance 不是漏洞清零或可复现性证明。
-- 正式发版先等待目标 `main` 提交的 SHA 镜像成功发布，再在该提交推送**一个或两个** Release 标签：`web-0.2.1-rc.2` 只提升 `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2`；`tavern-v3.0` 只提升 `ghcr.io/soulwhisper/dsh-tavern:v3.0`。标签须与 `versions.json.release.<target>.tag` 精确一致；每个工作流都检查 main ancestry，只提升已测试 SHA 图、不重建，并拒绝覆盖不同的既有 digest。两条发布路径彼此独立，某个上游破裂或漂移不会阻塞另一个。没有浮动 `latest`、自动合并或向其他仓库自动部署。
-- GHCR 使用有 `packages:write` 的 `GITHUB_TOKEN`，可首次创建新 package。GitHub App 的 **`APP_CLIENT_ID`** 和 **`APP_PRIVATE_KEY`** 仅在之后为本仓库创建 Release 元数据；App 只安装到需要的仓库，授予 Release 所需 Contents write，并保护可信分支和版本标签。秘密不进入构建参数或镜像层。Candidate 发布不依赖 App secrets。
+- PR 运行源码检查、测试、双架构构建、amd64 最终镜像 smoke 和 arm64 原生探测；不获取仓库/App secrets、不使用 `pull_request_target`、不写 package、不自动合并。
+- Release 标签须与 `versions.json.release.<target>.tag` 精确一致且位于 `main`。同一个 job 处理任一标签：只构建对应目标（`linux/amd64,linux/arm64`），smoke amd64、探测 arm64，然后把**同一 OCI index 及 attestations**复制到版本标签。两条发布路径彼此独立；没有浮动 `latest`，也不从分支发布。
+- GHCR 发布与 GitHub Release 元数据都使用 GitHub App installation token（Contents + Packages write）。App 是唯一写身份；默认 `GITHUB_TOKEN` 只用于只读 checkout。首次发布可创建新 package。秘密不进入构建参数或镜像层。
+- Buildx 生成 provenance 和 SBOM 并附加到 index；它们是清单，不是漏洞清零或可复现性证明。
 
 部署固定 digest，同时保存上一 digest 和卷快照。支持范围是明确固定并测试的发行版，不是任意上游 RC 或插件组合。上游/SSO 更新必须重新审阅、必要时移植精确哈希补丁、更新锁并运行完整 smoke；不承诺 LTS 或已安全审计。报告问题请附镜像 digest、架构、脱敏配置与检查摘要，不能附秘密。
 

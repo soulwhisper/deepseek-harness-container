@@ -1,134 +1,165 @@
-name: Publish tested distribution
-# Changes reach main only through a reviewed PR. Main pushes publish candidate
-# sha-<commit> images; annotated release tags promote the already-tested graph.
+name: Release tested distribution
+
+# A release tag is the only publication trigger. The tagged commit must be on
+# main; the job builds both architectures, smokes amd64, probes arm64, then
+# copies the exact tested OCI index to the version tag with a GitHub App token.
 on:
   push:
-    branches: [main]
     tags: ['web-*', 'tavern-*']
-    # Branch pushes only publish when image/build inputs change. Tag pushes are
-    # not subject to path filters and always promote the tested graph.
-    paths:
-      - 'docker/**'
-      - 'patches/**'
-      - 'plugins/**'
-      - 'scripts/**'
-      - 'versions.json'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - '.github/actions/**'
+
 permissions:
   contents: read
+
 concurrency:
-  group: publish-${{ github.ref }}
+  group: release-${{ github.ref }}
   cancel-in-progress: false
+
 jobs:
-  candidate:
-    if: github.repository == 'soulwhisper/deepseek-harness-container' && !startsWith(github.ref, 'refs/tags/')
+  release:
+    if: github.repository == 'soulwhisper/deepseek-harness-container'
     runs-on: ubuntu-24.04
-    timeout-minutes: 100
-    permissions:
-      contents: read
-      packages: write
+    timeout-minutes: 180
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Checkout tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          fetch-depth: 0
           persist-credentials: false
-      # Main is trusted for candidate publication after the PR check passed.
-      # No registry or App credential is passed to build/test/runtime containers.
-      - uses: ./.github/actions/validate
-        id: images
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.22.0'
+
+      - name: Install locked test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global --ignore-scripts pnpm@11.25.0
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Validate source and behavioral tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify.mjs
+          node --test test/*.test.mjs
+
+      - name: Determine release target
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${GITHUB_REF_NAME}" in
+            web-*) target=web ;;
+            tavern-*) target=tavern ;;
+            *) echo "::error::Unsupported release tag ${GITHUB_REF_NAME}"; exit 1 ;;
+          esac
+          echo "target=${target}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate tag against main and versions.json
+        env:
+          GITHUB_TOKEN: ''
+        run: node scripts/verify-release.mjs check "${{ steps.target.outputs.target }}"
+
+      - name: Start loopback-only build registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --detach --name dsh-build-registry \
+            --publish 127.0.0.1:5000:5000 \
+            registry:3.0.0@sha256:6c5666b861f3505b116bb9aa9b25175e71210414bd010d92035ff64018f9457e
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+        with:
+          version: v0.29.1
+          driver-opts: |
+            network=host
+            image=moby/buildkit:v0.25.1@sha256:79cc6476ab1a3371c9afd8b44e7c55610057c43e18d9b39b68e2b0c2475cc1b6
+          buildkitd-config-inline: |
+            [registry."localhost:5000"]
+              http = true
+
+      - name: Build release image (amd64 + arm64)
+        id: image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: ${{ steps.target.outputs.target }}
+          build-args: IMAGE_REVISION=${{ github.sha }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: localhost:5000/dsh-${{ steps.target.outputs.target }}:tested
+          provenance: mode=max
+          sbom: generator=docker/buildkit-syft-scanner:stable-1@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9
+          cache-from: type=gha,scope=release-${{ steps.target.outputs.target }}
+          cache-to: type=gha,mode=max,scope=release-${{ steps.target.outputs.target }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Smoke exact built image (amd64)
+        shell: bash
+        env:
+          TARGET: ${{ steps.target.outputs.target }}
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          image="localhost:5000/dsh-${TARGET}@${IMAGE_DIGEST}"
+          docker pull "${image}"
+          node scripts/smoke.mjs "${image}"
+
+      - name: Verify arm64 runtime and native modules
+        shell: bash
+        env:
+          TARGET: ${{ steps.target.outputs.target }}
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          image="localhost:5000/dsh-${TARGET}@${IMAGE_DIGEST}"
+          docker pull --platform linux/arm64 "${image}"
+          docker run --rm -i --platform linux/arm64 --entrypoint node "${image}" \
+            --input-type=module - arch '{"arch":"arm64"}' < scripts/verify-runtime.mjs
+
       - name: Install registry-copy tooling
         run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends skopeo
-      - name: Publish exact tested OCI graphs
+
+      - name: Generate release token
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: deepseek-harness-container
+          permission-contents: write
+          permission-packages: write
+
+      - name: Publish tested OCI index to version tag
         env:
-          GITHUB_TOKEN: ${{ github.token }}
-          WEB_DIGEST: ${{ steps.images.outputs.web-digest }}
-          TAVERN_DIGEST: ${{ steps.images.outputs.tavern-digest }}
-        run: node scripts/verify-release.mjs publish
+          GITHUB_TOKEN: ${{ steps.app.outputs.token }}
+          GHCR_USERNAME: x-access-token
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+        run: node scripts/verify-release.mjs release "${{ steps.target.outputs.target }}"
+
+      - name: Publish release notes
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/dsh-release-notes.txt" --prerelease
+          fi
+
       - name: Remove temporary build registry
         if: always()
         run: docker rm --force dsh-build-registry || true
-  release-web:
-    if: github.repository == 'soulwhisper/deepseek-harness-container' && startsWith(github.ref, 'refs/tags/web-')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: '24.22.0'
-      - name: Install registry-copy tooling
-        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends skopeo
-      # Promotion never rebuilds a previously tested commit or drops its attestations.
-      - name: Promote tested Web SHA
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/verify-release.mjs promote web
-      - name: Create narrowly scoped repository automation token
-        id: app
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
-        with:
-          client-id: ${{ secrets.APP_CLIENT_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: deepseek-harness-container
-          permission-contents: write
-      - name: Publish Web release notes
-        env:
-          GH_TOKEN: ${{ steps.app.outputs.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
-              --title "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/dsh-release-notes.txt" --prerelease
-          fi
-  release-tavern:
-    if: github.repository == 'soulwhisper/deepseek-harness-container' && startsWith(github.ref, 'refs/tags/tavern-')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: '24.22.0'
-      - name: Install registry-copy tooling
-        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends skopeo
-      # Tavern follows its own upstream line; it never waits for a Web release.
-      - name: Promote tested Tavern SHA
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/verify-release.mjs promote tavern
-      - name: Create narrowly scoped repository automation token
-        id: app
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
-        with:
-          client-id: ${{ secrets.APP_CLIENT_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: deepseek-harness-container
-          permission-contents: write
-      - name: Publish Tavern release notes
-        env:
-          GH_TOKEN: ${{ steps.app.outputs.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
-              --title "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/dsh-release-notes.txt" --prerelease
-          fi

@@ -21,6 +21,7 @@ for (const [target, version] of Object.entries({ web: versions.dsh.version, tave
   assert.equal(release?.tag, `${target}-${version}`, `${target} release tag must track its upstream version`);
   assert.equal(release?.image, `dsh-${target}`, `${target} image name`);
 }
+assert.equal(versions.tavern.upstreamTag, `v${versions.tavern.version}`, 'Tavern upstream tag keeps its v prefix; release/image tags do not');
 assert.match(versions.node.image, new RegExp(`^node:${versions.node.version.replaceAll('.', '\\.')}-.+@sha256:[a-f0-9]{64}$`));
 assert.match(await text('docker/Dockerfile'), new RegExp(`org\\.opencontainers\\.image\\.version="${versions.dsh.version}"`, 'u'));
 assert.match(await text('docker/Dockerfile'), new RegExp(`org\\.opencontainers\\.image\\.version="${versions.tavern.version}"`, 'u'));
@@ -54,12 +55,15 @@ for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/
   'plugins/sso/index.mjs', 'scripts/normalize-locks.mjs', 'test/packaging.test.mjs',
   'deploy/docker/compose.yaml', 'deploy/kubernetes/dsh-web.yaml',
   '.github/CODEOWNERS', '.github/PULL_REQUEST_TEMPLATE.md', '.github/labels.yaml',
-  '.github/labeler.yaml', '.github/workflows/labeler.yaml', '.github/workflows/label-sync.yaml',
+  '.github/labeler.yaml', '.github/workflows/label-sync.yaml',
   '.github/workflows/schedule-cleanup.yaml', '.coderabbit.yaml', 'renovate.json']) {
   assert.ok(await present(path), `Repository layout requires ${path}`);
 }
 for (const legacy of ['Dockerfile', 'profiles', 'runtime']) {
   assert.equal(await present(legacy), false, `Repository layout: move ${legacy} out of the root category tree`);
+}
+for (const obsolete of ['.github/actions/validate/action.yaml', '.github/workflows/labeler.yaml']) {
+  assert.equal(await present(obsolete), false, `${obsolete} was folded into ci.yaml`);
 }
 for (const directory of ['plugins/sso', 'scripts']) {
   for (const name of await readdir(join(root, directory))) {
@@ -70,14 +74,20 @@ for (const directory of ['plugins/sso', 'scripts']) {
 // Renovate never merges on its own, and DSH/Tavern upstream bumps are tracked.
 const ciWorkflow = parse(await text('.github/workflows/ci.yaml'));
 assert.ok(ciWorkflow.on.pull_request !== undefined && ciWorkflow.on.merge_group !== undefined, 'CI must run on pull requests and merge groups');
+assert.ok(ciWorkflow.jobs?.label, 'Labeler is part of the CI workflow');
+assert.match(await text('.github/workflows/ci.yaml'), /create-github-app-token/u, 'CI labeler uses the GitHub App token');
 const publishWorkflow = parse(await text('.github/workflows/publish.yaml'));
-assert.deepEqual(publishWorkflow.on.push.branches, ['main'], 'Only main may publish candidates');
-assert.doesNotMatch(await text('.github/workflows/publish.yaml'), /feat\/sso-distribution/u, 'Feature branches must not publish');
+assert.deepEqual(publishWorkflow.on.push.tags, ['web-*', 'tavern-*'], 'Release triggers only on image tags');
+assert.equal(publishWorkflow.on.push.branches, undefined, 'Branch pushes must not publish');
+const publishText = await text('.github/workflows/publish.yaml');
+assert.match(publishText, /create-github-app-token/u, 'Release uses the GitHub App token');
+assert.doesNotMatch(publishText, /GITHUB_TOKEN:\s*\$\{\{\s*github\.token\s*\}\}/u, 'Release must not write with the default bot token');
 const lockWorkflow = parse(await text('.github/workflows/profile-locks.yaml'));
 assert.deepEqual(Object.keys(lockWorkflow.on), ['workflow_dispatch'], 'Profile-lock bootstrap is manual only');
 const cleanupWorkflow = parse(await text('.github/workflows/schedule-cleanup.yaml'));
 assert.ok(cleanupWorkflow.on.schedule, 'Workflow cleanup must be scheduled');
 assert.match(await text('.github/workflows/schedule-cleanup.yaml'), /create-github-app-token/u, 'Cleanup uses the GitHub App token');
+assert.match(await text('.github/workflows/label-sync.yaml'), /create-github-app-token/u, 'Label sync uses the GitHub App token');
 const renovate = JSON.parse(await text('renovate.json'));
 assert.ok(renovate.extends.includes('github>soulwhisper/renovate-config'), 'Renovate extends the shared preset');
 assert.equal(renovate.packageRules.some(rule => rule.automerge === true), false, 'Renovate must never automerge');
@@ -116,5 +126,10 @@ for (const path of await files(root)) {
     }
   }
 }
-assert.doesNotMatch(await text('.github/workflows/ci.yaml'), /secrets\./u, 'Untrusted CI must not reference repository secrets');
+const ciText = await text('.github/workflows/ci.yaml');
+const ciConfig = parse(ciText);
+for (const job of ['build', 'ci-pass']) {
+  assert.doesNotMatch(JSON.stringify(ciConfig.jobs?.[job]), /secrets\./u, `${job} must not receive repository secrets`);
+}
+assert.match(JSON.stringify(ciConfig.jobs?.label), /secrets\.APP_CLIENT_ID/u, 'Labeler uses the GitHub App credential only');
 console.log('PASS source pins, licenses, committed locks, JavaScript syntax, workflow policy');

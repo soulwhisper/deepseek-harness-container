@@ -143,8 +143,23 @@ const security = ['--read-only', '--user', '1000:1000', '--cap-drop', 'ALL',
   '--tmpfs', '/data:rw,nosuid,nodev,mode=1777,size=2g'];
 async function start(name, image, ip, args = [], command = []) {
   containers.push(name);
-  await docker(['run', '--detach', '--name', name, '--network', network, '--ip', ip,
-    ...security, ...args, image, ...command]);
+  const address = ip ? ['--ip', ip] : [];
+  try {
+    await docker(['run', '--detach', '--name', name, '--network', network, ...address,
+      ...security, ...args, image, ...command]);
+  } catch (error) {
+    throw new Error(`Docker start ${name} (${image}): ${error.message}`);
+  }
+}
+
+async function createSmokeNetwork(name) {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const subnet = `10.${20 + randomBytes(1)[0] % 200}.${1 + randomBytes(1)[0] % 250}.0/24`;
+    const result = await docker(['network', 'create', '--subnet', subnet, name], undefined, true);
+    if (result.code === 0) return subnet;
+    await docker(['network', 'rm', name], undefined, true);
+  }
+  throw new Error('Could not allocate a smoke subnet');
 }
 async function execute(name, mode, config = {}) {
   const result = await docker(['exec', '-i', name, 'node', '--input-type=module', '-', mode,
@@ -181,18 +196,13 @@ try {
     await docker(['image', 'inspect', image]); // Require the caller to build/pull explicitly.
     // A normal bridge is required: Docker refuses to publish ports on an
     // --internal network. The app needs registry egress for market installs.
-    await docker(['network', 'create', network]);
+    const subnet = await createSmokeNetwork(network);
     const stateVolume = `${network}-state`;
     const workspaceVolume = `${network}-workspace`;
     for (const volume of [stateVolume, workspaceVolume]) {
       volumes.push(volume);
       await docker(['volume', 'create', volume]);
     }
-    const details = JSON.parse((await docker(['network', 'inspect', network])).stdout)[0];
-    const subnet = details.IPAM?.Config?.find(config => config.Subnet?.includes('.'))?.Subnet
-      ?? details.subnets?.find(config => config.subnet?.includes('.'))?.subnet;
-    if (!subnet) throw new Error('Docker did not allocate an IPv4 smoke network');
-    const edgeIP = hostAddress(subnet, 2);
     const appIP = hostAddress(subnet, 3);
     const attackerIP = hostAddress(subnet, 4);
     const edge = `${network}-edge`;
@@ -202,8 +212,11 @@ try {
     const helperArgs = ['--entrypoint', 'node'];
     const helperCommand = ['-e', 'setInterval(() => {}, 60000)'];
     const publicPort = await freeLoopbackPort();
-    await start(edge, image, edgeIP, ['--entrypoint', 'node', '--publish', `127.0.0.1:${publicPort}:8080`],
+    await start(edge, image, null, ['--entrypoint', 'node', '--publish', `127.0.0.1:${publicPort}:8080`],
       ['--input-type=module', '-e', edgeSource, JSON.stringify({ host: appIP, port: 3080, uid: 'smoke-owner-uid' })]);
+    const edgeState = JSON.parse((await docker(['inspect', edge])).stdout)[0];
+    const edgeIP = edgeState.NetworkSettings.Networks[network].IPAddress;
+    if (!edgeIP) throw new Error('Docker did not assign the smoke edge address');
     const authority = `dsh.smoke.test:${publicPort}`;
     await start(attacker, image, attackerIP, helperArgs, helperCommand);
     await start(app, image, appIP, [

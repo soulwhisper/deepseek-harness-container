@@ -54,11 +54,11 @@ for (const profile of ['web', 'tavern']) {
 async function present(path) { try { await access(join(root, path)); return true; } catch { return false; } }
 for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/profiles/web/pnpm-lock.yaml',
   'patches/dsh/patch-host.mjs', 'patches/market/patch-market.mjs', 'patches/tavern/patch-tavern.mjs',
-  'plugins/sso/index.mjs', 'scripts/normalize-locks.mjs', 'test/packaging.test.mjs',
+  'plugins/sso/index.mjs', 'scripts/normalize-locks.mjs', 'scripts/field-test.mjs', 'test/packaging.test.mjs',
   'deploy/docker/compose.yaml', 'deploy/kubernetes/dsh-web.yaml',
   '.github/CODEOWNERS', '.github/PULL_REQUEST_TEMPLATE.md', '.github/labels.yaml',
   '.github/labeler.yaml', '.github/workflows/label-sync.yaml',
-  '.github/workflows/schedule-cleanup.yaml', '.coderabbit.yaml', 'renovate.json']) {
+  '.github/workflows/schedule-cleanup.yaml', '.github/workflows/field-test.yaml', '.coderabbit.yaml', 'renovate.json']) {
   assert.ok(await present(path), `Repository layout requires ${path}`);
 }
 for (const legacy of ['Dockerfile', 'profiles', 'runtime']) {
@@ -90,6 +90,11 @@ const cleanupWorkflow = parse(await text('.github/workflows/schedule-cleanup.yam
 assert.ok(cleanupWorkflow.on.schedule, 'Workflow cleanup must be scheduled');
 assert.match(await text('.github/workflows/schedule-cleanup.yaml'), /create-github-app-token/u, 'Cleanup uses the GitHub App token');
 assert.match(await text('.github/workflows/label-sync.yaml'), /create-github-app-token/u, 'Label sync uses the GitHub App token');
+for (const workflow of ['ci.yaml', 'publish.yaml']) {
+  assert.doesNotMatch(await text(`.github/workflows/${workflow}`), /setup-qemu/u,
+    `${workflow} uses native architecture runners, not QEMU`);
+}
+assert.doesNotMatch(await text('.github/workflows/field-test.yaml'), /docker (?:run|build|pull|login)|setup-qemu/iu, 'Field test runs directly on the runner');
 const renovate = JSON.parse(await text('renovate.json'));
 assert.ok(renovate.extends.includes('github>soulwhisper/renovate-config'), 'Renovate extends the shared preset');
 assert.equal(renovate.packageRules.some(rule => rule.automerge === true), false, 'Renovate must never automerge');
@@ -130,7 +135,7 @@ for (const path of await files(root)) {
 }
 const ciText = await text('.github/workflows/ci.yaml');
 const ciConfig = parse(ciText);
-for (const job of ['build', 'ci-pass']) {
+for (const job of ['static', 'images', 'ci-pass']) {
   assert.doesNotMatch(JSON.stringify(ciConfig.jobs?.[job]), /secrets\./u, `${job} must not receive repository secrets`);
 }
 assert.match(JSON.stringify(ciConfig.jobs?.label), /secrets\.APP_CLIENT_ID/u, 'Labeler uses the GitHub App credential only');

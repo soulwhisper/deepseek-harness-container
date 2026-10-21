@@ -1,0 +1,69 @@
+name: Field test (direct environment)
+
+# Manual or release-tag direct-environment check. No Docker: install the
+# production runtime closure on the native runner, apply the exact-hash patches,
+# then verify the patched host/manager/app-boot/market and native PTY.
+on:
+  workflow_dispatch:
+  push:
+    tags: ['web-*', 'tavern-*']
+  pull_request:
+    paths:
+      - 'docker/runtime/**'
+      - 'plugins/sso/**'
+      - 'patches/**'
+      - 'scripts/field-test.mjs'
+      - 'versions.json'
+      - '.github/workflows/field-test.yaml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: field-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  field-test:
+    name: Direct runtime field test (${{ matrix.arch }})
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.22.0'
+
+      - name: Install native build prerequisites
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends build-essential python3
+
+      - name: Install production runtime closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global --ignore-scripts pnpm@11.25.0
+          pnpm --dir docker/runtime install --frozen-lockfile --prod --store-dir /tmp/pnpm-store
+
+      - name: Apply exact-hash patches
+        shell: bash
+        run: |
+          set -euo pipefail
+          node patches/dsh/patch-host.mjs docker/runtime
+          node patches/market/patch-market.mjs docker/runtime/node_modules/dshmarket
+
+      - name: Run direct field test
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: node scripts/field-test.mjs

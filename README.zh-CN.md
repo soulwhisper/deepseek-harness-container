@@ -17,7 +17,7 @@
 
 两者使用 Node 24/glibc、UID/GID `1000:1000`、`tini`、DSH 原生 `3080` 监听，以及只读根文件系统。**没有 Chromium、GUI、X11、VNC、浏览器桌面、TCP 中继、OIDC 客户端、本地用户名/密码库或替代 mux 服务。** 保留工具链与 pnpm，用于用户显式批准的社区插件操作；启动时不安装依赖。
 
-CI 构建 **`linux/amd64` 与 `linux/arm64`** OCI index。完整 Chromium/浏览器 smoke 在 amd64 上运行；arm64 镜像在 QEMU 下执行原生运行时探测（ESM 导入、`node-pty`、Tavern 许可树）。因此 Apple Silicon 可以原生运行 arm64 镜像；这是 Linux 容器镜像，不是 macOS 宿主应用。部署前查看目标提交的实际 CI 结果，本文不是未执行构建的通过证明。文档组织参考了 [runzhliu/deepseek-harness-docker](https://github.com/runzhliu/deepseek-harness-docker) 等社区项目，但这是不同发行版和不同信任模型，不是其桌面镜像。
+CI 在原生 GitHub runner（`ubuntu-24.04` 与 `ubuntu-24.04-arm`）上构建 **`linux/amd64` 与 `linux/arm64`**，并在两者上运行完整 Chromium/浏览器 smoke。不使用 QEMU 或跨架构模拟。因此 Apple Silicon 可以原生运行 arm64 镜像；这是 Linux 容器镜像，不是 macOS 宿主应用。部署前查看目标提交的实际 CI 结果，本文不是未执行构建的通过证明。文档组织参考了 [runzhliu/deepseek-harness-docker](https://github.com/runzhliu/deepseek-harness-docker) 等社区项目，但这是不同发行版和不同信任模型，不是其桌面镜像。
 
 ## 仓库布局
 
@@ -33,9 +33,10 @@ CI 构建 **`linux/amd64` 与 `linux/arm64`** OCI index。完整 Chromium/浏览
 
 ## 自动化与审查
 
-- **仅通过 PR。** `main` 已保护：禁止直接 push、禁止 force push、线性历史、必须通过 `CI checks passed` 且分支最新；CODEOWNERS 负责把安全敏感路径路由给审查者。`ci.yaml` 在 PR 与 merge group 上构建双架构、运行 amd64 浏览器 smoke 与 arm64 运行时探测，并用 GitHub App token 给同仓库 PR 打标签。公开/fork PR 提交刻意不支持，其 job 会被跳过。
-- **发布路径。** 只有 `web-<dsh-version>` 与 `tavern-<version>` 标签会发布。标签须与 `versions.json` 一致且位于 `main`；每个标签只构建对应目标（amd64+arm64），smoke amd64、探测 arm64，然后把同一份已测试 OCI index 复制到版本标签。分支 push 永不发布，也不再生成 candidate `sha-` 镜像。
+- **仅通过 PR。** `main` 已保护：禁止直接 push、禁止 force push、线性历史、必须通过 `CI checks passed` 且分支最新；CODEOWNERS 负责把安全敏感路径路由给审查者。`ci.yaml` 在 PR 与 merge group 上于原生 amd64/arm64 runner 构建每个目标并运行完整浏览器 smoke，同时用 GitHub App token 给同仓库 PR 打标签。公开/fork PR 提交刻意不支持，其 job 会被跳过。
+- **发布路径。** 只有 `web-<dsh-version>` 与 `tavern-<version>` 标签会发布。标签须与 `versions.json` 一致且位于 `main`；每个标签在原生 amd64+arm64 runner 上只构建对应目标并分别 smoke，然后把已测试 manifest 合并为版本 index。分支 push 永不发布，也不再生成 candidate `sha-` 镜像。
 - **定时清理。** `schedule-cleanup.yaml` 清理取消/跳过及过旧运行；`label-sync.yaml` 恢复受审阅的标签集合。两者都使用 GitHub App token。
+- **直接 field test。** `field-test.yaml` 在 Release 标签与手动触发时、不依赖 Docker：在原生 amd64/arm64 runner 安装生产 runtime 闭包，应用精确哈希 host/market 补丁，并验证打补丁后的 host/manager/app-boot/market 与原生 PTY。它是最终镜像 smoke 的补充，不是替代。
 - **Renovate 仅供提示。** 跟踪 DSH npm 上游、Tavern GitHub tag、`dshmarket`、根/dev 依赖和 SHA 固定的 Actions；从不自动合并，每个 PR 都带 `review/required`。DSH 仍是 developer preview，即使 patch/digest 更新也必须人工检查并修复。
 - **耦合 pin 必须手动。** Node digest、pnpm、源码 commit、精确补丁哈希、Tavern 配套插件和 Profile 锁文件不会自动漂移。Renovate 只改版本号的 PR 预期会验证失败，直到人工补上 commit/hash/lock/release tag。
 - **CodeRabbit 仅提供建议。** 需在本仓库安装 CodeRabbit GitHub App。它对非 Renovate PR 运行 actionlint、zizmor、shellcheck、yamllint、gitleaks，不批准、不合并。GitHub App 的 `APP_CLIENT_ID`/`APP_PRIVATE_KEY` 需要 Actions write（清理）、Contents write（Release）、Packages write（GHCR）、Issues write（label sync）和 Pull requests write（CI 内 labeler）。所有写 token 都由 GitHub App 生成；默认 bot token 只用于只读 checkout。
@@ -205,10 +206,10 @@ Smoke 使用最终只读、非 root 镜像，隔离 scratch/home，并使用可�
 
 ### 发布策略
 
-- PR 运行源码检查、测试、双架构构建、amd64 最终镜像 smoke 和 arm64 原生探测；不获取仓库/App secrets、不使用 `pull_request_target`、不写 package、不自动合并。
-- Release 标签须与 `versions.json.release.<target>.tag` 精确一致且位于 `main`。同一个 job 处理任一标签：只构建对应目标（`linux/amd64,linux/arm64`），smoke amd64、探测 arm64，然后把**同一 OCI index 及 attestations**复制到版本标签。两条发布路径彼此独立；没有浮动 `latest`，也不从分支发布。
+- PR 运行源码检查、测试、原生 amd64+arm64 构建，并在两者上运行完整最终镜像 smoke；不获取仓库/App secrets、不使用 `pull_request_target`、不写 package、不自动合并。
+- Release 标签须与 `versions.json.release.<target>.tag` 精确一致且位于 `main`。标签 job 在原生 amd64/arm64 runner 上只构建对应目标、分别 smoke，推送两个 staging manifest，再合并为一个版本 index。两条发布路径彼此独立；没有浮动 `latest`，也不从分支发布。
 - GHCR 发布与 GitHub Release 元数据都使用 GitHub App installation token（Contents + Packages write）。App 是唯一写身份；默认 `GITHUB_TOKEN` 只用于只读 checkout。首次发布可创建新 package。秘密不进入构建参数或镜像层。
-- Buildx 生成 provenance 和 SBOM 并附加到 index；它们是清单，不是漏洞清零或可复现性证明。
+- index 引用两个已测试的架构 manifest；当前不附加 BuildKit provenance 或 SBOM attestation。部署请按 digest 固定。
 
 部署固定 digest，同时保存上一 digest 和卷快照。支持范围是明确固定并测试的发行版，不是任意上游 RC 或插件组合。上游/SSO 更新必须重新审阅、必要时移植精确哈希补丁、更新锁并运行完整 smoke；不承诺 LTS 或已安全审计。报告问题请附镜像 digest、架构、脱敏配置与检查摘要，不能附秘密。
 

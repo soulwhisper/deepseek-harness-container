@@ -1,0 +1,14 @@
+# Default owner for everything in the repository.
+* @soulwhisper
+
+# Security and release boundaries. Changes here review the SSO gate, exact-hash
+# upstream patches, image build inputs and release pins.
+/plugins/sso/                  @soulwhisper
+/patches/dsh/                  @soulwhisper
+/patches/market/               @soulwhisper
+/patches/tavern/               @soulwhisper
+/docker/Dockerfile             @soulwhisper
+/docker/runtime/               @soulwhisper
+/versions.json                 @soulwhisper
+/.github/workflows/            @soulwhisper
+/renovate.json                 @soulwhisper

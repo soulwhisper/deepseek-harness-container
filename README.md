@@ -31,6 +31,16 @@ Native CI currently targets **`linux/amd64` only**. There is no ARM runtime/PTy 
 
 Build with `-f docker/Dockerfile`; the BuildKit context remains the repository root. Keeping patches, the SSO plugin, image build and examples in separate trees makes an upstream break local to one area instead of forcing a whole-repository rebase.
 
+## Automation and review
+
+- **PR only.** `main` is protected: no direct pushes, no force pushes, linear history, required `CI checks passed`, and an up-to-date branch. CODEOWNERS routes the security-critical paths. `ci.yaml` runs on pull requests and merge groups; feature branches never publish images.
+- **Release path.** A `main` push touching image/build inputs builds and smokes both images, then publishes immutable `sha-<commit>` candidates. Only `web-<dsh-version>` and `tavern-<tavern-version>` tags promote an already-tested graph to its version tag.
+- **Scheduled hygiene.** `schedule-cleanup.yaml` prunes cancelled/skipped and old successful/failed runs using the GitHub App token; `label-sync.yaml` restores the reviewed label set.
+- **Renovate is advisory only.** It tracks the DSH npm upstream, the Tavern GitHub tag, `dshmarket`, root/dev dependencies and SHA-pinned Actions. It never auto-merges; every PR gets `review/required`. Because DSH is a developer preview, even patch and digest updates must be inspected and fixed by a human.
+- **Coupled pins are manual.** Node digest, pnpm, source commits, exact patch hashes, Tavern ecosystem plugins and profile locks do not move on their own. A Renovate version-only PR is expected to fail verification until the commit/hash/lock/release-tag updates are added deliberately.
+- **CodeRabbit is advisory.** Install the CodeRabbit GitHub App on this repository. It reviews non-Renovate PRs with actionlint, zizmor, shellcheck, yamllint and gitleaks; it never approves or merges. The GitHub App credentials `APP_CLIENT_ID`/`APP_PRIVATE_KEY` need Actions write for cleanup, Contents write for releases and Pull requests write for labeler.
+- **Renovate activation.** The shared Renovate runner selects repositories by topic, so this repository carries `managed-by-renovate`. If the topic or App installation is removed, updates stop silently even though `renovate.json` remains.
+
 ## Pinned baseline
 
 [`versions.json`](versions.json), committed dependency locks and [`docker/Dockerfile`](docker/Dockerfile) are authoritative.
@@ -191,12 +201,12 @@ Smoke runs the final images read-only/non-root with isolated scratch/home and di
 
 ### One-time profile-lock bootstrap
 
-If a new recipe does not yet have committed `docker/profiles/{web,tavern}/pnpm-lock.yaml`, the trusted feature-branch **Bootstrap missing profile locks** workflow builds only the `profile-locks` export target and uploads the `profile-locks` artifact. Download it, review the generated web/Tavern locks, place them under `docker/profiles/web` and `docker/profiles/tavern`, and commit them. Generated locks use absolute `link:/opt/dsh/runtime/...` versions; `scripts/normalize-locks.mjs` enforces that and CI rejects relative link versions. Final CI/publishing deliberately fails until both locks are committed. This is an explicit bootstrap step, not silent dependency resolution during final builds.
+If a new recipe does not yet have committed `docker/profiles/{web,tavern}/pnpm-lock.yaml`, a maintainer manually dispatches the **Bootstrap missing profile locks** workflow. It builds only the `profile-locks` export target and uploads the `profile-locks` artifact. Download it, review the generated web/Tavern locks, place them under `docker/profiles/web` and `docker/profiles/tavern`, and commit them. Generated locks use absolute `link:/opt/dsh/runtime/...` versions; `scripts/normalize-locks.mjs` enforces that and CI rejects relative link versions. Final CI/publishing deliberately fails until both locks are committed. This is an explicit bootstrap step, not silent dependency resolution during final builds.
 
 ### Publication policy
 
 - Pull requests run tests/build/final-image smoke only; no repository/App secrets, `pull_request_target`, package writes or auto-merge.
-- Trusted pushes to `feat/sso-distribution` may publish **candidate** `sha-<full-commit>` tags before the initial PR is merged. Trusted `main` pushes publish the same immutable SHA naming scheme.
+- Only reviewed `main` pushes publish **candidate** `sha-<full-commit>` tags after the required PR check passes. Feature branches and forks never publish.
 - Final Buildx builds carry provenance and an SBOM. CI smokes exact local-registry digests, then copies the **same OCI graph**, including attestations, to GHCR without rebuilding. SBOM/provenance are not vulnerability clearance or a reproducibility proof.
 - To release, first wait for the desired `main` commit's SHA images to publish. Push **one or both** release tags on that commit: `web-0.2.1-rc.2` promotes only `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2`; `tavern-v3.0` promotes only `ghcr.io/soulwhisper/dsh-tavern:v3.0`. Tags must equal `versions.json.release.<target>.tag`; each workflow checks main ancestry and promotes the already-tested SHA graph without rebuilding, refusing to overwrite a different existing digest. The two routes are independent, so one upstream can break or drift without blocking the other. There is no floating `latest`, auto-merge or deployment to other repositories.
 - GHCR publication uses `GITHUB_TOKEN` with `packages:write`; first publication can create the new packages. The narrowly scoped GitHub App credentials **`APP_CLIENT_ID`** and **`APP_PRIVATE_KEY`** are used only afterward to create this repository's release metadata. Install the App only where needed, grant repository Contents write for releases, and protect trusted branches/version tags. No secret is a build arg/image layer. Candidate publication does not require App secrets.

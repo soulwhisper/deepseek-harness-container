@@ -31,6 +31,16 @@
 
 使用 `-f docker/Dockerfile` 构建，BuildKit context 仍是仓库根目录。把补丁、SSO 插件、镜像构建和示例拆成独立目录后，某个上游破裂只影响局部，不必整体 rebase。
 
+## 自动化与审查
+
+- **仅通过 PR。** `main` 已保护：禁止直接 push、禁止 force push、线性历史、必须通过 `CI checks passed` 且分支最新；CODEOWNERS 负责把安全敏感路径路由给审查者。`ci.yaml` 在 PR 与 merge group 上运行；feature 分支不会发布镜像。
+- **发布路径。** 触及镜像/构建输入的 `main` push 会构建并 smoke 两个镜像，发布不可变 `sha-<commit>` candidate；只有 `web-<dsh-version>` 与 `tavern-<tavern-version>` 标签才会把已测试的图提升为版本标签。
+- **定时清理。** `schedule-cleanup.yaml` 用 GitHub App token 清理取消/跳过及过旧的运行；`label-sync.yaml` 恢复受审阅的标签集合。
+- **Renovate 仅供提示。** 跟踪 DSH npm 上游、Tavern GitHub tag、`dshmarket`、根/dev 依赖和 SHA 固定的 Actions；从不自动合并，每个 PR 都带 `review/required`。DSH 仍是 developer preview，即使 patch/digest 更新也必须人工检查并修复。
+- **耦合 pin 必须手动。** Node digest、pnpm、源码 commit、精确补丁哈希、Tavern 配套插件和 Profile 锁文件不会自动漂移。Renovate 只改版本号的 PR 预期会验证失败，直到人工补上 commit/hash/lock/release tag。
+- **CodeRabbit 仅提供建议。** 需在本仓库安装 CodeRabbit GitHub App。它对非 Renovate PR 运行 actionlint、zizmor、shellcheck、yamllint、gitleaks，不批准、不合并。GitHub App 的 `APP_CLIENT_ID`/`APP_PRIVATE_KEY` 需要 Actions write（清理）、Contents write（Release）和 Pull requests write（labeler）。
+- **Renovate 启用条件。** 共享 Renovate runner 按 topic 选择仓库，因此本仓库带有 `managed-by-renovate`。删除该 topic 或 App 安装后，更新会静默停止；仅保留 `renovate.json` 不够。
+
 ## 固定基线
 
 以 [`versions.json`](versions.json)、已提交的依赖锁文件和 [`docker/Dockerfile`](docker/Dockerfile) 为准。
@@ -191,12 +201,12 @@ Smoke 使用最终只读、非 root 镜像，隔离 scratch/home，并使用可�
 
 ### 首次 Profile 锁文件引导
 
-如果新 recipe 尚无已提交的 `docker/profiles/{web,tavern}/pnpm-lock.yaml`，可信 feature 分支的 **Bootstrap missing profile locks** 工作流只构建 `profile-locks` 导出目标，并上传名为 `profile-locks` 的 artifact。下载、审阅后把 web/Tavern 锁分别放进 `docker/profiles/web`、`docker/profiles/tavern` 并提交。生成的锁使用绝对 `link:/opt/dsh/runtime/...` 版本；`scripts/normalize-locks.mjs` 会修正它们，CI 拒绝相对 link 版本。最终 CI/发布在两份锁提交前故意失败。这是显式引导，不是在最终构建时偷偷重新解析依赖。
+如果新 recipe 尚无已提交的 `docker/profiles/{web,tavern}/pnpm-lock.yaml`，由维护者手动触发 **Bootstrap missing profile locks** 工作流；它只构建 `profile-locks` 导出目标，并上传名为 `profile-locks` 的 artifact。下载、审阅后把 web/Tavern 锁分别放进 `docker/profiles/web`、`docker/profiles/tavern` 并提交。生成的锁使用绝对 `link:/opt/dsh/runtime/...` 版本；`scripts/normalize-locks.mjs` 会修正它们，CI 拒绝相对 link 版本。最终 CI/发布在两份锁提交前故意失败。这是显式引导，不是在最终构建时偷偷重新解析依赖。
 
 ### 发布策略
 
 - PR 仅运行测试、构建和最终镜像 smoke，不获取仓库/App secrets、使用 `pull_request_target`、写 package 或自动合并。
-- `feat/sso-distribution` 上的可信 push 可以在首个 PR 合并前发布 **candidate** `sha-<完整提交>`；`main` 的可信 push 使用同一不可变 SHA 标签方式。
+- 只有经过审查的 `main` push 才会在所需 PR 检查通过后发布 **candidate** `sha-<完整提交>`；feature 分支和 fork 永不发布。
 - Buildx 生成 provenance 和 SBOM；CI 运行本地 registry 的确切 digest，然后无重建复制**同一 OCI 图及 attestations**到 GHCR。SBOM/provenance 不是漏洞清零或可复现性证明。
 - 正式发版先等待目标 `main` 提交的 SHA 镜像成功发布，再在该提交推送**一个或两个** Release 标签：`web-0.2.1-rc.2` 只提升 `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2`；`tavern-v3.0` 只提升 `ghcr.io/soulwhisper/dsh-tavern:v3.0`。标签须与 `versions.json.release.<target>.tag` 精确一致；每个工作流都检查 main ancestry，只提升已测试 SHA 图、不重建，并拒绝覆盖不同的既有 digest。两条发布路径彼此独立，某个上游破裂或漂移不会阻塞另一个。没有浮动 `latest`、自动合并或向其他仓库自动部署。
 - GHCR 使用有 `packages:write` 的 `GITHUB_TOKEN`，可首次创建新 package。GitHub App 的 **`APP_CLIENT_ID`** 和 **`APP_PRIVATE_KEY`** 仅在之后为本仓库创建 Release 元数据；App 只安装到需要的仓库，授予 Release 所需 Contents write，并保护可信分支和版本标签。秘密不进入构建参数或镜像层。Candidate 发布不依赖 App secrets。

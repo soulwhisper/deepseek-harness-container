@@ -1,14 +1,24 @@
-name: Validate
+name: Validate Pull Request
+
+# Pull requests are the only path for changes. This workflow builds both final
+# images and runs the behavioral/smoke tests without repository secrets or
+# package write access. merge_group keeps the same required check usable with a
+# GitHub merge queue; it is not a release trigger.
 on:
   pull_request:
+  merge_group:
   workflow_dispatch:
+
 permissions:
   contents: read
+
 concurrency:
   group: validate-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+
 jobs:
   native-amd64:
+    name: Build, smoke and verify
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -20,3 +30,21 @@ jobs:
       - name: Remove temporary build registry
         if: always()
         run: docker rm --force dsh-build-registry || true
+
+  # Single required-status-check target for branch protection. Requiring only
+  # `CI checks passed` keeps the protection rule stable when jobs are added.
+  ci-pass:
+    name: CI checks passed
+    needs: [native-amd64]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required validation succeeded
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ needs.native-amd64.result }}" != "success" ]; then
+            echo "::error::Validation did not succeed: ${{ needs.native-amd64.result }}"
+            exit 1
+          fi
+          echo "Validation passed"

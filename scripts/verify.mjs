@@ -52,7 +52,10 @@ async function present(path) { try { await access(join(root, path)); return true
 for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/profiles/web/pnpm-lock.yaml',
   'patches/dsh/patch-host.mjs', 'patches/market/patch-market.mjs', 'patches/tavern/patch-tavern.mjs',
   'plugins/sso/index.mjs', 'scripts/normalize-locks.mjs', 'test/packaging.test.mjs',
-  'deploy/docker/compose.yaml', 'deploy/kubernetes/dsh-web.yaml']) {
+  'deploy/docker/compose.yaml', 'deploy/kubernetes/dsh-web.yaml',
+  '.github/CODEOWNERS', '.github/PULL_REQUEST_TEMPLATE.md', '.github/labels.yaml',
+  '.github/labeler.yaml', '.github/workflows/labeler.yaml', '.github/workflows/label-sync.yaml',
+  '.github/workflows/schedule-cleanup.yaml', '.coderabbit.yaml', 'renovate.json']) {
   assert.ok(await present(path), `Repository layout requires ${path}`);
 }
 for (const legacy of ['Dockerfile', 'profiles', 'runtime']) {
@@ -63,6 +66,30 @@ for (const directory of ['plugins/sso', 'scripts']) {
     assert.doesNotMatch(name, /^patch-.*\.mjs$/u, `Patches belong under patches/, not ${directory}/${name}`);
   }
 }
+// Automation contract: changes arrive by PR, feature branches never publish,
+// Renovate never merges on its own, and DSH/Tavern upstream bumps are tracked.
+const ciWorkflow = parse(await text('.github/workflows/ci.yaml'));
+assert.ok(ciWorkflow.on.pull_request !== undefined && ciWorkflow.on.merge_group !== undefined, 'CI must run on pull requests and merge groups');
+const publishWorkflow = parse(await text('.github/workflows/publish.yaml'));
+assert.deepEqual(publishWorkflow.on.push.branches, ['main'], 'Only main may publish candidates');
+assert.doesNotMatch(await text('.github/workflows/publish.yaml'), /feat\/sso-distribution/u, 'Feature branches must not publish');
+const lockWorkflow = parse(await text('.github/workflows/profile-locks.yaml'));
+assert.deepEqual(Object.keys(lockWorkflow.on), ['workflow_dispatch'], 'Profile-lock bootstrap is manual only');
+const cleanupWorkflow = parse(await text('.github/workflows/schedule-cleanup.yaml'));
+assert.ok(cleanupWorkflow.on.schedule, 'Workflow cleanup must be scheduled');
+assert.match(await text('.github/workflows/schedule-cleanup.yaml'), /create-github-app-token/u, 'Cleanup uses the GitHub App token');
+const renovate = JSON.parse(await text('renovate.json'));
+assert.ok(renovate.extends.includes('github>soulwhisper/renovate-config'), 'Renovate extends the shared preset');
+assert.equal(renovate.packageRules.some(rule => rule.automerge === true), false, 'Renovate must never automerge');
+assert.ok(renovate.packageRules.some(rule => rule.addLabels?.includes('review/required')), 'Renovate PRs require human review');
+for (const dep of ['@deepseek-ai/dsh', 'flizzywine/dsh-tavern']) {
+  assert.ok(renovate.customManagers.some(manager => manager.depNameTemplate === dep), `Renovate must track ${dep}`);
+}
+const coderabbit = parse(await text('.coderabbit.yaml'));
+assert.equal(coderabbit.reviews?.tools?.actionlint?.enabled, true, 'CodeRabbit actionlint enabled');
+assert.ok(coderabbit.reviews?.path_instructions?.length > 0, 'CodeRabbit has repository-specific review instructions');
+const labels = parse(await text('.github/labels.yaml'));
+assert.ok(labels.some(label => label.name === 'review/required'), 'review/required label exists');
 async function files(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
   const result = [];

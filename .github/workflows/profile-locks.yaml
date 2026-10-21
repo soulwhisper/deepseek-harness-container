@@ -1,13 +1,16 @@
 name: Bootstrap missing profile locks
+
+# Maintainer-only bootstrap. Normal changes must arrive through a PR and carry
+# reviewed locks; this workflow never writes to a branch or publishes images.
 on:
-  push:
-    branches: [feat/sso-distribution]
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   export-locks:
-    if: github.repository == 'soulwhisper/deepseek-harness-container' && github.ref == 'refs/heads/feat/sso-distribution'
+    if: github.repository == 'soulwhisper/deepseek-harness-container'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:

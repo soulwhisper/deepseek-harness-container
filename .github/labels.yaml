@@ -1,0 +1,51 @@
+---
+# Areas
+- name: area/dsh
+  color: "0e8a16"
+  description: DSH or Tavern upstream pins, versions and runtime
+- name: area/patches
+  color: "0e8a16"
+  description: Exact-hash upstream patches
+- name: area/plugin
+  color: "0e8a16"
+  description: Local SSO plugin
+- name: area/docker
+  color: "0e8a16"
+  description: Image build and profile locks
+- name: area/scripts
+  color: "0e8a16"
+  description: Scaffold, verification and tests
+- name: area/docs
+  color: "0e8a16"
+  description: Documentation and notices
+- name: area/deploy
+  color: "0e8a16"
+  description: Deploy examples
+- name: area/github
+  color: "0e8a16"
+  description: GitHub workflows and repository automation
+- name: area/renovate
+  color: "0e8a16"
+  description: Renovate dependency update
+# Renovate Types
+- name: renovate/container
+  color: "027fa0"
+- name: renovate/github-action
+  color: "027fa0"
+- name: renovate/github-release
+  color: "027fa0"
+- name: renovate/npm
+  color: "027fa0"
+# Semantic Types
+- name: type/digest
+  color: "ffec19"
+- name: type/patch
+  color: "ffec19"
+- name: type/minor
+  color: "ff9800"
+- name: type/major
+  color: "f6412d"
+# Review Types
+- name: review/required
+  color: "ee0701"
+  description: Human review and manual merge required

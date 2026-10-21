@@ -1,8 +1,21 @@
 name: Publish tested distribution
+# Changes reach main only through a reviewed PR. Main pushes publish candidate
+# sha-<commit> images; annotated release tags promote the already-tested graph.
 on:
   push:
-    branches: [main, feat/sso-distribution]
+    branches: [main]
     tags: ['web-*', 'tavern-*']
+    # Branch pushes only publish when image/build inputs change. Tag pushes are
+    # not subject to path filters and always promote the tested graph.
+    paths:
+      - 'docker/**'
+      - 'patches/**'
+      - 'plugins/**'
+      - 'scripts/**'
+      - 'versions.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/actions/**'
 permissions:
   contents: read
 concurrency:
@@ -20,7 +33,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      # The feature branch is explicitly trusted for initial candidate publication.
+      # Main is trusted for candidate publication after the PR check passed.
       # No registry or App credential is passed to build/test/runtime containers.
       - uses: ./.github/actions/validate
         id: images

@@ -77,8 +77,8 @@ async function copy(source, destination, expected, local = false) {
 try {
   // Validate the route before asking for registry credentials.
   if (mode === 'publish') {
-    if (!['refs/heads/main', 'refs/heads/feat/sso-distribution'].includes(process.env.GITHUB_REF)) {
-      throw new Error('Candidate publication is restricted to explicitly trusted pushes');
+    if (process.env.GITHUB_REF !== 'refs/heads/main') {
+      throw new Error('Candidate publication is restricted to main pushes');
     }
     for (const target of Object.keys(releases)) {
       if (!/^sha256:[a-f0-9]{64}$/.test(process.env[`${target.toUpperCase()}_DIGEST`] ?? '')) {

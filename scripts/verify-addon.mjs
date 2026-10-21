@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
+if (process.env.NARB_DISABLE_NATIVE_CACHE !== '1') throw new Error('NARB_DISABLE_NATIVE_CACHE must be 1 for noexec /tmp');
 const runtime = '/opt/dsh/docker/runtime';
 const requireRuntime = createRequire(join(runtime, 'package.json'));
 const suffix = process.arch === 'arm64' ? 'linux-arm64-gnu' : 'linux-x64-gnu';

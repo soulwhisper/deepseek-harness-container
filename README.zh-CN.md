@@ -156,7 +156,7 @@ Compose 与 Kubernetes 示例见 [`deploy/docker`](deploy/docker) 和 [`deploy/k
 | `DSH_STATE_MIGRATION` | 默认 `refuse`；备份后显式用 `apply` 接纳既有/不同版本状态 |
 | `DSH_LEGACY_HOME` | 旧 home 来源，默认 `/home/node/.dsh`；迁移只复制，不删除原始数据 |
 
-镜像决定 Profile，`DSH_PROFILE=web` 或 `tavern` 必须与镜像一致。持久布局是 `DSH_HOME=/data/dsh`、`HOME=/data/home`、`XDG_CACHE_HOME=/data/cache`，工作目录为 `/workspace`。不要把不可变 runtime/源码路径改成用户状态目录。
+镜像设置 `NARB_DISABLE_NATIVE_CACHE=1`，因此即使 `/tmp` 以 `noexec` 挂载，native addon 也从不可变镜像路径加载。镜像决定 Profile，`DSH_PROFILE=web` 或 `tavern` 必须与镜像一致。持久布局是 `DSH_HOME=/data/dsh`、`HOME=/data/home`、`XDG_CACHE_HOME=/data/cache`，工作目录为 `/workspace`。不要把不可变 runtime/源码路径改成用户状态目录。
 
 ### TLS 与就绪检查
 

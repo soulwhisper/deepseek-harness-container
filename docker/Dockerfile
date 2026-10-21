@@ -92,6 +92,7 @@ ENV DSH_HOME=/data/dsh \
     XDG_DATA_HOME=/data/home/.local/share \
     npm_config_cache=/data/cache/npm \
     PNPM_HOME=/data/home/.local/share/pnpm \
+    NARB_DISABLE_NATIVE_CACHE=1 \
     DSH_PORT=3080 \
     TMPDIR=/tmp
 WORKDIR /workspace

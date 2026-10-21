@@ -68,4 +68,5 @@ jobs:
       - name: Run direct field test
         env:
           EXPECTED_ARCH: ${{ matrix.arch }}
+          NARB_DISABLE_NATIVE_CACHE: "1"
         run: node scripts/field-test.mjs

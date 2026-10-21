@@ -156,7 +156,7 @@ Open the **clean HTTPS edge URL**, not a startup log URL. Use a separate contain
 | `DSH_STATE_MIGRATION` | `refuse` by default; `apply` explicitly adopts existing/different-version state after backup |
 | `DSH_LEGACY_HOME` | Legacy home source, default `/home/node/.dsh`; migration copies, never deletes the source |
 
-The image selects its profile; `DSH_PROFILE=web` or `tavern` must agree with it. `DSH_HOME=/data/dsh`, `HOME=/data/home`, `XDG_CACHE_HOME=/data/cache` and working directory `/workspace` are the persistent layout. Do not redirect immutable source/runtime paths into user state.
+The image sets `NARB_DISABLE_NATIVE_CACHE=1` so native addons load from the immutable image even when `/tmp` is mounted `noexec`. The image selects its profile; `DSH_PROFILE=web` or `tavern` must agree with it. `DSH_HOME=/data/dsh`, `HOME=/data/home`, `XDG_CACHE_HOME=/data/cache` and working directory `/workspace` are the persistent layout. Do not redirect immutable source/runtime paths into user state.
 
 ### TLS and readiness
 
@@ -180,7 +180,7 @@ It connects to `/tmp/dsh-sso-ready.sock`, which replies `ready\n` only after the
 | `/data/home` | Durable shell/tool home and plugin-manager state |
 | `/data/cache` | Writable cache; may be rebuilt, but don't share it across unrelated owners |
 | `/workspace` | Durable user projects; snapshot consistently with DSH state |
-| `/tmp` | Per-container scratch/tmpfs; never a backup location |
+| `/tmp` | Per-container scratch/tmpfs; may be `noexec` — the image disables the native addon cache so nothing needs to execute from it. Never a backup location. |
 | `/opt/dsh/runtime`, `/opt/dsh-seed`, `/opt/dsh-tavern` | Immutable image content, not portable data volumes |
 
 Fresh empty state is seeded once. Existing state from another version/profile or an unrecognized layout is refused unless you explicitly set `DSH_STATE_MIGRATION=apply`. Migration updates managed dependencies/links and removes obsolete `dsh-ui-auth` activation while preserving unrelated state. It creates a local rollback copy under `/data/dsh-migrations`; this is **not** an independent backup or an atomic filesystem snapshot.

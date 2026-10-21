@@ -46,6 +46,8 @@ for (const profile of ['web', 'tavern']) {
   const lock = parse(lockText);
   assert.ok(lock.importers?.['.'], `Committed ${profile} lock required; use explicit bootstrap workflow, review and commit its artifact`);
   assert.equal(relativeLinkCount(lockText), 0, `${profile} lock link versions must be absolute; run scripts/normalize-locks.mjs`);
+  assert.doesNotMatch(lockText, /node-addon-system-(?:linux|darwin|win32)-/u,
+    `${profile} lock must not contain architecture-specific overrides`);
 }
 // Keep local patches, the SSO plugin, image build, scaffold and examples in
 // separate trees so an upstream break stays local to its patch surface.

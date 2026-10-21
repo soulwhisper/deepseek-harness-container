@@ -309,7 +309,6 @@ overrides:
   '@deepseek-ai/libreoffice-kit': link:/opt/dsh/runtime/node_modules/@deepseek-ai/libreoffice-kit
   '@deepseek-ai/libreoffice-kit-wasm': link:/opt/dsh/runtime/node_modules/@deepseek-ai/libreoffice-kit-wasm
   '@deepseek-ai/node-addon-system': link:/opt/dsh/runtime/node_modules/@deepseek-ai/node-addon-system
-  '@deepseek-ai/node-addon-system-linux-x64': link:/opt/dsh/runtime/node_modules/@deepseek-ai/node-addon-system-linux-x64
   '@deepseek-ai/schemastery': link:/opt/dsh/runtime/node_modules/@deepseek-ai/schemastery
   '@soulwhisper/dsh-sso': link:/opt/dsh/runtime/node_modules/@soulwhisper/dsh-sso
 

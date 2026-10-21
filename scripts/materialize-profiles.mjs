@@ -15,6 +15,10 @@ const link = name => `link:${runtime}/node_modules/${name}`;
 // protected host module must resolve to the patched immutable runtime copy.
 const overrides = {};
 for (const name of await readdir(`${runtime}/node_modules/@deepseek-ai`)) {
+  // Platform-specific native addon packages differ by architecture; keeping
+  // them out of profile overrides makes the generated workspace identical on
+  // amd64 and arm64. The base node-addon-system package stays protected.
+  if (/-(?:linux|darwin|win32)-(?:x64|arm64|arm|ia32)$/u.test(name)) continue;
   overrides[`@deepseek-ai/${name}`] = link(`@deepseek-ai/${name}`);
 }
 overrides['@soulwhisper/dsh-sso'] = link('@soulwhisper/dsh-sso');

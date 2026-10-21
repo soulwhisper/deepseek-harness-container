@@ -125,7 +125,12 @@ assert.match(publishText, /"\$\{IMAGE\}@\$\{amd64_digest\}"/u, 'Combine promotes
 assert.match(publishText, /"\$\{IMAGE\}@\$\{arm64_digest\}"/u, 'Combine promotes the arm64 digest-qualified manifest');
 assert.doesNotMatch(publishText, /imagetools create[\s\S]{0,400}:tmp-\$\{GITHUB_SHA\}-amd64/u,
   'Combine must not promote mutable staging tags');
-assert.doesNotMatch(publishText, /GITHUB_TOKEN:\s*\$\{\{\s*github\.token\s*\}\}/u, 'Release must not write with the default bot token');
+assert.match(publishText, /permissions:\s*\n\s*contents:\s*read\s*\n\s*packages:\s*write/u,
+  'Release build/combine jobs can publish packages with the job-scoped token');
+assert.match(publishText, /TOKEN:\s*\$\{\{\s*secrets\.GITHUB_TOKEN\s*\}\}/u,
+  'Registry operations use the repository-scoped token');
+assert.match(publishText, /GH_TOKEN:\s*\$\{\{\s*steps\.app\.outputs\.token\s*\}\}/u,
+  'Release notes use the GitHub App token');
 const lockWorkflow = parse(await text('.github/workflows/profile-locks.yaml'));
 assert.deepEqual(Object.keys(lockWorkflow.on), ['workflow_dispatch'], 'Profile-lock bootstrap is manual only');
 const cleanupWorkflow = parse(await text('.github/workflows/schedule-cleanup.yaml'));
@@ -135,11 +140,8 @@ assert.match(await text('.github/workflows/schedule-cleanup.yaml'), /create-gith
 const labelSyncText = await text('.github/workflows/label-sync.yaml');
 assert.doesNotMatch(labelSyncText, /create-github-app-token|secrets\./u, 'Label sync must not receive App secrets');
 assert.match(labelSyncText, /token:\s*\$\{\{\s*github\.token\s*\}\}/u, 'Label sync uses the job-scoped default token');
-for (const workflow of ['ci.yaml', 'publish.yaml']) {
-  const source = await text(`.github/workflows/${workflow}`);
-  assert.doesNotMatch(source, /GITHUB_TOKEN:\s*\$\{\{\s*github\.token/u, `${workflow} must not write with the default bot token`);
-  assert.doesNotMatch(source, /secrets\.GITHUB_TOKEN/u, `${workflow} must not use the default bot secret`);
-}
+assert.doesNotMatch(await text('.github/workflows/ci.yaml'), /GITHUB_TOKEN:\s*\$\{\{\s*(?:github\.token|secrets\.GITHUB_TOKEN)/u,
+  'CI must not write with the default bot token');
 for (const workflow of ['ci.yaml', 'publish.yaml']) {
   assert.doesNotMatch(await text(`.github/workflows/${workflow}`), /setup-qemu/u,
     `${workflow} uses native architecture runners, not QEMU`);

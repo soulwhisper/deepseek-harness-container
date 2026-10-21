@@ -52,6 +52,11 @@ jobs:
   build:
     name: Build and smoke ${{ matrix.arch }}
     needs: prepare
+    permissions:
+      contents: read
+      # App installation tokens cannot create the GHCR package. Use the
+      # repository-scoped token for registry writes, as containers/home-ops do.
+      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -102,20 +107,9 @@ jobs:
         shell: bash
         run: node scripts/smoke.mjs dsh-${{ needs.prepare.outputs.target }}:smoke
 
-      - name: Generate staging token
-        id: app
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
-        with:
-          client-id: ${{ secrets.APP_CLIENT_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: deepseek-harness-container
-          permission-contents: read
-          permission-packages: write
-
       - name: Push tested architecture manifest to staging tag
         env:
-          TOKEN: ${{ steps.app.outputs.token }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TARGET: ${{ needs.prepare.outputs.target }}
           ARCH: ${{ matrix.arch }}
         shell: bash
@@ -142,6 +136,9 @@ jobs:
     name: Create multi-arch release index
     needs: [prepare, build]
     if: github.repository == 'soulwhisper/deepseek-harness-container'
+    permissions:
+      contents: read
+      packages: write
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -182,11 +179,10 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: deepseek-harness-container
           permission-contents: write
-          permission-packages: write
 
       - name: Create immutable multi-arch index
         env:
-          TOKEN: ${{ steps.app.outputs.token }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGE: ${{ steps.meta.outputs.image }}
           VERSION: ${{ steps.meta.outputs.version }}
           TARGET: ${{ needs.prepare.outputs.target }}
@@ -220,7 +216,7 @@ jobs:
 
       - name: Verify published index and write release notes
         env:
-          GITHUB_TOKEN: ${{ steps.app.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USERNAME: x-access-token
           IMAGE_DIGEST: ${{ env.INDEX_DIGEST }}
         run: node scripts/verify-release.mjs record "${{ needs.prepare.outputs.target }}"

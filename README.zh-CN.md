@@ -108,7 +108,7 @@ gate 还会拒绝任何查询字符串包含 `token` 的请求，包括 upstream
 
 ## 发布与自动化
 
-只有 `web-<dsh-version>` 与 `tavern-<version>` 标签会发布。标签必须匹配 `versions.json`、位于 `main`，在原生 amd64/arm64 runner 上构建并 smoke，再合并为一个多架构 index。没有 `latest`、分支发布或 candidate `sha-` 镜像。PR 只运行静态检查、测试和原生镜像 smoke，不获取仓库 secrets。同仓库 PR labeler 与定时 label sync 只使用 job 级默认 token（`pull-requests: write` / `issues: write`）；release 与 cleanup 使用 GitHub App。构建/测试 job 不获取 App 凭据。
+只有 `web-<dsh-version>` 与 `tavern-<version>` 标签会发布。标签必须匹配 `versions.json`、位于 `main`，在原生 amd64/arm64 runner 上构建并 smoke，再合并为一个多架构 index。没有 `latest`、分支发布或 candidate `sha-` 镜像。PR 只运行静态检查、测试和原生镜像 smoke，不获取仓库 secrets。同仓库 PR labeler 与定时 label sync 只使用 job 级默认 token（`pull-requests: write` / `issues: write`）；registry push 使用 job 级 `GITHUB_TOKEN` + `packages: write`，release notes 与 cleanup 使用 GitHub App。构建/测试 job 不获取 App 凭据。
 
 Renovate 仅提供提示，从不自动合并。源码 commit、精确补丁/主题哈希、锁和 release tag 必须由人工一起更新。
 

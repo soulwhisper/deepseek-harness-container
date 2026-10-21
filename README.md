@@ -144,8 +144,9 @@ runners, and is combined into one multi-arch index. There is no `latest`, no
 branch publication and no candidate `sha-` image. PRs run static checks, tests
 and native image smoke; they receive no repository secrets. The same-repo PR
 labeler and scheduled label sync use job-scoped default tokens with only
-`pull-requests: write` or `issues: write`; release and cleanup workflows use the
-GitHub App. Build/test jobs never receive App credentials.
+`pull-requests: write` or `issues: write`. Registry pushes use the job-scoped
+`GITHUB_TOKEN` with `packages: write`; release notes and cleanup use the GitHub
+App. Build/test jobs never receive App credentials.
 
 Renovate is advisory and never auto-merges. Coupled pins (source commits, exact
 patch hashes, theme hashes, locks and release tags) must be updated by a human.

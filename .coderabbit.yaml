@@ -76,9 +76,10 @@ reviews:
     - path: ".github/workflows/**"
       instructions: |
         PR build/test jobs must not receive secrets, App tokens or package-write
-        permission. The same-repo labeler may use the job-scoped default token
-        with only pull-requests:write; keep it free of App credentials and never
-        execute PR code. Releases run from main pushes or release tags only.
+        permission. The same-repo labeler and scheduled label sync use only the
+        job-scoped default token with pull-requests:write or issues:write; keep
+        them free of App credentials and never execute PR code. Releases run
+        from main pushes or release tags only.
         Keep actions pinned to a full commit SHA, permissions minimal, and
         support merge_group. Flag pull_request_target, unpinned actions, or a
         workflow that publishes from a feature branch.

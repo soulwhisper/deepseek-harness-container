@@ -121,7 +121,9 @@ const cleanupWorkflow = parse(await text('.github/workflows/schedule-cleanup.yam
 assert.ok(cleanupWorkflow.on.schedule, 'Workflow cleanup must be scheduled');
 assert.ok(cleanupWorkflow.concurrency, 'Workflow cleanup runs are serialized');
 assert.match(await text('.github/workflows/schedule-cleanup.yaml'), /create-github-app-token/u, 'Cleanup uses the GitHub App token');
-assert.match(await text('.github/workflows/label-sync.yaml'), /create-github-app-token/u, 'Label sync uses the GitHub App token');
+const labelSyncText = await text('.github/workflows/label-sync.yaml');
+assert.doesNotMatch(labelSyncText, /create-github-app-token|secrets\./u, 'Label sync must not receive App secrets');
+assert.match(labelSyncText, /token:\s*\$\{\{\s*github\.token\s*\}\}/u, 'Label sync uses the job-scoped default token');
 for (const workflow of ['ci.yaml', 'publish.yaml']) {
   const source = await text(`.github/workflows/${workflow}`);
   assert.doesNotMatch(source, /GITHUB_TOKEN:\s*\$\{\{\s*github\.token/u, `${workflow} must not write with the default bot token`);

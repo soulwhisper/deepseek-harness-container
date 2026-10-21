@@ -8,6 +8,8 @@ on:
   push:
     tags: ['web-*', 'tavern-*']
   pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
     paths:
       - 'docker/runtime/**'
       - 'plugins/sso/**'

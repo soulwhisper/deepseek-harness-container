@@ -57,16 +57,14 @@ for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/
   'plugins/sso/index.mjs', 'scripts/normalize-locks.mjs', 'scripts/field-test.mjs', 'test/packaging.test.mjs',
   'deploy/docker/compose.yaml', 'deploy/kubernetes/dsh-web.yaml',
   '.github/CODEOWNERS', '.github/PULL_REQUEST_TEMPLATE.md', '.github/labels.yaml',
-  '.github/labeler.yaml', '.github/workflows/label-sync.yaml',
+  '.github/labeler.yaml', '.github/workflows/labeler.yaml', '.github/workflows/label-sync.yaml',
   '.github/workflows/schedule-cleanup.yaml', '.github/workflows/field-test.yaml', '.coderabbit.yaml', 'renovate.json']) {
   assert.ok(await present(path), `Repository layout requires ${path}`);
 }
 for (const legacy of ['Dockerfile', 'profiles', 'runtime']) {
   assert.equal(await present(legacy), false, `Repository layout: move ${legacy} out of the root category tree`);
 }
-for (const obsolete of ['.github/actions/validate/action.yaml', '.github/workflows/labeler.yaml']) {
-  assert.equal(await present(obsolete), false, `${obsolete} was folded into ci.yaml`);
-}
+assert.equal(await present('.github/actions/validate/action.yaml'), false, 'The custom composite validator is gone');
 for (const directory of ['plugins/sso', 'scripts']) {
   for (const name of await readdir(join(root, directory))) {
     assert.doesNotMatch(name, /^patch-.*\.mjs$/u, `Patches belong under patches/, not ${directory}/${name}`);
@@ -74,13 +72,21 @@ for (const directory of ['plugins/sso', 'scripts']) {
 }
 // Automation contract: changes arrive by PR, feature branches never publish,
 // Renovate never merges on its own, and DSH/Tavern upstream bumps are tracked.
-const ciWorkflow = parse(await text('.github/workflows/ci.yaml'));
+const ciText = await text('.github/workflows/ci.yaml');
+const ciWorkflow = parse(ciText);
 assert.ok(ciWorkflow.on.pull_request !== undefined && ciWorkflow.on.merge_group !== undefined, 'CI must run on pull requests and merge groups');
-assert.ok(ciWorkflow.jobs?.label, 'Labeler is part of the CI workflow');
-assert.match(await text('.github/workflows/ci.yaml'), /create-github-app-token/u, 'CI labeler uses the GitHub App token');
+assert.deepEqual(ciWorkflow.on.pull_request.types, ['opened', 'synchronize', 'reopened', 'ready_for_review'], 'CI has explicit PR activity types');
+assert.equal(ciWorkflow.on.push, undefined, 'CI must not duplicate on branch pushes');
+assert.equal(ciWorkflow.jobs?.label, undefined, 'Labeler is a separate workflow');
+assert.doesNotMatch(ciText, /secrets\./u, 'CI build/test jobs must not receive repository secrets');
+const labelerText = await text('.github/workflows/labeler.yaml');
+const labelerWorkflow = parse(labelerText);
+assert.deepEqual(labelerWorkflow.on.pull_request.types, ['opened', 'synchronize', 'reopened'], 'Labeler has explicit PR activity types');
+assert.match(labelerText, /create-github-app-token/u, 'Labeler uses the GitHub App token');
 const publishWorkflow = parse(await text('.github/workflows/publish.yaml'));
 assert.deepEqual(publishWorkflow.on.push.tags, ['web-*', 'tavern-*'], 'Release triggers only on image tags');
 assert.equal(publishWorkflow.on.push.branches, undefined, 'Branch pushes must not publish');
+assert.equal(publishWorkflow.on.pull_request, undefined, 'Release must not duplicate PR validation');
 const publishText = await text('.github/workflows/publish.yaml');
 assert.match(publishText, /create-github-app-token/u, 'Release uses the GitHub App token');
 assert.doesNotMatch(publishText, /GITHUB_TOKEN:\s*\$\{\{\s*github\.token\s*\}\}/u, 'Release must not write with the default bot token');
@@ -88,8 +94,14 @@ const lockWorkflow = parse(await text('.github/workflows/profile-locks.yaml'));
 assert.deepEqual(Object.keys(lockWorkflow.on), ['workflow_dispatch'], 'Profile-lock bootstrap is manual only');
 const cleanupWorkflow = parse(await text('.github/workflows/schedule-cleanup.yaml'));
 assert.ok(cleanupWorkflow.on.schedule, 'Workflow cleanup must be scheduled');
+assert.ok(cleanupWorkflow.concurrency, 'Workflow cleanup runs are serialized');
 assert.match(await text('.github/workflows/schedule-cleanup.yaml'), /create-github-app-token/u, 'Cleanup uses the GitHub App token');
 assert.match(await text('.github/workflows/label-sync.yaml'), /create-github-app-token/u, 'Label sync uses the GitHub App token');
+for (const workflow of ['ci.yaml', 'publish.yaml']) {
+  const source = await text(`.github/workflows/${workflow}`);
+  assert.doesNotMatch(source, /GITHUB_TOKEN:\s*\$\{\{\s*github\.token/u, `${workflow} must not write with the default bot token`);
+  assert.doesNotMatch(source, /secrets\.GITHUB_TOKEN/u, `${workflow} must not use the default bot secret`);
+}
 for (const workflow of ['ci.yaml', 'publish.yaml']) {
   assert.doesNotMatch(await text(`.github/workflows/${workflow}`), /setup-qemu/u,
     `${workflow} uses native architecture runners, not QEMU`);
@@ -133,10 +145,4 @@ for (const path of await files(root)) {
     }
   }
 }
-const ciText = await text('.github/workflows/ci.yaml');
-const ciConfig = parse(ciText);
-for (const job of ['static', 'images', 'ci-pass']) {
-  assert.doesNotMatch(JSON.stringify(ciConfig.jobs?.[job]), /secrets\./u, `${job} must not receive repository secrets`);
-}
-assert.match(JSON.stringify(ciConfig.jobs?.label), /secrets\.APP_CLIENT_ID/u, 'Labeler uses the GitHub App credential only');
 console.log('PASS source pins, licenses, committed locks, JavaScript syntax, workflow policy');

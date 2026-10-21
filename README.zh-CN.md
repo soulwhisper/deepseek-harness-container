@@ -33,14 +33,27 @@ CI 在原生 GitHub runner（`ubuntu-24.04` 与 `ubuntu-24.04-arm`）上构建 *
 
 ## 自动化与审查
 
-- **仅通过 PR。** `main` 已保护：禁止直接 push、禁止 force push、线性历史、必须通过 `CI checks passed` 且分支最新；CODEOWNERS 负责把安全敏感路径路由给审查者。`ci.yaml` 在 PR 与 merge group 上于原生 amd64/arm64 runner 构建每个目标并运行完整浏览器 smoke，同时用 GitHub App token 给同仓库 PR 打标签。公开/fork PR 提交刻意不支持，其 job 会被跳过。
+- **仅通过 PR。** `main` 已保护：禁止直接 push、禁止 force push、线性历史、必须通过 `CI checks passed` 且分支最新；CODEOWNERS 负责把安全敏感路径路由给审查者。`ci.yaml` 在 PR 与 merge group 上于原生 amd64/arm64 runner 构建每个目标并运行完整浏览器 smoke；同仓库 PR 的标签由独立的 `labeler.yaml` 处理。公开/fork PR 提交刻意不支持，其 job 会被跳过。
 - **发布路径。** 只有 `web-<dsh-version>` 与 `tavern-<version>` 标签会发布。标签须与 `versions.json` 一致且位于 `main`；每个标签在原生 amd64+arm64 runner 上只构建对应目标并分别 smoke，然后把已测试 manifest 合并为版本 index。分支 push 永不发布，也不再生成 candidate `sha-` 镜像。
 - **定时清理。** `schedule-cleanup.yaml` 清理取消/跳过及过旧运行；`label-sync.yaml` 恢复受审阅的标签集合。两者都使用 GitHub App token。
 - **直接 field test。** `field-test.yaml` 在 Release 标签与手动触发时、不依赖 Docker：在原生 amd64/arm64 runner 安装生产 runtime 闭包，应用精确哈希 host/market 补丁，并验证打补丁后的 host/manager/app-boot/market 与原生 PTY。它是最终镜像 smoke 的补充，不是替代。
 - **Renovate 仅供提示。** 跟踪 DSH npm 上游、Tavern GitHub tag、`dshmarket`、根/dev 依赖和 SHA 固定的 Actions；从不自动合并，每个 PR 都带 `review/required`。DSH 仍是 developer preview，即使 patch/digest 更新也必须人工检查并修复。
 - **耦合 pin 必须手动。** Node digest、pnpm、源码 commit、精确补丁哈希、Tavern 配套插件和 Profile 锁文件不会自动漂移。Renovate 只改版本号的 PR 预期会验证失败，直到人工补上 commit/hash/lock/release tag。
-- **CodeRabbit 仅提供建议。** 需在本仓库安装 CodeRabbit GitHub App。它对非 Renovate PR 运行 actionlint、zizmor、shellcheck、yamllint、gitleaks，不批准、不合并。GitHub App 的 `APP_CLIENT_ID`/`APP_PRIVATE_KEY` 需要 Actions write（清理）、Contents write（Release）、Packages write（GHCR）、Issues write（label sync）和 Pull requests write（CI 内 labeler）。所有写 token 都由 GitHub App 生成；默认 bot token 只用于只读 checkout。
+- **CodeRabbit 仅提供建议。** 需在本仓库安装 CodeRabbit GitHub App。它对非 Renovate PR 运行 actionlint、zizmor、shellcheck、yamllint、gitleaks，不批准、不合并。GitHub App 的 `APP_CLIENT_ID`/`APP_PRIVATE_KEY` 需要 Actions write（清理）、Contents write（Release）、Packages write（GHCR）、Issues write（label sync）和 Pull requests write（独立 labeler）。所有写 token 都由 GitHub App 生成；默认 bot token 只用于只读 checkout。
 - **Renovate 启用条件。** 共享 Renovate runner 按 topic 选择仓库，因此本仓库带有 `managed-by-renovate`。删除该 topic 或 App 安装后，更新会静默停止；仅保留 `renovate.json` 不够。
+- **唯一自动化身份。** 所有仓库写入都由同一个 GitHub App installation token 生成：labeler、label sync、cleanup、GHCR 发布和 Release 元数据。workflow 不用 `github.token` 写入，不以 `github-actions[bot]` 身份提交 commit；共享 Renovate runner 也使用同一个 App。默认 token 仅用于只读 checkout。
+
+| Workflow | 触发 | 仓库写入 |
+| --- | --- | --- |
+| `ci.yaml` | PR `opened/synchronize/reopened/ready_for_review`、merge group、手动 | 无 |
+| `field-test.yaml` | 标签创建、匹配的 PR 路径、手动 | 无 |
+| `labeler.yaml` | 仅同仓库、目标为 `main` 的 PR | App：pull requests |
+| `publish.yaml` | `web-*`/`tavern-*` 标签创建 | App：contents + packages |
+| `label-sync.yaml` | 定时、`main` 标签文件变化、手动 | App：issues |
+| `schedule-cleanup.yaml` | 定时、手动；串行执行 | App：actions |
+| `profile-locks.yaml` | 仅手动 | 仅 artifact 上传 |
+
+feature 分支 push 不触发 CI 或发布；合并不会重跑 PR 验证；只有匹配标签创建时才运行 release。
 
 ## 固定基线
 

@@ -33,14 +33,27 @@ Build with `-f docker/Dockerfile`; the BuildKit context remains the repository r
 
 ## Automation and review
 
-- **PR only.** `main` is protected: no direct pushes, no force pushes, linear history, required `CI checks passed`, and an up-to-date branch. CODEOWNERS routes the security-critical paths. `ci.yaml` runs on pull requests and merge groups, builds each target on native amd64 and arm64 runners, runs the full browser smoke on both, and labels same-repo PRs. Public/fork PR submissions are intentionally unsupported; their jobs are skipped.
+- **PR only.** `main` is protected: no direct pushes, no force pushes, linear history, required `CI checks passed`, and an up-to-date branch. CODEOWNERS routes the security-critical paths. `ci.yaml` runs on pull requests and merge groups, builds each target on native amd64 and arm64 runners and runs the full browser smoke on both. The separate `labeler.yaml` handles labels. Public/fork PR submissions are intentionally unsupported; their jobs are skipped.
 - **Release path.** Only `web-<dsh-version>` and `tavern-<version>` tags publish. Each tag must match `versions.json`, point into `main`, builds its target on native amd64+arm64 runners, smokes both, then combines the tested manifests into the version index. Branch pushes never publish and there are no candidate `sha-` images.
 - **Scheduled hygiene.** `schedule-cleanup.yaml` prunes cancelled/skipped and old successful/failed runs; `label-sync.yaml` restores the reviewed label set. Both use GitHub App tokens.
 - **Direct field test.** `field-test.yaml` runs on release tags and manual dispatch without Docker: it installs the production runtime closure on a native amd64/arm64 runner, applies the exact-hash host and market patches, and verifies the patched host/manager/app-boot/market plus a native PTY. This complements, and does not replace, the final-image smoke.
 - **Renovate is advisory only.** It tracks the DSH npm upstream, the Tavern GitHub tag, `dshmarket`, root/dev dependencies and SHA-pinned Actions. It never auto-merges; every PR gets `review/required`. Because DSH is a developer preview, even patch and digest updates must be inspected and fixed by a human.
 - **Coupled pins are manual.** Node digest, pnpm, source commits, exact patch hashes, Tavern ecosystem plugins and profile locks do not move on their own. A Renovate version-only PR is expected to fail verification until the commit/hash/lock/release-tag updates are added deliberately.
-- **CodeRabbit is advisory.** Install the CodeRabbit GitHub App on this repository. It reviews non-Renovate PRs with actionlint, zizmor, shellcheck, yamllint and gitleaks; it never approves or merges. The GitHub App credentials `APP_CLIENT_ID`/`APP_PRIVATE_KEY` need Actions write for cleanup, Contents write for releases, Packages write for GHCR, Issues write for label sync and Pull requests write for the in-CI labeler. Every write token is minted by the GitHub App; the default bot token is used only for read-only checkout.
+- **CodeRabbit is advisory.** Install the CodeRabbit GitHub App on this repository. It reviews non-Renovate PRs with actionlint, zizmor, shellcheck, yamllint and gitleaks; it never approves or merges. The GitHub App credentials `APP_CLIENT_ID`/`APP_PRIVATE_KEY` need Actions write for cleanup, Contents write for releases, Packages write for GHCR, Issues write for label sync and Pull requests write for the separate labeler. Every write token is minted by the GitHub App; the default bot token is used only for read-only checkout.
 - **Renovate activation.** The shared Renovate runner selects repositories by topic, so this repository carries `managed-by-renovate`. If the topic or App installation is removed, updates stop silently even though `renovate.json` remains.
+- **One automation identity.** Every repository write is minted by the same GitHub App installation: labeler, label sync, cleanup, GHCR publication and release metadata. Workflows never use `github.token` for writes, never push commits as `github-actions[bot]`, and the shared Renovate runner uses the same App. The default token is read-only checkout only.
+
+| Workflow | Trigger | Repository write |
+| --- | --- | --- |
+| `ci.yaml` | PR `opened/synchronize/reopened/ready_for_review`, merge group, manual | None |
+| `field-test.yaml` | Tag creation, matching PR paths, manual | None |
+| `labeler.yaml` | PR on `main`, same repository only | App: pull requests |
+| `publish.yaml` | `web-*`/`tavern-*` tag creation | App: contents + packages |
+| `label-sync.yaml` | Schedule, `main` labels change, manual | App: issues |
+| `schedule-cleanup.yaml` | Schedule, manual; serialized | App: actions |
+| `profile-locks.yaml` | Manual only | Artifact upload only |
+
+Feature-branch pushes do not trigger CI or publication. A merge does not re-run PR validation; release runs only when a matching tag is created.
 
 ## Pinned baseline
 

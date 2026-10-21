@@ -5,6 +5,8 @@ name: Validate Pull Request
 # Public/fork PRs are not a supported submission path; their jobs are skipped.
 on:
   pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   merge_group:
   workflow_dispatch:
 
@@ -98,32 +100,20 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
+      - name: Verify native addon from the built image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint sh dsh-${{ matrix.target }}:smoke -c '
+            p=/opt/dsh/docker/runtime/node_modules/node-addon-require-builtin-linux-$(test "$(uname -m)" = aarch64 && echo arm64 || echo x64)-gnu
+            test -d "$p"
+            find "$p" -maxdepth 3 -type f | sort
+            node -e "require(process.argv[1])" "$p"
+          '
+
       - name: Run final-image smoke (${{ matrix.arch }})
         shell: bash
         run: node scripts/smoke.mjs dsh-${{ matrix.target }}:smoke
-
-  label:
-    name: Label PR areas
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - name: Generate Token
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
-        id: app-token
-        with:
-          client-id: ${{ secrets.APP_CLIENT_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          permission-contents: read
-          permission-pull-requests: write
-
-      - name: Labeler
-        uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7
-        with:
-          repo-token: "${{ steps.app-token.outputs.token }}"
-          configuration-path: .github/labeler.yaml
 
   # Single required-status-check target for branch protection.
   ci-pass:

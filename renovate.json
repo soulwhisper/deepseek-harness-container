@@ -1,0 +1,16 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>soulwhisper/renovate-config",
+    "github>soulwhisper/deepseek-harness-container//.renovate/customManagers.json",
+    "github>soulwhisper/deepseek-harness-container//.renovate/groups.json",
+    "github>soulwhisper/deepseek-harness-container//.renovate/packageRules.json"
+  ],
+  "ignorePaths": [
+    "docs/**",
+    "deploy/**"
+  ],
+  "lockFileMaintenance": {
+    "enabled": false
+  }
+}

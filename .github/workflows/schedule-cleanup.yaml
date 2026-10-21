@@ -1,0 +1,56 @@
+# Keep the Actions history bounded. The App token is required because the
+# default GITHUB_TOKEN cannot delete other workflow runs reliably.
+name: Schedule cleanup workflows
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup_runs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        id: app-token
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-actions: write
+          permission-contents: read
+
+      - name: Cleanup workflow stale runs
+        uses: Mattraks/delete-workflow-runs@0cf693bc9909e5e867ee8f27b813224ba862939c # v2
+        with:
+          token: "${{ steps.app-token.outputs.token }}"
+          repository: "${{ github.repository }}"
+          retain_days: "0"
+          keep_minimum_runs: "0"
+          delete_run_by_conclusion_pattern: "cancelled,skipped"
+
+      - name: Cleanup workflow success runs
+        uses: Mattraks/delete-workflow-runs@0cf693bc9909e5e867ee8f27b813224ba862939c # v2
+        with:
+          token: "${{ steps.app-token.outputs.token }}"
+          repository: "${{ github.repository }}"
+          retain_days: "7"
+          keep_minimum_runs: "5"
+          delete_run_by_conclusion_pattern: "success"
+
+      - name: Cleanup workflow failure runs
+        uses: Mattraks/delete-workflow-runs@0cf693bc9909e5e867ee8f27b813224ba862939c # v2
+        with:
+          token: "${{ steps.app-token.outputs.token }}"
+          repository: "${{ github.repository }}"
+          # Failures stay longer than successes so release diagnosis remains possible.
+          retain_days: "14"
+          keep_minimum_runs: "3"
+          delete_run_by_conclusion_pattern: "action_required,failure"

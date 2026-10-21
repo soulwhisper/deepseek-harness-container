@@ -1,0 +1,51 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "packageRules": [
+    {
+      "description": "DSH Web upstream: versions.json, source commit, release tag, runtime lock and docs move together. Human merges.",
+      "matchPackageNames": [
+        "/^@deepseek-ai\\//"
+      ],
+      "groupName": "dsh-web-upstream",
+      "addLabels": [
+        "area/dsh"
+      ],
+      "semanticCommitType": "release",
+      "semanticCommitScope": "dsh-web",
+      "commitMessageExtra": "( {{currentVersion}} → {{newVersion}} )",
+      "ignoreUnstable": false,
+      "automerge": false,
+      "platformAutomerge": false
+    },
+    {
+      "description": "Tavern upstream: upstreamTag, release version, source commit, route hash, profile lock and docs move together. Human merges.",
+      "matchPackageNames": [
+        "flizzywine/dsh-tavern"
+      ],
+      "groupName": "dsh-tavern-upstream",
+      "addLabels": [
+        "area/dsh"
+      ],
+      "semanticCommitType": "release",
+      "semanticCommitScope": "dsh-tavern",
+      "commitMessageExtra": "( {{currentVersion}} → {{newVersion}} )",
+      "automerge": false,
+      "platformAutomerge": false
+    },
+    {
+      "description": "dshmarket is patched by exact artifact hash. A bump opens a PR that must be fixed by rebasing the patch, never by weakening the hash.",
+      "matchPackageNames": [
+        "dshmarket"
+      ],
+      "groupName": "dsh-market",
+      "addLabels": [
+        "area/dsh"
+      ],
+      "semanticCommitType": "release",
+      "semanticCommitScope": "dsh-market",
+      "commitMessageExtra": "( {{currentVersion}} → {{newVersion}} )",
+      "automerge": false,
+      "platformAutomerge": false
+    }
+  ]
+}

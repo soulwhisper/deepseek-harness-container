@@ -1,0 +1,37 @@
+name: Label sync
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/labels.yaml]
+  schedule:
+    - cron: "0 0 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Sync repository labels
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout labels
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          sparse-checkout: .github/labels.yaml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Sync labels
+        uses: EndBug/label-sync@52074158190acb45f3077f9099fea818aa43f97a # v2
+        with:
+          # Job-scoped default token: no App private key is exposed to a
+          # scheduled/PR-adjacent workflow.
+          token: ${{ github.token }}
+          config-file: .github/labels.yaml
+          delete-other-labels: true

@@ -1,0 +1,242 @@
+name: Release tested distribution
+
+# Release tags are the only publication trigger. A native amd64/arm64 matrix
+# builds and smokes each architecture on its own runner (no QEMU); the combine
+# job creates one multi-arch index from the two tested manifests.
+on:
+  push:
+    tags: ['web-*', 'tavern-*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.repository == 'soulwhisper/deepseek-harness-container'
+    runs-on: ubuntu-24.04
+    outputs:
+      target: ${{ steps.target.outputs.target }}
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Determine release target
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${GITHUB_REF_NAME}" in
+            web-*) target=web ;;
+            tavern-*) target=tavern ;;
+            *) echo "::error::Unsupported release tag ${GITHUB_REF_NAME}"; exit 1 ;;
+          esac
+          echo "target=${target}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.22.0'
+
+      - name: Validate tag against main and versions.json
+        env:
+          GITHUB_TOKEN: ''
+        run: node scripts/verify-release.mjs check "${{ steps.target.outputs.target }}"
+
+  build:
+    name: Build and smoke ${{ matrix.arch }}
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.22.0'
+
+      - name: Install smoke dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global --ignore-scripts pnpm@11.25.0
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+
+      - name: Build native ${{ matrix.arch }} image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: ${{ needs.prepare.outputs.target }}
+          build-args: IMAGE_REVISION=${{ github.sha }}
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          tags: dsh-${{ needs.prepare.outputs.target }}:smoke
+          provenance: false
+          sbom: false
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Run final-image smoke (${{ matrix.arch }})
+        shell: bash
+        run: node scripts/smoke.mjs dsh-${{ needs.prepare.outputs.target }}:smoke
+
+      - name: Generate staging token
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: deepseek-harness-container
+          permission-contents: read
+          permission-packages: write
+
+      - name: Push tested architecture manifest to staging tag
+        env:
+          TOKEN: ${{ steps.app.outputs.token }}
+          TARGET: ${{ needs.prepare.outputs.target }}
+          ARCH: ${{ matrix.arch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "${TOKEN}" | docker login ghcr.io --username x-access-token --password-stdin
+          staging="ghcr.io/soulwhisper/dsh-${TARGET}:tmp-${GITHUB_SHA}-${ARCH}"
+          docker tag "dsh-${TARGET}:smoke" "${staging}"
+          docker push "${staging}"
+          digest=$(docker buildx imagetools inspect --format '{{json .Manifest}}' "${staging}" | jq -r '.digest')
+          [[ "${digest}" =~ ^sha256:[a-f0-9]{64}$ ]]
+          printf '%s\n' "${digest}" > "staging-${ARCH}.digest"
+          docker logout ghcr.io
+
+      - name: Upload tested manifest digest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-digest-${{ matrix.arch }}
+          path: staging-${{ matrix.arch }}.digest
+          if-no-files-found: error
+          retention-days: 1
+
+  combine:
+    name: Create multi-arch release index
+    needs: [prepare, build]
+    if: github.repository == 'soulwhisper/deepseek-harness-container'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.22.0'
+
+      - name: Read image metadata
+        id: meta
+        env:
+          TARGET: ${{ needs.prepare.outputs.target }}
+        shell: bash
+        run: node scripts/release-meta.mjs >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+
+      - name: Download tested manifest digests
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: release-digest-*
+          path: release-digests
+          merge-multiple: true
+
+      - name: Generate release token
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: deepseek-harness-container
+          permission-contents: write
+          permission-packages: write
+
+      - name: Create immutable multi-arch index
+        env:
+          TOKEN: ${{ steps.app.outputs.token }}
+          IMAGE: ${{ steps.meta.outputs.image }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          TARGET: ${{ needs.prepare.outputs.target }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "${TOKEN}" | docker login ghcr.io --username x-access-token --password-stdin
+          if docker buildx imagetools inspect "${IMAGE}:${VERSION}" >/dev/null 2>&1; then
+            echo "::error::Refusing to overwrite existing ${IMAGE}:${VERSION}"
+            exit 1
+          fi
+          amd64_digest=$(cat release-digests/staging-amd64.digest)
+          arm64_digest=$(cat release-digests/staging-arm64.digest)
+          for digest in "${amd64_digest}" "${arm64_digest}"; do
+            [[ "${digest}" =~ ^sha256:[a-f0-9]{64}$ ]] || {
+              echo "::error::Invalid tested manifest digest"
+              exit 1
+            }
+          done
+          docker buildx imagetools create --tag "${IMAGE}:${VERSION}" \
+            "${IMAGE}@${amd64_digest}" \
+            "${IMAGE}@${arm64_digest}"
+          index_digest=$(docker buildx imagetools inspect --format '{{json .Manifest}}' "${IMAGE}:${VERSION}" | jq -r '.digest')
+          echo "INDEX_DIGEST=${index_digest}" >> "$GITHUB_ENV"
+          {
+            echo "### Published ${IMAGE}:${VERSION}"
+            echo '```'
+            echo "${index_digest}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify published index and write release notes
+        env:
+          GITHUB_TOKEN: ${{ steps.app.outputs.token }}
+          GHCR_USERNAME: x-access-token
+          IMAGE_DIGEST: ${{ env.INDEX_DIGEST }}
+        run: node scripts/verify-release.mjs record "${{ needs.prepare.outputs.target }}"
+
+      - name: Publish release notes
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/dsh-release-notes.txt" --prerelease
+          fi
+
+      - name: Log out of GHCR
+        if: always()
+        run: docker logout ghcr.io || true

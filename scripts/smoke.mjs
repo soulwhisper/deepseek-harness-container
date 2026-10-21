@@ -1,0 +1,260 @@
+#!/usr/bin/env node
+// Run only disposable, final-image containers. Never print their logs or response bodies.
+import { spawn } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
+import { randomBytes } from 'node:crypto';
+import { setTimeout as sleep } from 'node:timers/promises';
+import { createServer } from 'node:net';
+import { chromium } from 'playwright';
+
+const images = process.argv.slice(2);
+if (images.length === 0) {
+  console.error('Usage: node scripts/smoke.mjs WEB_IMAGE [TAVERN_IMAGE]');
+  process.exit(2);
+}
+const probe = await readFile(new URL('./verify-runtime.mjs', import.meta.url), 'utf8');
+const edgeSource = await readFile(new URL('./verify-edge.mjs', import.meta.url), 'utf8');
+const prefix = `dsh-smoke-${randomBytes(6).toString('hex')}`;
+const containers = [];
+const volumes = [];
+let network;
+
+async function docker(args, input, allowFailure = false) {
+  return await new Promise((resolve, reject) => {
+    const child = spawn('docker', args, { stdio: ['pipe', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    const timer = setTimeout(() => child.kill('SIGKILL'), 600_000);
+    child.stdout.on('data', chunk => { stdout += chunk; });
+    child.stderr.on('data', chunk => { stderr += chunk; });
+    child.on('error', () => { clearTimeout(timer); reject(new Error('Docker could not be started')); });
+    child.on('close', code => {
+      clearTimeout(timer);
+      if (code !== 0 && !allowFailure) {
+        // Docker diagnostics can contain credentials, startup URLs or response data.
+        // Never forward them; callers add only fixed, locally-authored labels.
+        reject(new Error(`Docker ${args[0]} failed (exit ${code}); raw output withheld`));
+      } else resolve({ code, stdout, stderr });
+    });
+    child.stdin.on('error', () => {});
+    child.stdin.end(input);
+  });
+}
+
+async function browserSmoke(authority, restart) {
+  let browser;
+  let stage = 'launch';
+  let boot = 0;
+  try {
+    browser = await chromium.launch({ headless: true, args: [
+      '--host-resolver-rules=MAP dsh.smoke.test 127.0.0.1', '--no-proxy-server',
+    ] });
+    const context = await browser.newContext({
+      // The test edge MUST discard this forged client identity before injecting its verified one.
+      extraHTTPHeaders: { 'x-authentik-uid': 'forged-browser-uid' },
+    });
+    const page = await context.newPage();
+    let javascript = 0;
+    let pageErrors = 0;
+    page.on('pageerror', () => { pageErrors++; });
+    page.on('response', response => {
+      if (response.request().resourceType() === 'script' && response.status() === 200) javascript++;
+    });
+    const waitConnected = () => new Promise((resolve, reject) => {
+      const observe = socket => {
+        if (!new URL(socket.url()).pathname.endsWith('/api/remote.mux')) return;
+        socket.on('framereceived', ({ payload }) => {
+          try {
+            const frame = JSON.parse(String(payload));
+            if (frame.type === 'item' && frame.value?.type === 'ready'
+              && typeof frame.value.clientId === 'string') {
+              clearTimeout(timer);
+              page.off('websocket', observe);
+              resolve();
+            }
+          } catch { /* Other real runtime frames are not readiness evidence. */ }
+        });
+      };
+      const timer = setTimeout(() => {
+        page.off('websocket', observe);
+        reject(new Error('Client connection deadline'));
+      }, 60_000);
+      page.on('websocket', observe);
+    });
+    let nativeCookie;
+    for (boot = 0; boot < 2; boot++) {
+      if (boot === 1) {
+        stage = 'restart';
+        await page.goto('about:blank');
+        await restart();
+      }
+      javascript = 0;
+      pageErrors = 0;
+      stage = 'navigation';
+      // Subscribe before navigation, including after a real container restart.
+      const connected = waitConnected();
+      const navigation = page.goto(`http://${authority}/`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+      const [response] = await Promise.all([navigation, connected]);
+      stage = 'client-boot';
+      if (response?.status() !== 200 || javascript === 0 || pageErrors !== 0) throw new Error('Client boot failed');
+      if (new URL(page.url()).searchParams.has('token')) throw new Error('Token escaped to browser URL');
+      stage = 'cookie';
+      const cookies = await context.cookies();
+      const cookie = cookies.find(item => item.httpOnly && item.sameSite === 'Strict');
+      if (!cookie) throw new Error('Native browser cookie missing');
+      if (boot === 0) nativeCookie = `${cookie.name}=${cookie.value}`;
+      else if (`${cookie.name}=${cookie.value}` !== nativeCookie || response.headers()['set-cookie']) {
+        throw new Error('Native browser session did not survive restart');
+      }
+      stage = 'render';
+      if (!(await page.locator('body').innerText()).trim()) throw new Error('Client did not render');
+      stage = 'sidebar';
+      await page.locator('[data-dsh-better-sidebar] [data-dsh-panel-host]').waitFor({ state: 'attached', timeout: 30_000 });
+      if ((await page.locator('body').innerText()).includes('[dsh-better-sidebar]')) throw new Error('Sidebar mount error');
+    }
+  } catch {
+    throw new Error(`Real browser client boot/native-cookie/mux check failed at ${stage} (boot ${boot + 1}); raw browser output withheld`);
+  } finally {
+    await browser?.close();
+  }
+}
+async function freeLoopbackPort() {
+  return await new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const port = server.address().port;
+      server.close(error => error ? reject(error) : resolve(port));
+    });
+  });
+}
+function hostAddress(subnet, offset) {
+  const [address, bits] = subnet.split('/');
+  if (!/^\d+\.\d+\.\d+\.\d+$/.test(address) || Number(bits) > 28) {
+    throw new Error('Smoke requires an IPv4 Docker network with at least sixteen addresses');
+  }
+  const value = address.split('.').reduce((n, octet) => n * 256 + Number(octet), 0) + offset;
+  return [24, 16, 8, 0].map(shift => (value >>> shift) & 255).join('.');
+}
+const security = ['--read-only', '--user', '1000:1000', '--cap-drop', 'ALL',
+  '--security-opt', 'no-new-privileges:true', '--pids-limit', '256',
+  '--tmpfs', '/tmp:rw,nosuid,nodev,mode=1777,size=256m',
+  '--tmpfs', '/data:rw,nosuid,nodev,mode=1777,size=2g',
+  '--tmpfs', '/cache:rw,nosuid,nodev,mode=1777,size=1g',
+  '--tmpfs', '/logs:rw,nosuid,nodev,mode=1777,size=64m',
+  '--tmpfs', '/backups:rw,nosuid,nodev,mode=1777,size=256m'];
+async function start(name, image, ip, args = [], command = []) {
+  containers.push(name);
+  const address = ip ? ['--ip', ip] : [];
+  try {
+    await docker(['run', '--detach', '--name', name, '--network', network, ...address,
+      ...security, ...args, image, ...command]);
+  } catch (error) {
+    throw new Error(`Docker start ${name} (${image}): ${error.message}`);
+  }
+}
+
+async function createSmokeNetwork(name) {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const subnet = `10.${20 + randomBytes(1)[0] % 200}.${1 + randomBytes(1)[0] % 250}.0/24`;
+    const result = await docker(['network', 'create', '--subnet', subnet, name], undefined, true);
+    if (result.code === 0) return subnet;
+    await docker(['network', 'rm', name], undefined, true);
+  }
+  throw new Error('Could not allocate a smoke subnet');
+}
+async function execute(name, mode, config = {}) {
+  const result = await docker(['exec', '-i', name, 'node', '--input-type=module', '-', mode,
+    JSON.stringify(config)], probe, true);
+  if (result.code !== 0 || !result.stdout.trim().endsWith(`PASS ${mode}`)) {
+    throw new Error(`Container probe ${mode} failed; raw output withheld`);
+  }
+}
+async function awaitReady(app) {
+  for (let attempt = 0; attempt < 120; attempt++) {
+    if (interrupted) throw new Error('Smoke interrupted');
+    const health = await docker(['exec', app, 'node', '/opt/dsh/scripts/readiness.mjs'], undefined, true);
+    if (health.code === 0) return;
+    const state = JSON.parse((await docker(['inspect', '--format', '{{json .State}}', app])).stdout);
+    if (!state.Running) {
+      throw new Error('Application exited before guarded readiness; raw logs withheld');
+    }
+    await sleep(1000);
+  }
+  throw new Error('Guarded readiness timed out; raw logs withheld');
+}
+async function cleanup() {
+  for (const name of containers.splice(0).reverse()) await docker(['rm', '--force', name], undefined, true);
+  for (const name of volumes.splice(0)) await docker(['volume', 'rm', name], undefined, true);
+  if (network) await docker(['network', 'rm', network], undefined, true);
+  network = undefined;
+}
+let interrupted = false;
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.once(signal, () => { interrupted = true; void cleanup().finally(() => process.exit(130)); });
+}
+try {
+  for (const [index, image] of images.entries()) {
+    network = `${prefix}-${index}`;
+    await docker(['image', 'inspect', image]); // Require the caller to build/pull explicitly.
+    // A normal bridge is required: Docker refuses to publish ports on an
+    // --internal network. The app needs registry egress for market installs.
+    const subnet = await createSmokeNetwork(network);
+    const stateVolume = `${network}-state`;
+    const workspaceVolume = `${network}-workspace`;
+    for (const volume of [stateVolume, workspaceVolume]) {
+      volumes.push(volume);
+      await docker(['volume', 'create', volume]);
+    }
+    const appIP = hostAddress(subnet, 3);
+    const attackerIP = hostAddress(subnet, 4);
+    const edge = `${network}-edge`;
+    const app = `${network}-app`;
+    const attacker = `${network}-attacker`;
+    // Helpers are clients from the SAME final image, not replacement app servers.
+    const helperArgs = ['--entrypoint', 'node'];
+    const helperCommand = ['-e', 'setInterval(() => {}, 60000)'];
+    const publicPort = await freeLoopbackPort();
+    await start(edge, image, null, ['--entrypoint', 'node', '--publish', `127.0.0.1:${publicPort}:8080`],
+      ['--input-type=module', '-e', edgeSource, JSON.stringify({ host: appIP, port: 3080, uid: 'smoke-owner-uid', header: 'x-authentik-uid' })]);
+    const edgeState = JSON.parse((await docker(['inspect', edge])).stdout)[0];
+    const edgeIP = edgeState.NetworkSettings.Networks[network].IPAddress;
+    if (!edgeIP) throw new Error('Docker did not assign the smoke edge address');
+    const authority = `dsh.smoke.test:${publicPort}`;
+    await start(attacker, image, attackerIP, helperArgs, helperCommand);
+    await start(app, image, appIP, [
+      '--mount', `type=volume,source=${stateVolume},target=/data/dsh`,
+      '--mount', `type=volume,source=${workspaceVolume},target=/workspace`,
+      '--env', `DSH_HOST=${appIP}`, '--env', 'DSH_PORT=3080',
+      '--env', `DSH_PUBLIC_URL=http://${authority}`,
+      '--env', `DSH_TRUSTED_HOSTS=${authority}`,
+      '--env', 'DSH_FORWARD_AUTH_HEADER=x-authentik-uid',
+      '--env', 'DSH_FORWARD_AUTH_ALLOWED_SUBJECTS=smoke-owner-uid',
+      '--env', `DSH_FORWARD_AUTH_TRUSTED_PROXY_CIDRS=${edgeIP}/32`,
+      '--env', 'DSH_FORWARD_AUTH_MAX_CONNECTION_SECONDS=20',
+    ]);
+    await awaitReady(app);
+    const config = { host: appIP, port: 3080, authority, uid: 'smoke-owner-uid', header: 'x-authentik-uid' };
+    await execute(attacker, 'untrusted', config);
+    await execute(edge, 'trusted', config);
+    await execute(edge, 'manager', config);
+    await execute(app, 'runtime');
+    await browserSmoke(authority, async () => {
+      await docker(['restart', app]);
+      await awaitReady(app);
+      await execute(app, 'runtime');
+    });
+    const boot = await docker(['logs', app], undefined, true);
+    if (/failed to import|skipping profile bundle|failed to activate/iu.test(`${boot.stdout}\n${boot.stderr}`)) {
+      throw new Error('Runtime reported a profile/plugin import or activation failure; raw logs withheld');
+    }
+    console.log(`PASS image ${index + 1}: forward-auth rejection, protected manager, plugin install/reinstall, real browser/sidebar, persistent native cookie, mux, expiry, PTY, profile/source imports`);
+    await cleanup();
+  }
+} catch (error) {
+  // Only locally-authored messages are reported, never a child exception/body/URL.
+  console.error(error instanceof Error ? error.message : 'Smoke failed; raw output withheld');
+  process.exitCode = 1;
+} finally {
+  await cleanup();
+}

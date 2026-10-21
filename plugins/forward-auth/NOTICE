@@ -1,0 +1,106 @@
+@soulwhisper/dsh-forward-auth
+Copyright 2026 soulwhisper
+Own implementation licensed under Apache-2.0; see LICENSE.
+No upstream DSH source is vendored in this package. The distribution's
+patches/dsh/upstream-MIT-LICENSE and root NOTICE preserve the MIT notice for
+the upstream files that the distribution patches and redistributes.
+
+The exact-source patcher modifies @deepseek-ai/dsh-host-webserver,
+@deepseek-ai/dsh-plugin-manager and @deepseek-ai/dsh-app-boot 0.2.1-rc.2,
+from DeepSeek Harness commit
+687f282e8625c6b8d11ff58211a90524be2e4317. Those upstream files and snippets
+retain their MIT license, Copyright (c) 2026 DeepSeek; see
+patches/dsh/upstream-MIT-LICENSE and root NOTICE.
+Published inputs: https://unpkg.com/@deepseek-ai/dsh-host-webserver@0.2.1-rc.2/lib/index.js
+https://unpkg.com/@deepseek-ai/dsh-host-webserver@0.2.1-rc.2/lib/types/index.d.ts
+https://unpkg.com/@deepseek-ai/dsh-plugin-manager@0.2.1-rc.2/lib/index.js
+https://unpkg.com/@deepseek-ai/dsh-app-boot@0.2.1-rc.2/lib/index.js
+
+Security integration contract
+-----------------------------
+Run node patches/dsh/patch-host.mjs RUNTIME_DIRECTORY exactly once after
+installation, before starting DSH. Unknown versions, altered inputs and
+already-patched files are rejected. All discovered pnpm package copies are
+validated before writes. Preserve patched packages on the immutable rootfs.
+The patched WebServer always requires an access gate from first accept.
+registerRequiredAccessGate({http,upgrade}) is synchronous and exclusive;
+requiredAccessGateVersion is required-access-gate-v1. Missing gate: HTTP 503.
+Gate exceptions clear registration and close accepted sockets; disposal clears
+registration and closes HTTP streams, keepalive and upgraded sockets. No
+private server listener takeover, relay, custom parser, or unguarded fallback.
+
+Activate the bundle @soulwhisper/dsh-forward-auth in every served profile; the
+patch inserts required Host-only distribution-forward-auth with
+webServer+connection injection. The app-boot exact patch adds
+distribution-forward-auth to requiredStartupEntryIds, the native required-entry
+policy (Loader has no required:true row property).
+
+DSH_FORWARD_AUTH_HEADER is mandatory and names exactly one request header that
+the trusted edge injects. Authentik commonly uses x-authentik-uid; Authelia can
+use Remote-User. The header is configurable; no provider-specific path is
+assumed. DSH_FORWARD_AUTH_ALLOWED_SUBJECTS is a mandatory comma-separated stable
+subject allowlist. DSH_FORWARD_AUTH_TRUSTED_PROXY_CIDRS is a mandatory
+comma-separated concrete IP CIDR set; no forwarded address header is trusted.
+Mapped IPv6 peers match IPv4 CIDRs; write mapped networks as native IPv4 CIDRs.
+Duplicate or malformed identity, Host, Origin and Cookie headers fail closed.
+Host and Origin are never rewritten.
+
+DSH_FORWARD_AUTH_MAX_CONNECTION_SECONDS defaults to 900 and bounds every
+admitted upgrade; its positive integer value must fit a Node timer. Admission
+always requires external identity, even with valid native browser/API cookies.
+This is a shared-owner harness, not a multiuser authorization boundary. There is
+no local password, bootstrap admin, OIDC client or user database.
+
+The upstream DSH launch-token URL is not an authentication bypass. The gate
+rejects any request whose query contains a `token` parameter, including
+WebSocket upgrades, before the native Connection is consulted. The native
+connection's internal clean-root cookie exchange remains the only supported
+bootstrap path after the edge has supplied an allowlisted identity. Startup
+stdout may still contain the upstream launch URL; treat logs as sensitive and
+do not publish them.
+
+The native Connection requestRejection fence executes before cookie exchange.
+Native 403 stays 403. On 401 only, authenticatedUrl and authorizeIndex exchange
+a native cookie internally, with the real Host/Origin. No launch URL or token is
+returned by this package. Native TLS decides Secure. HTTP responses append
+Set-Cookie; upgrades can internally bootstrap admission without exposing
+authentication URLs, with cookies persisted by the next HTTP request. Native
+Connection owns all API/WS protocol and lifecycle behavior.
+
+Exec readiness connects to /tmp/dsh-forward-auth-ready.sock and requires exactly
+ready followed by newline. This UID-owned mode 0600 Unix socket has no public
+route; it answers only while the gate is registered and the Host has a bound
+port. Disposal removes the socket. There is no unauthenticated HTTP health
+exception.
+
+The exact-source manager patch adds this package to native protectedModules,
+so row disable and bundle deselection/removal are management-required; direct
+installation/update of protected module names is denied. Rootfs packaging must
+pin host-webserver, client-connection, plugin-manager, app-boot and this package;
+prevent writable profile dependencies from shadowing those modules. Independent
+market managers require the same policy. These are required packaging controls,
+not a sandbox against an owner who can execute arbitrary harness code.
+Hot uninstall or dependency reload must dispose the gate before replacement;
+with this package absent the patched Host denies all routes instead of exposing
+the native launch-token route. Do not replace the patched Host at runtime.
+
+Status logs
+-----------
+At startup the package logs one fixed line with the configured header, subject
+count and trusted-proxy count, then state=waiting-for-edge. The first admitted
+request logs state=active. Denials log state=waiting-for-edge or state=degraded
+with a fixed reason and a rate limit; missing identity explicitly says the
+edge/provider may not have injected a subject. Configuration, WebServer,
+Connection, source and readiness contract failures log state=broken with a fixed
+category and fail closed. No subject, header value, cookie, token or source
+secret is logged.
+
+Tavern corresponding source
+--------------------------
+When DSH_SOURCE_ARCHIVE=/opt/dsh-source/tavern.tar.gz and DSH_SOURCE_URL names
+the public HTTPS revision of this distribution, startup validates the archive.
+The exact GET/HEAD /distribution/source.tar.gz route streams that immutable
+archive behind the same mandatory guard (other methods 405). tapIndex adds
+visible Tavern AGPL source-download and distribution-revision links. No source
+route or notice is registered when neither variable is configured. The archive
+is provided by immutable packaging; persistent user data is never archived.

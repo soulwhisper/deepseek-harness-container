@@ -1,0 +1,54 @@
+name: Bootstrap missing profile locks
+
+# Maintainer-only bootstrap. Normal changes must arrive through a PR and carry
+# reviewed locks; this workflow never writes to a branch or publishes images.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-locks:
+    if: github.repository == 'soulwhisper/deepseek-harness-container'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Detect explicit bootstrap requirement
+        id: missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          if test -s docker/profiles/web/pnpm-lock.yaml && test -s docker/profiles/tavern/pnpm-lock.yaml; then
+            echo 'generate=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'generate=true' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+        if: steps.missing.outputs.generate == 'true'
+        with:
+          version: v0.29.1
+          driver-opts: image=moby/buildkit:v0.25.1@sha256:79cc6476ab1a3371c9afd8b44e7c55610057c43e18d9b39b68e2b0c2475cc1b6
+      - name: Export locks from stable image paths
+        if: steps.missing.outputs.generate == 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: profile-locks
+          platforms: linux/amd64
+          outputs: type=local,dest=profile-lock-export
+          provenance: false
+      - name: Upload generated locks for human review and commit
+        if: steps.missing.outputs.generate == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: profile-locks
+          path: profile-lock-export/profiles/*/pnpm-lock.yaml
+          if-no-files-found: error
+          retention-days: 7
+      # No branch writes, PR creation, auto-merge, final-image build or publication.
+      # Final CI deliberately rejects missing committed profile locks.

@@ -1,0 +1,12 @@
+packages:
+  - .
+nodeLinker: hoisted
+storeDir: /cache/pnpm/store
+autoInstallPeers: false
+confirmModulesPurge: false
+ignorePnpmfile: true
+minimumReleaseAge: 0
+allowBuilds:
+  node-pty: false
+patchedDependencies:
+  dsh-better-sidebar@0.28.0: patches/dsh-better-sidebar@0.28.0.patch

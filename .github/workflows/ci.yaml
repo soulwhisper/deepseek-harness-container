@@ -1,0 +1,135 @@
+name: Validate Pull Request
+
+# PR-only change flow with explicit steps and a native amd64/arm64 matrix.
+# No QEMU: each runner builds and smokes only its own architecture image.
+# Public/fork PRs are not a supported submission path; their jobs are skipped.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: Static verify and tests
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.22.0'
+
+      - name: Install locked test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global --ignore-scripts pnpm@11.25.0
+          pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Validate source and behavioral tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify.mjs
+          node --test test/*.test.mjs
+
+  images:
+    name: Build and smoke ${{ matrix.target }} (${{ matrix.arch }})
+    needs: static
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: web, arch: amd64, runner: ubuntu-24.04 }
+          - { target: web, arch: arm64, runner: ubuntu-24.04-arm }
+          - { target: tavern, arch: amd64, runner: ubuntu-24.04 }
+          - { target: tavern, arch: arm64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.22.0'
+
+      - name: Install smoke dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global --ignore-scripts pnpm@11.25.0
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+
+      - name: Build native ${{ matrix.arch }} image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: ${{ matrix.target }}
+          build-args: IMAGE_REVISION=${{ github.sha }}
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          tags: dsh-${{ matrix.target }}:smoke
+          provenance: false
+          sbom: false
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Verify native addon from the built image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm -i --read-only --user 1000:1000 --cap-drop ALL \
+            --security-opt no-new-privileges:true --pids-limit 256 \
+            --tmpfs /tmp:rw,nosuid,nodev,mode=1777,size=256m \
+            --tmpfs /data:rw,nosuid,nodev,mode=1777,size=2g \
+            --entrypoint node dsh-${{ matrix.target }}:smoke \
+            --input-type=module - < scripts/verify-addon.mjs
+
+      - name: Run final-image smoke (${{ matrix.arch }})
+        shell: bash
+        run: node scripts/smoke.mjs dsh-${{ matrix.target }}:smoke
+
+  # Single required-status-check target for branch protection.
+  ci-pass:
+    name: CI checks passed
+    needs: [static, images]
+    if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required validation succeeded
+        shell: bash
+        run: |
+          set -euo pipefail
+          for result in "${{ needs.static.result }}" "${{ needs.images.result }}"; do
+            if [ "${result}" != "success" ]; then
+              echo "::error::Validation did not succeed: ${result}"
+              exit 1
+            fi
+          done
+          echo "Validation passed"

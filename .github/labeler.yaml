@@ -1,0 +1,40 @@
+---
+area/dsh:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "versions.json"
+          - "docker/runtime/**"
+          - "README.md"
+          - "README.zh-CN.md"
+area/patches:
+  - changed-files:
+      - any-glob-to-any-file: "patches/**"
+area/plugin:
+  - changed-files:
+      - any-glob-to-any-file: "plugins/forward-auth/**"
+area/docker:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docker/**"
+          - ".dockerignore"
+area/scripts:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "scripts/**"
+          - "test/**"
+area/docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "NOTICE"
+          - "LICENSE"
+area/deploy:
+  - changed-files:
+      - any-glob-to-any-file: "deploy/**"
+area/github:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
+          - "renovate.json"
+          - ".renovate/**"
+          - ".coderabbit.yaml"

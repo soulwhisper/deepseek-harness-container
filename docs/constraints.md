@@ -57,8 +57,7 @@ backups are safe. Test those independently.
 - Bind `DSH_HOST` to one concrete container/Pod IP. Service VIPs, wildcard
   addresses and `0.0.0.0`/`::` are rejected.
 - Use one StatefulSet replica with RWO `/data` and `/workspace` claims.
-  Active-active replicas and hot failover are not supported by DSH. See
-  [HA limits](ha-plan.md).
+  Active-active replicas and hot failover are not supported by DSH.
 - Pin an inspected image digest. Do not use `latest`, branch publication or a
   mutable tag as the production identity.
 - No secret belongs in a build argument, image layer, committed `.env` or issue.

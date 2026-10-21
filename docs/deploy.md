@@ -73,8 +73,8 @@ native contract failed; inspect the fixed reason category, not a subject or toke
 value.
 
 Do not scale the StatefulSet to two replicas. DSH has no leader election or
-live-session handoff, and one live writer per home is a hard constraint. See
-[HA limits](ha-plan.md) before adding a PDB, RWX storage or replicas.
+live-session handoff, and one live writer per home is a hard constraint. Do not
+add a PDB or shared RWX volume expecting hot failover.
 
 ## Readiness
 

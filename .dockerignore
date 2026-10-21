@@ -10,6 +10,8 @@ handoff-*.md
 artifacts
 coverage
 site
+temp
+docs/eval
 *.log
 .env
 .env.*

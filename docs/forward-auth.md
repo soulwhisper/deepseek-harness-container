@@ -140,5 +140,5 @@ model provider or sandbox works.
 
 All admitted subjects are the same DSH owner and share files, tools, model
 credentials and history. This is not multi-user isolation. A single DSH instance
-has no per-user session ownership; see [HA limits](ha-plan.md) and use one
-instance per mutually untrusted owner if isolation is required.
+has no per-user session ownership; use one instance per mutually untrusted owner
+if isolation is required.

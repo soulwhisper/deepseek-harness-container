@@ -28,6 +28,30 @@ Use the native architecture matching the runner or host. CI builds
 | `distribution-source` | Whitelisted build/source payload used by both images |
 | `tavern-source` | Pinned Tavern checkout plus exact-hash patches |
 
+## Authentication variants
+
+There is no supported image that uses the Web UI without forward-auth. The
+`web` and `tavern` targets always combine the patched Host with the required
+gate; removing only the plugin leaves every HTTP and WebSocket route at 503.
+Do not add a pass-through gate or disable the Host patch in a public image.
+
+A user who specifically does not want this forward-auth adapter has two
+unsupported options:
+
+- Build an **upstream base** from `@deepseek-ai/dsh` without the host patch and
+  without our authentication plugin. It uses the upstream launch-token URL and
+  has no SSO; keep it on a private network and never treat it as a production
+  identity boundary. This requires a separate Docker target, profile, readiness
+  check, release tag and smoke coverage; the current image cannot be converted
+  by deleting a bundle.
+- Keep the patched Host and supply a **custom gate plugin** implementing the
+  synchronous `http`/`upgrade` access-gate ABI. This is a plugin and must be
+  installed as a required bundle with manager protection. It is not shipped or
+  supported here.
+
+Both options are application forks, not configuration switches. See
+[Authentication](forward-auth.md) for the supported boundary.
+
 ## What ships in the image
 
 The final images do **not** copy the repository root. The

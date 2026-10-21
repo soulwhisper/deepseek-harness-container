@@ -35,7 +35,6 @@ or replacement mux server.
 | [Source build](docs/source-build.md) | Tavern corresponding source |
 | [Licensing](docs/regulations.md) | Apache/MIT/AGPL obligations |
 | [Forward-auth](docs/forward-auth.md) | Trusted-edge authentication, status logs, token URL |
-| [HA plan](docs/ha-plan.md) | Replicas, PDB, RWX and DSH limits |
 
 Documentation is English-only under `docs/`; the root Chinese README is a
 localized entry point, not a second docs tree.
@@ -156,8 +155,7 @@ The deployment is a single StatefulSet replica with RWO `/data` and
 `/workspace`. DSH has process-local sessions, per-session `flock` but no
 home-wide leader election, and no live-session handoff. Do not scale to two
 replicas or attach a shared RWX home as a failover. A PDB protects voluntary
-disruption only. See [HA plan](docs/ha-plan.md) for evidence, options and the
-minimum work required for active/passive.
+disruption only. This is a DSH limitation, not a Kubernetes tuning problem.
 
 ## License and corresponding source
 

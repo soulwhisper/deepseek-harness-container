@@ -34,7 +34,6 @@ for `linux/amd64` and `linux/arm64`; there is no QEMU fallback.
 | Deploy Compose or Kubernetes | [Deployment](deploy.md) |
 | Run upgrades, rollback and backups | [Operations](operations.md) |
 | Decide what to back up | [State and backup](data-layout.md) |
-| Evaluate replicas, PDB or shared RWX | [HA limits](ha-plan.md) |
 | Redistribute or satisfy source obligations | [Licensing](regulations.md) and [Corresponding source](source-build.md) |
 
 ## Safety rules

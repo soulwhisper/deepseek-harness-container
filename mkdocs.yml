@@ -44,7 +44,6 @@ nav:
       - Architecture: architecture.md
       - Operating constraints: constraints.md
       - Authentication: forward-auth.md
-      - HA limits: ha-plan.md
   - Build:
       - Build and release: build.md
       - Upstream patches: patches.md

@@ -36,8 +36,8 @@ version/profile or an unrecognized layout is refused unless you explicitly set
 
 !!! danger "One writer per home"
     Do not run two DSH processes against one home, even if a shared volume claims
-    to support RWX. DSH has per-session file locking, not a home-wide leader or
-    live session handoff. See [HA limits](ha-plan.md).
+    support RWX. DSH has per-session file locking, not a home-wide leader or
+    live session handoff.
 
 ## Upgrade and migration
 

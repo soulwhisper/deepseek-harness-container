@@ -30,7 +30,6 @@ Web 跟随 DSH 上游版本，Tavern 跟随 dsh-tavern；两者独立发版。�
 | [Source build](docs/source-build.md) | Tavern 对应源码与重建配方 |
 | [Licensing](docs/regulations.md) | Apache/MIT/AGPL 义务 |
 | [Forward-auth](docs/forward-auth.md) | trusted-edge 认证、状态日志、token URL |
-| [HA plan](docs/ha-plan.md) | replica、PDB、RWX 与 DSH 限制 |
 
 `docs/` 仅维护英文文档；根目录中文 README 是本地化入口，不建立第二套文档树。
 
@@ -114,7 +113,7 @@ Renovate 仅提供提示，从不自动合并。源码 commit、精确补丁/主
 
 ## HA 限制
 
-当前 deployment 是单副本 StatefulSet，`/data` 和 `/workspace` 使用 RWO。DSH 的 session 是进程内状态，只有 per-session `flock`，没有 home 级 leader election，也没有 live-session handoff。不要把副本扩到 2，也不要把共享 RWX home 当作 hot failover。PDB 只保护 voluntary disruption。证据、选项与 active/passive 的最低要求见 [HA plan](docs/ha-plan.md)。
+当前 deployment 是单副本 StatefulSet，`/data` 和 `/workspace` 使用 RWO。DSH 的 session 是进程内状态，只有 per-session `flock`，没有 home 级 leader election，也没有 live-session handoff。不要把副本扩到 2，也不要把共享 RWX home 当作 hot failover。PDB 只保护 voluntary disruption；这是 DSH 的限制，不是 Kubernetes 调参问题。
 
 ## 许可与对应源码
 

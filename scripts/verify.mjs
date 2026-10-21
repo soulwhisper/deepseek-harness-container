@@ -62,7 +62,7 @@ for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/
   'deploy/docker/compose.yaml', 'deploy/kubernetes/dsh-web.yaml',
   'docs/index.md', 'docs/architecture.md', 'docs/constraints.md', 'docs/build.md', 'docs/deploy.md',
   'docs/operations.md', 'docs/data-layout.md', 'docs/patches.md', 'docs/source-build.md',
-  'docs/regulations.md', 'docs/forward-auth.md', 'docs/ha-plan.md', 'mkdocs.yml',
+  'docs/regulations.md', 'docs/forward-auth.md', 'mkdocs.yml',
   '.github/workflows/docs.yaml',
   '.github/CODEOWNERS', '.github/PULL_REQUEST_TEMPLATE.md', '.github/labels.yaml',
   '.github/labeler.yaml', '.github/workflows/labeler.yaml', '.github/workflows/label-sync.yaml',

@@ -26,6 +26,9 @@ COPY patches/dsh /opt/dsh/patches/dsh
 RUN pnpm install --frozen-lockfile --prod \
     && node /opt/dsh/patches/dsh/patch-host.mjs /opt/dsh/docker/runtime \
     && ln -s docker/runtime /opt/dsh/runtime
+# Fail the build if native optional packages were resolved for the wrong
+# architecture (a stale multi-arch cache can otherwise hide this until boot).
+RUN node -e "const {createRequire}=require('node:module'); const r=createRequire('/opt/dsh/docker/runtime/package.json'); const name='node-addon-require-builtin-linux-'+(process.arch==='arm64'?'arm64':'x64')+'-gnu'; r.resolve(name);"
 COPY versions.json /opt/dsh/versions.json
 COPY scripts/entrypoint.sh scripts/materialize-state.mjs scripts/normalize-locks.mjs scripts/materialize-profiles.mjs scripts/readiness.mjs scripts/finalize-profile.mjs scripts/link-tavern-core.mjs /opt/dsh/scripts/
 COPY docker/profiles/web/pnpm-workspace.yaml /opt/dsh/profiles/web/pnpm-workspace.yaml

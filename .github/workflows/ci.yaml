@@ -94,8 +94,6 @@ jobs:
           tags: dsh-${{ matrix.target }}:smoke
           provenance: false
           sbom: false
-          cache-from: type=gha,scope=${{ matrix.target }}-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.target }}-${{ matrix.arch }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}

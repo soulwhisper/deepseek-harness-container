@@ -18,6 +18,9 @@ services:
     volumes:
       - dsh-web-data:/data
       - dsh-web-workspace:/workspace
+      - dsh-web-cache:/cache
+      - dsh-web-logs:/logs
+      - dsh-web-backups:/backups
     environment:
       DSH_HOST: ${DSH_WEB_IP:-172.30.80.3}
       DSH_PORT: "3080"
@@ -45,6 +48,9 @@ services:
     volumes:
       - dsh-tavern-data:/data
       - dsh-tavern-workspace:/workspace
+      - dsh-tavern-cache:/cache
+      - dsh-tavern-logs:/logs
+      - dsh-tavern-backups:/backups
     environment:
       DSH_HOST: ${DSH_TAVERN_IP:-172.30.80.4}
       DSH_PORT: "3080"
@@ -64,5 +70,11 @@ networks:
 volumes:
   dsh-web-data:
   dsh-web-workspace:
+  dsh-web-cache:
+  dsh-web-logs:
+  dsh-web-backups:
   dsh-tavern-data:
   dsh-tavern-workspace:
+  dsh-tavern-cache:
+  dsh-tavern-logs:
+  dsh-tavern-backups:

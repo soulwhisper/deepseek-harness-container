@@ -1,6 +1,11 @@
 .git
 node_modules
 **/node_modules
+test
+deploy
+.github
+.renovate
+handoff-*.md
 .data
 artifacts
 coverage

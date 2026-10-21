@@ -1,7 +1,7 @@
 packages:
   - .
 nodeLinker: hoisted
-storeDir: /data/cache/pnpm/store
+storeDir: /cache/pnpm/store
 autoInstallPeers: true
 confirmModulesPurge: false
 minimumReleaseAge: 0

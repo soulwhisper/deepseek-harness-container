@@ -1,5 +1,5 @@
 import { cp, mkdir, readdir, readFile, writeFile, rename, rm, lstat, symlink, chmod, readlink, realpath } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { normalizeLockLinks, normalizeLockText } from './normalize-locks.mjs';
@@ -115,6 +115,10 @@ export async function materializeState(options = {}) {
   const profile = options.profile ?? process.env.DSH_PROFILE ?? 'web';
   const action = options.action ?? process.env.DSH_STATE_MIGRATION ?? 'refuse';
   const legacy = resolve(options.legacy ?? process.env.DSH_LEGACY_HOME ?? '/home/node/.dsh');
+  const backupRoot = resolve(options.backupRoot ?? process.env.DSH_BACKUP_ROOT ?? join(dirname(home), 'dsh-migrations'));
+  if (backupRoot === home || backupRoot.startsWith(`${home}${sep}`)) {
+    throw new Error('DSH_BACKUP_ROOT must be outside DSH_HOME; the rollback copy is not user state and must not be included in the state backup');
+  }
   const require = createRequire(options.runtimeManifest ?? '/opt/dsh/runtime/package.json');
   const YAML = require('yaml');
   if (!['web', 'tavern'].includes(profile)) throw new Error('Unknown image profile');
@@ -154,12 +158,23 @@ export async function materializeState(options = {}) {
   }
   if (action !== 'apply') throw new Error(`Existing state requires explicit migration to ${identity}/${profile}. Snapshot /data and /workspace; set DSH_STATE_MIGRATION=apply once. Rollback requires restoring that snapshot, not merely an old image.`);
   const lock = join(home, '.distribution-migration-lock');
-  await mkdir(lock);
+  try {
+    await mkdir(lock);
+  } catch (error) {
+    if (error.code === 'EEXIST') {
+      throw new Error(`Migration lock already exists at ${lock}; stop any migration process, verify no writer is active, back up /data and /workspace, then remove the lock explicitly`);
+    }
+    throw error;
+  }
   let backup;
   try {
-    backup = join(dirname(home), 'dsh-migrations', `${Date.now()}-${process.pid}`);
+    await mkdir(backupRoot, { recursive: true, mode: 0o700 });
+    backup = join(backupRoot, `${Date.now()}-${process.pid}`);
     await mkdir(backup, { recursive: true, mode: 0o700 });
-    await cp(home, join(backup, 'home'), { recursive: true, verbatimSymlinks: true, preserveTimestamps: true, filter: path => path !== lock });
+    // Cache and startup logs have dedicated volumes; never copy them into a
+    // rollback archive or into the primary state backup.
+    const excluded = new Set([lock, join(home, 'cache'), join(home, 'logs')]);
+    await cp(home, join(backup, 'home'), { recursive: true, verbatimSymlinks: true, preserveTimestamps: true, filter: path => !excluded.has(path) });
     const target = join(home, 'profiles', profile);
     const source = join(seed, 'profiles', profile);
     await mkdir(target, { recursive: true });

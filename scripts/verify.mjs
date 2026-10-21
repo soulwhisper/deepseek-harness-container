@@ -28,6 +28,10 @@ assert.match(await text('docker/Dockerfile'), new RegExp(`org\\.opencontainers\\
 assert.match(versions.dsh.commit, /^[a-f0-9]{40}$/u);
 assert.match(versions.tavern.commit, /^[a-f0-9]{40}$/u);
 assert.match(versions.tavern.routesSha256, /^[a-f0-9]{64}$/u);
+assert.equal(versions.tavern.theme?.package, '@deepseek-ai/dsh-client-ui-theme');
+assert.equal(versions.tavern.theme?.version, versions.dsh.version);
+assert.match(versions.tavern.theme?.indexSha256, /^[a-f0-9]{64}$/u);
+assert.match(versions.tavern.theme?.clientSha256, /^[a-f0-9]{64}$/u);
 assert.match(versions.pnpm, /^\d+\.\d+\.\d+$/u);
 assert.equal(packageJson.packageManager, `pnpm@${versions.pnpm}`);
 const rootLock = parse(await text('pnpm-lock.yaml'));
@@ -56,16 +60,35 @@ for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/
   'patches/dsh/patch-host.mjs', 'patches/market/patch-market.mjs', 'patches/tavern/patch-tavern.mjs',
   'plugins/sso/index.mjs', 'scripts/normalize-locks.mjs', 'scripts/field-test.mjs', 'test/packaging.test.mjs',
   'deploy/docker/compose.yaml', 'deploy/kubernetes/dsh-web.yaml',
+  'docs/README.md', 'docs/architecture.md', 'docs/constraints.md', 'docs/build.md', 'docs/deploy.md',
+  'docs/operations.md', 'docs/data-layout.md', 'docs/patches.md', 'docs/source-build.md',
+  'docs/regulations.md', 'docs/oidc-connector-plan.md', 'docs/ha-plan.md',
   '.github/CODEOWNERS', '.github/PULL_REQUEST_TEMPLATE.md', '.github/labels.yaml',
   '.github/labeler.yaml', '.github/workflows/labeler.yaml', '.github/workflows/label-sync.yaml',
   '.renovate/customManagers.json', '.renovate/groups.json', '.renovate/packageRules.json',
   '.github/workflows/schedule-cleanup.yaml', '.github/workflows/field-test.yaml', '.coderabbit.yaml', 'renovate.json']) {
   assert.ok(await present(path), `Repository layout requires ${path}`);
 }
-for (const legacy of ['Dockerfile', 'profiles', 'runtime']) {
-  assert.equal(await present(legacy), false, `Repository layout: move ${legacy} out of the root category tree`);
+for (const legacy of ['Dockerfile', 'profiles', 'runtime', 'docker/README.md', 'deploy/README.md',
+  'patches/README.md', 'docker/profiles/tavern/SOURCE-BUILD.txt']) {
+  assert.equal(await present(legacy), false, `Repository layout: move ${legacy} out of the category tree`);
 }
 assert.equal(await present('.github/actions/validate/action.yaml'), false, 'The custom composite validator is gone');
+const dockerfile = await text('docker/Dockerfile');
+assert.doesNotMatch(dockerfile, /COPY \. /u, 'Final images must not copy the whole repository context');
+assert.match(dockerfile, /FROM scratch AS distribution-source/u, 'Explicit source payload stage');
+assert.match(dockerfile, /COPY --from=distribution-source/u, 'Final image uses the source payload stage');
+assert.match(dockerfile, /XDG_CACHE_HOME=\/cache/u, 'Cache is outside /data');
+assert.match(dockerfile, /DSH_BACKUP_ROOT=\/backups/u, 'Rollback root is outside /data');
+assert.doesNotMatch(dockerfile, /scripts\/smoke\.mjs|test\/|deploy\/|\.github\//u,
+  'Test, smoke, deploy and CI inputs must not be copied into images');
+const ignore = await text('.gitignore');
+assert.match(ignore, /^handoff-\*\.md$/mu, 'Handoff files are ignored');
+assert.match(await text('.github/workflows/label-sync.yaml'), /sparse-checkout-cone-mode:\s*false/u,
+  'Label sync can check out a single sparse file');
+const preCommit = parse(await text('.pre-commit-config.yaml'));
+const checkYaml = preCommit.repos.flatMap(repo => repo.hooks ?? []).find(hook => hook.id === 'check-yaml');
+assert.deepEqual(checkYaml?.args, ['--allow-multiple-documents'], 'Deploy YAML may contain multiple documents');
 for (const directory of ['plugins/sso', 'scripts']) {
   for (const name of await readdir(join(root, directory))) {
     assert.doesNotMatch(name, /^patch-.*\.mjs$/u, `Patches belong under patches/, not ${directory}/${name}`);
@@ -83,7 +106,8 @@ assert.doesNotMatch(ciText, /secrets\./u, 'CI build/test jobs must not receive r
 const labelerText = await text('.github/workflows/labeler.yaml');
 const labelerWorkflow = parse(labelerText);
 assert.deepEqual(labelerWorkflow.on.pull_request.types, ['opened', 'synchronize', 'reopened'], 'Labeler has explicit PR activity types');
-assert.match(labelerText, /create-github-app-token/u, 'Labeler uses the GitHub App token');
+assert.doesNotMatch(labelerText, /create-github-app-token|secrets\./u, 'PR labeler must not receive App secrets');
+assert.match(labelerText, /repo-token:\s*\$\{\{\s*github\.token\s*\}\}/u, 'Labeler uses the job-scoped default token');
 const publishWorkflow = parse(await text('.github/workflows/publish.yaml'));
 assert.deepEqual(publishWorkflow.on.push.tags, ['web-*', 'tavern-*'], 'Release triggers only on image tags');
 assert.equal(publishWorkflow.on.push.branches, undefined, 'Branch pushes must not publish');

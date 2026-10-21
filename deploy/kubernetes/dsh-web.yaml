@@ -77,6 +77,8 @@ spec:
                   key: trusted-proxy-cidrs
             - name: DSH_SSO_MAX_CONNECTION_SECONDS
               value: "900"
+            - name: DSH_BACKUP_ROOT
+              value: /backups
           startupProbe:
             exec:
               command: ["node", "/opt/dsh/scripts/readiness.mjs"]
@@ -98,9 +100,26 @@ spec:
               mountPath: /data
             - name: workspace
               mountPath: /workspace
+            - name: cache
+              mountPath: /cache
+            - name: logs
+              mountPath: /logs
+            - name: backups
+              mountPath: /backups
             - name: tmp
               mountPath: /tmp
       volumes:
+        # Non-authoritative roots. Replace with PVCs only if you explicitly
+        # need cache, logs or migration rollback copies to survive a restart.
+        - name: cache
+          emptyDir:
+            sizeLimit: 4Gi
+        - name: logs
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: backups
+          emptyDir:
+            sizeLimit: 10Gi
         - name: tmp
           emptyDir:
             medium: Memory

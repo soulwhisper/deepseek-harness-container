@@ -66,7 +66,8 @@ Its original complete LICENSE and source remain at
 Container-specific modifications: pinned-source custom workspace build,
 pruned profile installation, stable absolute links and the recorded Tavern
 patches. The modifications and build recipe are present in this repository
-and in /opt/dsh/distribution-source. See docker/profiles/tavern/SOURCE-BUILD.txt.
+and in /opt/dsh/distribution-source. See docs/source-build.md (also retained
+at /opt/dsh/distribution-source/docs/source-build.md).
 The complete modified Tavern source plus distribution build inputs, excluding
 .git and installed node_modules, is /opt/dsh-source/tavern.tar.gz. Authenticated
 users can download it at /distribution/source.tar.gz from the Tavern UI source

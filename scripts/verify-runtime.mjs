@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import { readFile, stat } from 'node:fs/promises';
+import { lstat, readFile, readlink, stat } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 
 const [mode, json = '{}'] = process.argv.slice(2);
@@ -102,7 +102,7 @@ async function trusted() {
     const path = `${url.pathname}${url.search}`;
     const asset = await request(path, headers);
     check(asset.status === 200 && /(?:javascript|ecmascript)/iu.test(asset.headers['content-type'] ?? '')
-      && asset.text.length > 100 && !/^\s*</u.test(asset.text), `Actual client JavaScript, not index fallback: ${path} status=${asset.status} type=${asset.headers['content-type'] ?? 'none'}`);
+      && asset.text.length > 100 && !/^\s*</u.test(asset.text), 'Actual client JavaScript, not index fallback');
     check((await request(path)).status === 403, 'Anonymous static assets denied');
   }
   const inventory = await request('/api/pluginInventory/list', {
@@ -163,7 +163,7 @@ async function manager() {
     check(result.status === 200, 'Real native manager HTTP carrier');
     const envelope = JSON.parse(result.text);
     check(envelope.type === 'server-response' && envelope.result?.ok === true,
-      `Real native manager RPC envelope: ${method}#${correlation} code=${envelope.result?.error?.code ?? 'none'} message=${envelope.result?.error?.message ?? 'none'}`);
+      'Real native manager RPC envelope');
     return envelope.result.value;
   };
   const protectedName = '@soulwhisper/dsh-sso';
@@ -200,7 +200,7 @@ async function manager() {
       JSON.stringify({ url: entry.url, version: '0.28.0' }), 180_000);
     const installedBody = JSON.parse(installed.text);
     check(installed.status === 200 && installedBody.ok === true,
-      `Pinned plugin market install: status=${installed.status} error=${installedBody.error ?? 'none'}`);
+      'Pinned plugin market install');
     // Exercise the exact SAME shipped market adapter against the actual remote manager,
     // not a mock. Existing installs require native remove + add; direct add is refused.
     const adapterURL = new URL('lib/official-desktop.js', pathToFileURL(runtimeRequire.resolve('dshmarket/package.json')));
@@ -255,7 +255,7 @@ async function nativePty() {
 }
 
 async function architecture() {
-  check(process.arch === config.arch, `Architecture ${process.arch} is not ${config.arch}`);
+  check(process.arch === config.arch, 'Architecture mismatch');
   const manifestPath = '/opt/dsh/runtime/package.json';
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const require = createRequire(manifestPath);
@@ -278,7 +278,12 @@ async function architecture() {
 async function runtime() {
   check(process.getuid() === 1000 && process.getgid() === 1000, 'Non-root runtime');
   check(process.env.DSH_HOME === '/data/dsh' && process.env.HOME === '/data/home'
-    && process.env.XDG_CACHE_HOME === '/data/cache', 'Persistent path contract');
+    && process.env.XDG_CACHE_HOME === '/cache' && process.env.DSH_BACKUP_ROOT === '/backups',
+    'Persistent path contract');
+  const cache = await lstat('/data/dsh/cache');
+  const logs = await lstat('/data/dsh/logs');
+  check(cache.isSymbolicLink() && await readlink('/data/dsh/cache') === '/cache/dsh', 'DSH cache is on its own volume');
+  check(logs.isSymbolicLink() && await readlink('/data/dsh/logs') === '/logs', 'DSH logs are on their own volume');
   const profile = process.env.DSH_PROFILE;
   check(['web', 'tavern'].includes(profile), 'Known profile');
   const manifestPath = `/data/dsh/profiles/${profile}/package.json`;
@@ -297,9 +302,14 @@ async function runtime() {
     check(archive.status === 0 && archive.stdout.includes('dsh-tavern/LICENSE')
       && archive.stdout.includes('dsh-tavern/tavern-plugin/src/')
       && archive.stdout.includes('distribution/docker/Dockerfile')
-      && archive.stdout.includes('distribution/docker/profiles/tavern/SOURCE-BUILD.txt')
+      && archive.stdout.includes('distribution/docs/source-build.md')
+      && archive.stdout.includes('distribution/docs/regulations.md')
       && archive.stdout.includes('distribution/patches/dsh/patch-host.mjs')
-      && archive.stdout.includes('distribution/patches/tavern/patch-tavern.mjs'), 'Complete Tavern source/build recipe archive');
+      && archive.stdout.includes('distribution/patches/tavern/patch-tavern.mjs')
+      && !archive.stdout.includes('distribution/test/')
+      && !archive.stdout.includes('distribution/scripts/smoke.mjs')
+      && !archive.stdout.includes('distribution/deploy/')
+      && !archive.stdout.includes('distribution/.github/'), 'Complete slim Tavern source/build recipe archive');
   }
   await nativePty();
 }
@@ -313,7 +323,7 @@ try {
   console.log(`PASS ${mode}`);
 } catch (error) {
   const label = ['trusted', 'untrusted', 'runtime', 'manager', 'arch'].includes(mode) ? mode : 'probe';
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(`FAIL ${label}: ${message}`);
+  if (error?.code === 'ERR_ASSERTION' && typeof error.message === 'string') console.error(`FAIL ${label}: ${error.message}`);
+  else console.error(`FAIL ${label}: probe failed; details withheld`);
   process.exitCode = 1;
 }

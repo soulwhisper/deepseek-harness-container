@@ -12,8 +12,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libatomic1 openssh-client procps python3 ripgrep tini unzip \
     && rm -rf /var/lib/apt/lists/* \
     && npm install --global pnpm@11.25.0 \
-    && mkdir -p /opt/dsh /opt/dsh-seed /data/dsh /data/home /data/cache /workspace \
-    && chown -R 1000:1000 /data /workspace
+    && mkdir -p /opt/dsh /opt/dsh-seed /data/dsh /data/home \
+       /cache /logs /backups /workspace \
+    && chown -R 1000:1000 /data /cache /logs /backups /workspace
+
+# Exact build inputs retained for corresponding-source and audit purposes.
+# Test, smoke, CI, deploy and general docs are deliberately not copied into
+# either final image; only the source-build and licensing docs belong here.
+FROM scratch AS distribution-source
+COPY docker /docker
+COPY patches /patches
+COPY plugins/sso /plugins/sso
+COPY --chmod=0755 scripts/entrypoint.sh /scripts/entrypoint.sh
+COPY scripts/materialize-state.mjs scripts/normalize-locks.mjs \
+     scripts/materialize-profiles.mjs scripts/readiness.mjs \
+     scripts/finalize-profile.mjs scripts/link-tavern-core.mjs /scripts/
+COPY versions.json package.json pnpm-lock.yaml LICENSE NOTICE README.md README.zh-CN.md /
+COPY docs/source-build.md docs/regulations.md /docs/
 
 FROM tools AS runtime-build
 # The runtime manifest's file: dependency is ../../plugins/sso. Keep that
@@ -31,6 +46,7 @@ RUN pnpm install --frozen-lockfile --prod \
 RUN node -e "const {createRequire}=require('node:module'); const r=createRequire('/opt/dsh/docker/runtime/package.json'); const name='node-addon-require-builtin-linux-'+(process.arch==='arm64'?'arm64':'x64')+'-gnu'; require(r.resolve(name));"
 COPY versions.json /opt/dsh/versions.json
 COPY scripts/entrypoint.sh scripts/materialize-state.mjs scripts/normalize-locks.mjs scripts/materialize-profiles.mjs scripts/readiness.mjs scripts/finalize-profile.mjs scripts/link-tavern-core.mjs /opt/dsh/scripts/
+RUN chmod 0755 /opt/dsh/scripts/entrypoint.sh
 COPY docker/profiles/web/pnpm-workspace.yaml /opt/dsh/profiles/web/pnpm-workspace.yaml
 COPY docker/profiles/tavern/pnpm-workspace.yaml /opt/dsh/profiles/tavern/pnpm-workspace.yaml
 COPY docker/profiles/distribution.patch.yml /opt/dsh/profiles/distribution.patch.yml
@@ -79,7 +95,7 @@ RUN DSH_BUILD_PROFILE=tavern node /opt/dsh/scripts/materialize-profiles.mjs \
     && cp /opt/dsh/profiles/tavern/pnpm-lock.yaml /opt/dsh-seed/profiles/tavern/pnpm-lock.yaml \
     && pnpm --dir /opt/dsh-seed/profiles/tavern install --frozen-lockfile --prod \
     && node /opt/dsh/scripts/finalize-profile.mjs /opt/dsh-seed/profiles/tavern
-COPY . /opt/dsh-source/distribution
+COPY --from=distribution-source / /opt/dsh-source/distribution
 RUN tar --exclude=.git --exclude=node_modules -czf /opt/dsh-source/tavern.tar.gz \
       -C /opt/dsh-source distribution -C /opt/dsh-tavern/apps dsh-tavern \
     && rm -rf /opt/dsh-source/distribution
@@ -87,18 +103,18 @@ RUN tar --exclude=.git --exclude=node_modules -czf /opt/dsh-source/tavern.tar.gz
 FROM tools AS application
 ENV DSH_HOME=/data/dsh \
     HOME=/data/home \
-    XDG_CACHE_HOME=/data/cache \
+    DSH_BACKUP_ROOT=/backups \
+    XDG_CACHE_HOME=/cache \
     XDG_CONFIG_HOME=/data/home/.config \
     XDG_DATA_HOME=/data/home/.local/share \
-    npm_config_cache=/data/cache/npm \
+    npm_config_cache=/cache/npm \
     PNPM_HOME=/data/home/.local/share/pnpm \
     NARB_DISABLE_NATIVE_CACHE=1 \
     DSH_PORT=3080 \
     TMPDIR=/tmp
 WORKDIR /workspace
-# Keep our complete build/patch inputs alongside the Tavern corresponding source.
-COPY . /opt/dsh/distribution-source
-RUN chmod 0755 /opt/dsh/distribution-source/scripts/entrypoint.sh
+# Exact build/patch inputs, not the repository's test and deploy trees.
+COPY --from=distribution-source / /opt/dsh/distribution-source
 EXPOSE 3080
 USER 1000:1000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 CMD ["node", "/opt/dsh/scripts/readiness.mjs"]

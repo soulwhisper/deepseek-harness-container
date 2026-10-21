@@ -8,7 +8,8 @@ import { createHash } from 'node:crypto';
 import YAML from 'yaml';
 import { materializeState, mergeManifest, mergeLock, migrateOverlay } from '../scripts/materialize-state.mjs';
 import { normalizeLockText, relativeLinkCount } from '../scripts/normalize-locks.mjs';
-import { patchRoutes } from '../patches/tavern/patch-tavern.mjs';
+import { stableImmutableTarget } from '../scripts/finalize-profile.mjs';
+import { patchRoutes, verifyTheme } from '../patches/tavern/patch-tavern.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const runtimeManifest = join(root, 'package.json');
@@ -147,6 +148,41 @@ test('explicit migration preserves user graph, credentials and workspace, remove
   assert.deepEqual(YAML.parse(await readFile(join(options.home, 'cordis.patch.yml'), 'utf8'))[0].children, [{ name: 'user-plugin' }]);
 });
 
+test('migration rollback lives outside state and excludes cache/logs', async t => {
+  const options = await fixture(t);
+  await materializeState(options);
+  await mkdir(join(options.home, 'cache', 'attachments'), { recursive: true });
+  await writeFile(join(options.home, 'cache', 'attachments', 'thumbnail'), 'cache-only');
+  await mkdir(join(options.home, 'logs'), { recursive: true });
+  await writeFile(join(options.home, 'logs', 'startup.log'), 'log-only');
+  await writeFile(join(options.home, '.credentials.yaml'), 'rollback-credential', { mode: 0o600 });
+  await writeFile(join(options.home, '.distribution-state.json'), JSON.stringify({ schema: 1, distribution: 'old', profile: 'web' }));
+  const backupRoot = join(options.dir, 'rollback');
+  const result = await materializeState({ ...options, action: 'apply', backupRoot });
+  assert.equal(result.action, 'migrated');
+  assert.ok(result.backup.startsWith(`${backupRoot}/`));
+  await assert.rejects(lstat(join(result.backup, 'home/cache')), { code: 'ENOENT' });
+  await assert.rejects(lstat(join(result.backup, 'home/logs')), { code: 'ENOENT' });
+  assert.equal(await readFile(join(result.backup, 'home/.credentials.yaml'), 'utf8'), 'rollback-credential');
+});
+
+test('rollback root cannot live inside DSH_HOME', async t => {
+  const options = await fixture(t);
+  await materializeState(options);
+  await writeFile(join(options.home, '.distribution-state.json'), JSON.stringify({ schema: 1, distribution: 'old', profile: 'web' }));
+  await assert.rejects(materializeState({ ...options, action: 'apply', backupRoot: join(options.home, 'rollback') }),
+    /outside DSH_HOME/);
+});
+
+test('a stale migration lock fails closed without touching state', async t => {
+  const options = await fixture(t);
+  await materializeState(options);
+  await writeFile(join(options.home, '.distribution-state.json'), JSON.stringify({ schema: 1, distribution: 'old', profile: 'web' }));
+  await mkdir(join(options.home, '.distribution-migration-lock'));
+  await assert.rejects(materializeState({ ...options, action: 'apply' }), /Migration lock already exists/);
+  assert.match(await readFile(join(options.home, '.distribution-state.json'), 'utf8'), /old/u);
+});
+
 test('legacy-home import is explicit, non-destructive and preserves credentials', async t => {
   const options = await fixture(t);
   const legacy = join(options.dir, 'legacy');
@@ -180,6 +216,31 @@ test('rollback and future schemas never silently overwrite newer state', async t
   await assert.rejects(materializeState({ ...options, action: 'apply' }), /Newer state schema/);
   await writeFile(marker, JSON.stringify({ schema: 1, distribution: 'future', profile: 'web' }));
   await assert.rejects(materializeState(options), /Rollback requires restoring/);
+});
+
+test('seed links keep the stable runtime alias and reject escapes', () => {
+  assert.equal(stableImmutableTarget('/opt/dsh-seed/profiles/web/node_modules/pkg',
+    '/opt/dsh/docker/runtime/node_modules/pkg'), '/opt/dsh/runtime/node_modules/pkg');
+  assert.equal(stableImmutableTarget('/opt/dsh-seed/profiles/web/node_modules/pkg',
+    '/opt/dsh/runtime/node_modules/pkg'), '/opt/dsh/runtime/node_modules/pkg');
+  assert.throws(() => stableImmutableTarget('/opt/dsh-seed/profiles/web/node_modules/pkg', '/etc/passwd'),
+    /escapes immutable source tree/);
+});
+
+test('theme patch verifies exact package and file hashes', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-theme-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  await mkdir(join(directory, 'lib'), { recursive: true });
+  await writeFile(join(directory, 'package.json'), JSON.stringify({ name: '@deepseek-ai/dsh-client-ui-theme', version: '0.2.1-rc.2' }));
+  await writeFile(join(directory, 'lib/index.js'), 'index');
+  await writeFile(join(directory, 'lib/client.js'), 'client');
+  const expected = {
+    package: '@deepseek-ai/dsh-client-ui-theme', version: '0.2.1-rc.2',
+    indexSha256: createHash('sha256').update('index').digest('hex'),
+    clientSha256: createHash('sha256').update('client').digest('hex'),
+  };
+  await verifyTheme(directory, expected);
+  await assert.rejects(verifyTheme(directory, { ...expected, clientSha256: '0'.repeat(64) }), /theme source mismatch/);
 });
 
 test('migration retains Tavern user metadata but updates managed absolute data root', () => {

@@ -31,10 +31,9 @@ async function docker(args, input, allowFailure = false) {
     child.on('close', code => {
       clearTimeout(timer);
       if (code !== 0 && !allowFailure) {
-        // Docker stderr may include credentials, native startup URLs, or response data.
-        // A `docker run` failure line is daemon/option diagnostics, not app output.
-        const diagnostic = args[0] === 'run' ? stderr.trim().split('\n')[0] : '';
-        reject(new Error(`Docker ${args[0]} failed (exit ${code})${diagnostic ? `: ${diagnostic}` : ''}; raw output withheld`));
+        // Docker diagnostics can contain credentials, startup URLs or response data.
+        // Never forward them; callers add only fixed, locally-authored labels.
+        reject(new Error(`Docker ${args[0]} failed (exit ${code}); raw output withheld`));
       } else resolve({ code, stdout, stderr });
     });
     child.stdin.on('error', () => {});
@@ -140,7 +139,10 @@ function hostAddress(subnet, offset) {
 const security = ['--read-only', '--user', '1000:1000', '--cap-drop', 'ALL',
   '--security-opt', 'no-new-privileges:true', '--pids-limit', '256',
   '--tmpfs', '/tmp:rw,nosuid,nodev,mode=1777,size=256m',
-  '--tmpfs', '/data:rw,nosuid,nodev,mode=1777,size=2g'];
+  '--tmpfs', '/data:rw,nosuid,nodev,mode=1777,size=2g',
+  '--tmpfs', '/cache:rw,nosuid,nodev,mode=1777,size=1g',
+  '--tmpfs', '/logs:rw,nosuid,nodev,mode=1777,size=64m',
+  '--tmpfs', '/backups:rw,nosuid,nodev,mode=1777,size=256m'];
 async function start(name, image, ip, args = [], command = []) {
   containers.push(name);
   const address = ip ? ['--ip', ip] : [];
@@ -165,8 +167,7 @@ async function execute(name, mode, config = {}) {
   const result = await docker(['exec', '-i', name, 'node', '--input-type=module', '-', mode,
     JSON.stringify(config)], probe, true);
   if (result.code !== 0 || !result.stdout.trim().endsWith(`PASS ${mode}`)) {
-    const detail = result.stderr.trim().split('\n')[0] || 'probe failed';
-    throw new Error(`Container probe ${mode} failed: ${detail}`);
+    throw new Error(`Container probe ${mode} failed; raw output withheld`);
   }
 }
 async function awaitReady(app) {
@@ -176,11 +177,7 @@ async function awaitReady(app) {
     if (health.code === 0) return;
     const state = JSON.parse((await docker(['inspect', '--format', '{{json .State}}', app])).stdout);
     if (!state.Running) {
-      const logs = await docker(['logs', '--tail', '40', app], undefined, true);
-      const detail = `${logs.stdout}\n${logs.stderr}`.split('\n')
-        .filter(line => /error|failed|cannot|uncaught|ENOENT|EACCES|not found/iu.test(line))
-        .slice(-3).join(' | ');
-      throw new Error(`Application exited before guarded readiness${detail ? `: ${detail}` : '; raw logs withheld'}`);
+      throw new Error('Application exited before guarded readiness; raw logs withheld');
     }
     await sleep(1000);
   }

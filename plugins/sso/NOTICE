@@ -20,7 +20,7 @@ already-patched files are rejected. All discovered pnpm package copies are
 validated before writes. Preserve patched packages on the immutable rootfs.
 The patched WebServer always requires an access gate from first accept.
 registerRequiredAccessGate({http,upgrade}) is synchronous and exclusive;
-requiredAccessGateVersion is required-access-gate-v1. Missing gate: HTTP503.
+requiredAccessGateVersion is required-access-gate-v1. Missing gate: HTTP 503.
 Gate exceptions clear registration and close accepted sockets; disposal clears
 registration and closes HTTP streams, keepalive and upgraded sockets. No
 private server listener takeover, relay, custom parser, or unguarded fallback.
@@ -34,13 +34,13 @@ DSH_SSO_TRUSTED_PROXY_CIDRS is a mandatory comma-separated concrete IP CIDR set;
 no forwarded address header is trusted. Mapped IPv6 peers match IPv4 CIDRs;
 write mapped networks as native IPv4 CIDRs. Duplicate or malformed identity,
 Host, Origin and Cookie headers fail closed. Host and Origin are never rewritten.
-DSH_SSO_MAX_CONNECTION_SECONDS defaults to900 and bounds every admitted upgrade;
+DSH_SSO_MAX_CONNECTION_SECONDS defaults to 900 and bounds every admitted upgrade;
 its positive integer value must fit a Node timer. Admission always requires
 external identity, even with valid native browser/API cookies. This is a shared
 owner harness, not a multiuser authorization boundary.
 
 The native Connection requestRejection fence executes before cookie exchange.
-Native403 stays403. On401 only, authenticatedUrl and authorizeIndex exchange a
+Native 403 stays 403. On 401 only, authenticatedUrl and authorizeIndex exchange a
 native cookie internally, with the real Host/Origin. No launch URL or token is
 returned, logged or configured by this package. Native TLS decides Secure.
 HTTP responses append Set-Cookie; upgrades can internally bootstrap admission
@@ -48,7 +48,7 @@ without exposing authentication URLs, with cookies persisted by the next HTTP
 request. Native Connection owns all API/WS protocol and lifecycle behavior.
 
 Exec readiness connects to /tmp/dsh-sso-ready.sock and requires exactly ready
-followed by newline. This UID-owned mode0600 Unix socket has no public route;
+followed by newline. This UID-owned mode 0600 Unix socket has no public route;
 it answers only while the gate is registered and the Host has a bound port.
 Disposal removes the socket. There is no unauthenticated HTTP health exception.
 
@@ -68,7 +68,7 @@ Tavern corresponding source
 When DSH_SOURCE_ARCHIVE=/opt/dsh-source/tavern.tar.gz and DSH_SOURCE_URL names
 the public HTTPS revision of this distribution, startup validates the archive.
 The exact GET/HEAD /distribution/source.tar.gz route streams that immutable
-archive behind the same mandatory guard (other methods405). tapIndex adds
+archive behind the same mandatory guard (other methods 405). tapIndex adds
 visible Tavern AGPL source-download and distribution-revision links. No source
 route or notice is registered when neither variable is configured. The archive
 is provided by immutable packaging; persistent user data is never archived.

@@ -104,7 +104,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker run --rm -i --entrypoint node dsh-${{ matrix.target }}:smoke \
+          docker run --rm -i --read-only --user 1000:1000 --cap-drop ALL \
+            --security-opt no-new-privileges:true --pids-limit 256 \
+            --tmpfs /tmp:rw,nosuid,nodev,mode=1777,size=256m \
+            --tmpfs /data:rw,nosuid,nodev,mode=1777,size=2g \
+            --entrypoint node dsh-${{ matrix.target }}:smoke \
             --input-type=module - < scripts/verify-addon.mjs
 
       - name: Run final-image smoke (${{ matrix.arch }})

@@ -89,7 +89,7 @@ assert.match(dockerfile, /FROM scratch AS distribution-source/u, 'Explicit sourc
 assert.match(dockerfile, /COPY --from=distribution-source/u, 'Final image uses the source payload stage');
 assert.match(dockerfile, /XDG_CACHE_HOME=\/cache/u, 'Cache is outside /data');
 assert.match(dockerfile, /DSH_BACKUP_ROOT=\/backups/u, 'Rollback root is outside /data');
-assert.match(dockerfile, /COPY docker\/skills\/ \/opt\/dsh-seed\/skills\//u, 'Bundled skill recommendations are seeded from the image');
+assert.match(dockerfile, /COPY docker\/skills\/ \/opt\/dsh\/seed\/skills\//u, 'Bundled skill recommendations are seeded from the image');
 assert.doesNotMatch(dockerfile, /DSH_BUNDLED_SKILL_DIR/u, 'Bundled skills are not an immutable runtime scan root');
 assert.doesNotMatch(dockerfile, /COPY docker\/skills\/ \/opt\/dsh\/skills\//u, 'Skills must not be mounted as immutable runtime content');
 assert.doesNotMatch(dockerfile, /scripts\/smoke\.mjs|test\/|deploy\/|\.github\//u,
@@ -98,13 +98,13 @@ assert.doesNotMatch(dockerfile, /pnpm --dir \/opt\/dsh\/runtime add dsh-context/
   'dsh-context must not be installed into the immutable runtime');
 assert.doesNotMatch(dockerfile, /patch-host\.mjs --repair/u, 'Runtime plugin installs must not require patch repair');
 assert.match(dockerfile, /floating-bundles\.mjs add web/u, 'Web build adds the profile-owned dsh-context bundle');
-assert.match(dockerfile, /pnpm --dir \/opt\/dsh-seed\/profiles\/web install --no-frozen-lockfile/u,
+assert.match(dockerfile, /pnpm --dir \/opt\/dsh\/seed\/profiles\/web install --no-frozen-lockfile/u,
   'The profile-owned dsh-context gets a generated profile lock, not a stale committed pin');
 assert.match(dockerfile, /JuliusBrussee\/caveman\/releases\/latest/u, 'Caveman skill resolves the latest release tag');
 assert.match(dockerfile, /skills\/caveman\/SKILL\.md/u, 'Caveman skill is fetched from the resolved release');
 assert.doesNotMatch(dockerfile, /caveman\/main\//u, 'Caveman skill must not follow the moving main branch');
 assert.match(dockerfile, /rtk-oss-/u, 'Only the Apache-2.0 RTK OSS asset may be bundled');
-assert.equal((dockerfile.match(/COPY docker\/skills\/ \/opt\/dsh-seed\/skills\//gu) ?? []).length, 1,
+assert.equal((dockerfile.match(/COPY docker\/skills\/ \/opt\/dsh\/seed\/skills\//gu) ?? []).length, 1,
   'Only one final stage may receive the optional skill seed');
 const webStage = dockerfile.slice(dockerfile.indexOf('FROM application AS web'), dockerfile.indexOf('FROM application AS tavern'));
 const tavernStage = dockerfile.slice(dockerfile.indexOf('FROM application AS tavern'));

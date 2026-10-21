@@ -116,7 +116,7 @@ Tavern. Compose and Kubernetes examples are in
 | `/logs` | DSH startup diagnostics; `$DSH_HOME/logs` is a symlink here. Sensitive, non-authoritative. |
 | `/backups` | Local migration rollback copy under `DSH_BACKUP_ROOT`; not an independent backup. |
 | `/tmp` | Per-container tmpfs scratch; may be `noexec`. |
-| `/opt/dsh`, `/opt/dsh-seed`, `/opt/apps/dsh-tavern`, `/opt/dsh-source` | Immutable image content. |
+| `/opt/dsh`, `/opt/apps/dsh-tavern` | Immutable image content. |
 
 Do not place cache, logs, rollback copies or scratch inside `/data`; the
 entrypoint moves legacy `cache`/`logs` directories once and excludes them from

@@ -57,7 +57,7 @@ The Tavern image retains:
 - the complete modified Tavern source and original license at
   `/opt/apps/dsh-tavern`;
 - the distribution build inputs at `/opt/dsh/distribution-source`;
-- an authenticated archive at `/opt/dsh-source/tavern.tar.gz`, served at
+- an authenticated archive at `/opt/dsh/source/tavern.tar.gz`, served at
   `/distribution/source.tar.gz` through the mandatory forward-auth gate;
 - `DSH_SOURCE_URL`, identifying the distribution revision;
 - the exact route/theme hashes in `versions.json`.

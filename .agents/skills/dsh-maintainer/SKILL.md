@@ -56,11 +56,9 @@ directory is seeded into the Web image as user-facing skills.
 ## Immutable layout
 
 - Tavern application root: `/opt/apps/dsh-tavern`.
-- Web seed: `/opt/dsh-seed`.
-- Runtime: `/opt/dsh/runtime`.
-- Source archive: `/opt/dsh-source`.
-- Keep `/opt` entries short and explicit; do not add an app-under-apps nested
-  path.
+- Runtime, seed and source archive: `/opt/dsh/{runtime,seed,source}`.
+- Keep `/opt` entries short and explicit; only `/opt/dsh` and `/opt/apps`
+  should remain at the top level.
 
 ## Floating optional assets
 

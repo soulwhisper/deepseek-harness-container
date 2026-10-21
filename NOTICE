@@ -85,7 +85,7 @@ patches. The modifications and build recipe are present in this repository
 and in /opt/dsh/distribution-source. See docs/source-build.md (also retained
 at /opt/dsh/distribution-source/docs/source-build.md).
 The complete modified Tavern source plus distribution build inputs, excluding
-.git and installed node_modules, is /opt/dsh-source/tavern.tar.gz. Authenticated
+.git and installed node_modules, is /opt/dsh/source/tavern.tar.gz. Authenticated
 users can download it at /distribution/source.tar.gz from the Tavern UI source
 link. Keep this source offer accessible to the users of your deployed Tavern;
 redistributors and operators must satisfy the applicable AGPL obligations.

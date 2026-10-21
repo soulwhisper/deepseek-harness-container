@@ -10,7 +10,7 @@ or a flat:
   <name>.md
 
 Each file needs YAML frontmatter with `name` and `description`. The **Web**
-image copies this directory to `/opt/dsh-seed/skills`; Tavern does not copy it
+image copies this directory to `/opt/dsh/seed/skills`; Tavern does not copy it
 and has no seed skills. On first seed or explicit state migration, missing
 bundles are copied into `$DSH_HOME/skills`; users may edit or delete them. They
 are not scanned from `/opt`, are not part of the mandatory auth boundary, and

@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libatomic1 openssh-client procps python3 ripgrep tini unzip \
     && rm -rf /var/lib/apt/lists/* \
     && npm install --global pnpm@11.25.0 \
-    && mkdir -p /opt/dsh /opt/dsh-seed /data/dsh /data/home \
+    && mkdir -p /opt/dsh /opt/dsh/seed /data/dsh /data/home \
        /cache /logs /backups /workspace \
     && chown -R 1000:1000 /data /cache /logs /backups /workspace
 
@@ -71,21 +71,21 @@ RUN git init . \
 # This target intentionally does not depend on the profile locks it generates.
 FROM tavern-source AS profile-lock-builder
 RUN node /opt/dsh/scripts/materialize-profiles.mjs \
-    && pnpm --dir /opt/dsh-seed/profiles/web install --lockfile-only --ignore-scripts \
-    && pnpm --dir /opt/dsh-seed/profiles/tavern install --lockfile-only --ignore-scripts \
+    && pnpm --dir /opt/dsh/seed/profiles/web install --lockfile-only --ignore-scripts \
+    && pnpm --dir /opt/dsh/seed/profiles/tavern install --lockfile-only --ignore-scripts \
     && node /opt/dsh/scripts/normalize-locks.mjs \
-         /opt/dsh-seed/profiles/web/pnpm-lock.yaml \
-         /opt/dsh-seed/profiles/tavern/pnpm-lock.yaml
+         /opt/dsh/seed/profiles/web/pnpm-lock.yaml \
+         /opt/dsh/seed/profiles/tavern/pnpm-lock.yaml
 FROM scratch AS profile-locks
-COPY --from=profile-lock-builder /opt/dsh-seed/profiles/web/pnpm-lock.yaml /profiles/web/pnpm-lock.yaml
-COPY --from=profile-lock-builder /opt/dsh-seed/profiles/tavern/pnpm-lock.yaml /profiles/tavern/pnpm-lock.yaml
+COPY --from=profile-lock-builder /opt/dsh/seed/profiles/web/pnpm-lock.yaml /profiles/web/pnpm-lock.yaml
+COPY --from=profile-lock-builder /opt/dsh/seed/profiles/tavern/pnpm-lock.yaml /profiles/tavern/pnpm-lock.yaml
 
 FROM runtime-build AS web-build
 COPY docker/profiles/web/pnpm-lock.yaml /opt/dsh/profiles/web/pnpm-lock.yaml
 COPY patches/market /opt/dsh/patches/market
 # Seed-only Web skills. Tavern intentionally receives neither these skills nor
 # the RTK binary; its profile remains the Tavern distribution only.
-COPY docker/skills/ /opt/dsh-seed/skills/
+COPY docker/skills/ /opt/dsh/seed/skills/
 
 # Floating optional Web assets are deliberately resolved from upstream at build
 # time, never pinned in versions.json or Renovate. The published image digest,
@@ -93,26 +93,26 @@ COPY docker/skills/ /opt/dsh-seed/skills/
 # changed frontmatter or missing release asset fails the build instead of
 # silently shipping stale content.
 RUN set -eux; \
-    mkdir -p /opt/dsh-seed/skills/caveman /usr/local/share/rtk; \
+    mkdir -p /opt/dsh/seed/skills/caveman /usr/local/share/rtk; \
     caveman_tag="$(curl -fsSIL -o /dev/null -w '%{url_effective}' https://github.com/JuliusBrussee/caveman/releases/latest | sed -n 's#.*/tag/##p')"; \
     test -n "$caveman_tag"; \
     caveman_base="https://raw.githubusercontent.com/JuliusBrussee/caveman/${caveman_tag}"; \
     curl --fail --show-error --silent --location --retry 3 --retry-delay 2 \
       "${caveman_base}/skills/caveman/SKILL.md" \
-      -o /opt/dsh-seed/skills/caveman/SKILL.md; \
+      -o /opt/dsh/seed/skills/caveman/SKILL.md; \
     curl --fail --show-error --silent --location --retry 3 --retry-delay 2 \
       "${caveman_base}/LICENSE" \
-      -o /opt/dsh-seed/skills/caveman/LICENSE; \
+      -o /opt/dsh/seed/skills/caveman/LICENSE; \
     curl --fail --show-error --silent --location --retry 3 --retry-delay 2 \
       "${caveman_base}/NOTICE" \
-      -o /opt/dsh-seed/skills/caveman/NOTICE; \
-    grep -q '^name: caveman$' /opt/dsh-seed/skills/caveman/SKILL.md; \
+      -o /opt/dsh/seed/skills/caveman/NOTICE; \
+    grep -q '^name: caveman$' /opt/dsh/seed/skills/caveman/SKILL.md; \
     printf '%s\n' \
       "Fetched at image build from https://github.com/JuliusBrussee/caveman/releases/tag/${caveman_tag}" \
       "Resolved release: ${caveman_tag}" \
       'Path: skills/caveman/SKILL.md' \
       'Floating: no commit or version pin is tracked in this repository.' \
-      > /opt/dsh-seed/skills/caveman/SOURCE
+      > /opt/dsh/seed/skills/caveman/SOURCE
 
 # Use the Apache-2.0 "oss" edition (rtk-oss-*), never the release asset whose
 # compression engine is BUSL-1.1. The target triple follows BuildKit's
@@ -159,12 +159,12 @@ RUN set -eux; \
 # plugin manager owns it and users may remove it. Only forward-auth is
 # manager-protected. Host/manager patches are never rewritten by this install.
 RUN DSH_BUILD_PROFILE=web node /opt/dsh/scripts/materialize-profiles.mjs \
-    && cp /opt/dsh/profiles/web/pnpm-lock.yaml /opt/dsh-seed/profiles/web/pnpm-lock.yaml \
-    && node /opt/dsh/scripts/floating-bundles.mjs add web /opt/dsh-seed/profiles/web \
-    && pnpm --dir /opt/dsh-seed/profiles/web install --no-frozen-lockfile --prod \
+    && cp /opt/dsh/profiles/web/pnpm-lock.yaml /opt/dsh/seed/profiles/web/pnpm-lock.yaml \
+    && node /opt/dsh/scripts/floating-bundles.mjs add web /opt/dsh/seed/profiles/web \
+    && pnpm --dir /opt/dsh/seed/profiles/web install --no-frozen-lockfile --prod \
     && DSH_VERSION="$(node -p 'require("/opt/dsh/versions.json").dsh.version')" \
-       node /opt/dsh/scripts/floating-bundles.mjs verify web /opt/dsh-seed/profiles/web \
-    && node /opt/dsh/scripts/finalize-profile.mjs /opt/dsh-seed/profiles/web \
+       node /opt/dsh/scripts/floating-bundles.mjs verify web /opt/dsh/seed/profiles/web \
+    && node /opt/dsh/scripts/finalize-profile.mjs /opt/dsh/seed/profiles/web \
     && node /opt/dsh/patches/market/patch-market.mjs /opt/dsh/runtime/node_modules/dshmarket
 
 FROM tavern-source AS tavern-build
@@ -174,13 +174,13 @@ RUN pnpm install --frozen-lockfile --prod=false \
     && node /opt/dsh/scripts/link-tavern-core.mjs
 COPY docker/profiles/tavern/pnpm-lock.yaml /opt/dsh/profiles/tavern/pnpm-lock.yaml
 RUN DSH_BUILD_PROFILE=tavern node /opt/dsh/scripts/materialize-profiles.mjs \
-    && cp /opt/dsh/profiles/tavern/pnpm-lock.yaml /opt/dsh-seed/profiles/tavern/pnpm-lock.yaml \
-    && pnpm --dir /opt/dsh-seed/profiles/tavern install --frozen-lockfile --prod \
-    && node /opt/dsh/scripts/finalize-profile.mjs /opt/dsh-seed/profiles/tavern
-COPY --from=distribution-source / /opt/dsh-source/distribution
-RUN tar --exclude=.git --exclude=node_modules -czf /opt/dsh-source/tavern.tar.gz \
-      -C /opt/dsh-source distribution -C /opt/apps dsh-tavern \
-    && rm -rf /opt/dsh-source/distribution
+    && cp /opt/dsh/profiles/tavern/pnpm-lock.yaml /opt/dsh/seed/profiles/tavern/pnpm-lock.yaml \
+    && pnpm --dir /opt/dsh/seed/profiles/tavern install --frozen-lockfile --prod \
+    && node /opt/dsh/scripts/finalize-profile.mjs /opt/dsh/seed/profiles/tavern
+COPY --from=distribution-source / /opt/dsh/source/distribution
+RUN tar --exclude=.git --exclude=node_modules -czf /opt/dsh/source/tavern.tar.gz \
+      -C /opt/dsh/source distribution -C /opt/apps dsh-tavern \
+    && rm -rf /opt/dsh/source/distribution
 
 FROM tools AS application
 ENV DSH_HOME=/data/dsh \
@@ -209,7 +209,6 @@ LABEL org.opencontainers.image.source="https://github.com/soulwhisper/deepseek-h
 FROM application AS web
 ENV DSH_PROFILE=web
 COPY --from=web-build /opt/dsh /opt/dsh
-COPY --from=web-build /opt/dsh-seed /opt/dsh-seed
 # Restore Web-only skill sources into the Web source payload. Tavern never
 # receives this directory, so its source archive stays free of skill content.
 COPY docker/skills/ /opt/dsh/distribution-source/docker/skills/
@@ -224,13 +223,11 @@ LABEL org.opencontainers.image.title="DeepSeek Harness Web with dshmarket, dsh-c
 FROM application AS tavern
 ARG IMAGE_REVISION
 ENV DSH_PROFILE=tavern \
-    DSH_SOURCE_ARCHIVE=/opt/dsh-source/tavern.tar.gz \
+    DSH_SOURCE_ARCHIVE=/opt/dsh/source/tavern.tar.gz \
     DSH_SOURCE_URL=https://github.com/soulwhisper/deepseek-harness-container/tree/${IMAGE_REVISION}
 COPY --from=tavern-build /opt/dsh /opt/dsh
-COPY --from=tavern-build /opt/dsh-seed /opt/dsh-seed
 # Full upstream source, lock, patches, client assets and LICENSE are retained.
 COPY --from=tavern-build /opt/apps/dsh-tavern /opt/apps/dsh-tavern
-COPY --from=tavern-build /opt/dsh-source /opt/dsh-source
 RUN test "${#IMAGE_REVISION}" -eq 40 && test -z "$(printf '%s' "$IMAGE_REVISION" | tr -d '0-9a-f')"
 LABEL org.opencontainers.image.title="DeepSeek Harness Tavern with forward-auth" \
       org.opencontainers.image.version="3.0" \

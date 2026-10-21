@@ -309,11 +309,11 @@ test('rollback and future schemas never silently overwrite newer state', async t
 });
 
 test('seed links keep the stable runtime alias and reject escapes', () => {
-  assert.equal(stableImmutableTarget('/opt/dsh-seed/profiles/web/node_modules/pkg',
+  assert.equal(stableImmutableTarget('/opt/dsh/seed/profiles/web/node_modules/pkg',
     '/opt/dsh/docker/runtime/node_modules/pkg'), '/opt/dsh/runtime/node_modules/pkg');
-  assert.equal(stableImmutableTarget('/opt/dsh-seed/profiles/web/node_modules/pkg',
+  assert.equal(stableImmutableTarget('/opt/dsh/seed/profiles/web/node_modules/pkg',
     '/opt/dsh/runtime/node_modules/pkg'), '/opt/dsh/runtime/node_modules/pkg');
-  assert.throws(() => stableImmutableTarget('/opt/dsh-seed/profiles/web/node_modules/pkg', '/etc/passwd'),
+  assert.throws(() => stableImmutableTarget('/opt/dsh/seed/profiles/web/node_modules/pkg', '/etc/passwd'),
     /escapes immutable source tree/);
 });
 

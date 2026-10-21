@@ -94,7 +94,7 @@ docker run --detach --name dsh-web --restart unless-stopped \
 | `/logs` | DSH 启动诊断；`$DSH_HOME/logs` 指向这里，敏感且非权威 |
 | `/backups` | `DSH_BACKUP_ROOT` 下的迁移回滚副本，不是独立备份 |
 | `/tmp` | 每容器 tmpfs scratch，可能 `noexec` |
-| `/opt/dsh`、`/opt/dsh-seed`、`/opt/apps/dsh-tavern`、`/opt/dsh-source` | 不可变镜像内容 |
+| `/opt/dsh`、`/opt/apps/dsh-tavern` | 不可变镜像内容 |
 
 不要把 cache、logs、backup 或 scratch 放回 `/data`；entrypoint 会把旧的 `cache`/`logs` 目录移动一次，并在回滚副本中排除。详见 [data layout](docs/data-layout.md)。
 

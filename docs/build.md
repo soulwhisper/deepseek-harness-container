@@ -76,7 +76,7 @@ payload, while Tavern has neither active skills nor skill source files.
 ## Bundled skills and plugins
 
 Skill recommendations live under `docker/skills/` and are copied into the
-**Web** image seed at `/opt/dsh-seed/skills`. Tavern does not copy that
+**Web** image seed at `/opt/dsh/seed/skills`. Tavern does not copy that
 directory and has no bundled Caveman, RTK or `dsh-context` assets. On first seed
 or explicit state migration, missing bundles are copied into
 `$DSH_HOME/skills`; users may edit or delete them. They are not immutable
@@ -110,11 +110,11 @@ image-build time and are tracked only by the published image digest:
 | Asset | Source | Build behavior |
 | --- | --- | --- |
 | `dsh-context` | npm `latest` dist-tag | **Web only.** Installed as a normal package in the Web seed profile, so the manager owns it and users may remove it; its `dsh.bundle` and current-DSH compatibility declaration are verified before the image is published |
-| Caveman skill | `JuliusBrussee/caveman` latest GitHub release tag, `skills/caveman/SKILL.md` | **Web only.** The tag is resolved at build time, then fetched into `/opt/dsh-seed/skills/caveman`; the upstream `LICENSE` and a `SOURCE` record are included. The moving `main` branch is not used |
+| Caveman skill | `JuliusBrussee/caveman` latest GitHub release tag, `skills/caveman/SKILL.md` | **Web only.** The tag is resolved at build time, then fetched into `/opt/dsh/seed/skills/caveman`; the upstream `LICENSE` and a `SOURCE` record are included. The moving `main` branch is not used |
 | RTK binary | `rtk-ai/rtk` latest release, **`rtk-oss-*` Apache-2.0 edition** | **Web only.** Checksum-verified and installed at `/usr/local/bin/rtk`; the normal BUSL-1.1 asset is never used |
 
 The Web build installs `dsh-context` from npm `latest` as a normal dependency
-in the generated Web profile (`/opt/dsh-seed/profiles/web`), with immutable
+in the generated Web profile (`/opt/dsh/seed/profiles/web`), with immutable
 runtime peer links for `@deepseek-ai/dsh-session` and
 `@deepseek-ai/schemastery`. It leaves the committed profile lock unchanged and
 regenerates the in-image lock with `--no-frozen-lockfile`. The package is never

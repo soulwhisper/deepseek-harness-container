@@ -97,7 +97,7 @@ secret is logged.
 
 Tavern corresponding source
 --------------------------
-When DSH_SOURCE_ARCHIVE=/opt/dsh-source/tavern.tar.gz and DSH_SOURCE_URL names
+When DSH_SOURCE_ARCHIVE=/opt/dsh/source/tavern.tar.gz and DSH_SOURCE_URL names
 the public HTTPS revision of this distribution, startup validates the archive.
 The exact GET/HEAD /distribution/source.tar.gz route streams that immutable
 archive behind the same mandatory guard (other methods 405). tapIndex adds

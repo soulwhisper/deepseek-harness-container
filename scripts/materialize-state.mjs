@@ -128,7 +128,7 @@ export function mergeLock(previous, seed, workspace = {}) {
 
 export async function materializeState(options = {}) {
   const home = resolve(options.home ?? process.env.DSH_HOME ?? '/data/dsh');
-  const seed = resolve(options.seed ?? '/opt/dsh-seed');
+  const seed = resolve(options.seed ?? '/opt/dsh/seed');
   const profile = options.profile ?? process.env.DSH_PROFILE ?? 'web';
   const action = options.action ?? process.env.DSH_STATE_MIGRATION ?? 'refuse';
   const legacy = resolve(options.legacy ?? process.env.DSH_LEGACY_HOME ?? '/home/node/.dsh');

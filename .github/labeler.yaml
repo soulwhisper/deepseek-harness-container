@@ -11,7 +11,7 @@ area/patches:
       - any-glob-to-any-file: "patches/**"
 area/plugin:
   - changed-files:
-      - any-glob-to-any-file: "plugins/sso/**"
+      - any-glob-to-any-file: "plugins/forward-auth/**"
 area/docker:
   - changed-files:
       - any-glob-to-any-file:

@@ -19,7 +19,7 @@ tavern.tar.gz
     docker/profiles/ (web/tavern workspaces and committed locks,
                       distribution.patch.yml)
     patches/dsh/ patches/market/ patches/tavern/
-    plugins/sso/ (source, notices, licenses)
+    plugins/forward-auth/ (source, notices, licenses)
     scripts/entrypoint.sh, materialize-state.mjs, normalize-locks.mjs,
             materialize-profiles.mjs, readiness.mjs, finalize-profile.mjs,
             link-tavern-core.mjs

@@ -1,7 +1,7 @@
 {
-  "name": "@soulwhisper/dsh-sso",
-  "version": "0.1.0",
-  "description": "Required trusted-proxy identity gate for the self-packaged DSH Host",
+  "name": "@soulwhisper/dsh-forward-auth",
+  "version": "0.2.0",
+  "description": "Required trusted-edge forward-auth gate for the self-packaged DSH Host",
   "type": "module",
   "license": "Apache-2.0",
   "main": "index.mjs",

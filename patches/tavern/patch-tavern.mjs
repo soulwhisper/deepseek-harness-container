@@ -19,7 +19,7 @@ export function patchRoutes(text, expectedHash) {
   const hash = createHash('sha256').update(text).digest('hex');
   if (hash !== expectedHash) throw new Error(`Tavern route source mismatch: ${hash}`);
   const anchor = '        const origin = req.headers.origin\n';
-  const added = `${anchor}        // The raw SSO gate enforces peer/UID. Keep the public-Origin fence\n        // independent: neither forwarded headers nor an arbitrary Host grant it.\n        let trustedPublicOrigin = false\n        try {\n          const publicUrl = new URL(process.env.DSH_PUBLIC_URL)\n          trustedPublicOrigin = typeof origin === 'string' && origin === publicUrl.origin\n            && req.headers.host === publicUrl.host\n            && req.headers['sec-fetch-site'] !== 'cross-site'\n        } catch {}\n`;
+  const added = `${anchor}        // The raw forward-auth gate enforces peer/subject. Keep the public-Origin fence\n        // independent: neither forwarded headers nor an arbitrary Host grant it.\n        let trustedPublicOrigin = false\n        try {\n          const publicUrl = new URL(process.env.DSH_PUBLIC_URL)\n          trustedPublicOrigin = typeof origin === 'string' && origin === publicUrl.origin\n            && req.headers.host === publicUrl.host\n            && req.headers['sec-fetch-site'] !== 'cross-site'\n        } catch {}\n`;
   if (text.split(anchor).length !== 2) throw new Error('Tavern Origin anchor changed');
   text = text.replace(anchor, added);
   const staticGuard = 'if (readsStaticAsset && !localOrOpaqueOrigin) {';

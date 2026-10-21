@@ -1,8 +1,8 @@
 # Build
 
 Build context is the repository root; the Dockerfile is
-`docker/Dockerfile`. The build-only inputs are separate from patches, the SSO
-plugin, tests and deploy examples.
+`docker/Dockerfile`. The build-only inputs are separate from patches, the
+forward-auth plugin, tests and deploy examples.
 
 ```bash
 docker buildx build -f docker/Dockerfile --platform linux/amd64 --target web \
@@ -18,7 +18,7 @@ Use the native architecture matching the runner or host. CI builds
 
 | Target | Result |
 | --- | --- |
-| `web` | Final Web image: DSH Web + dshmarket + required SSO |
+| `web` | Final Web image: DSH Web + dshmarket + required forward-auth |
 | `tavern` | Final Tavern image: pinned source workspace + pruned profile + ecosystem |
 | `application` | Shared final-stage base before a profile is selected |
 | `profile-locks` | Maintainer-only export of `docker/profiles/{web,tavern}/pnpm-lock.yaml` |
@@ -34,7 +34,7 @@ contains only:
 - `docker/` build inputs: Dockerfile, runtime manifest/workspace/lock, profile
   workspaces and committed locks, distribution patch;
 - `patches/` exact-hash patch scripts;
-- `plugins/sso/` own plugin and notices;
+- `plugins/forward-auth/` own plugin and notices;
 - runtime/build scripts needed to reproduce or migrate the image;
 - `versions.json`, root `package.json` and root lock;
 - `LICENSE`, `NOTICE`, both READMEs;
@@ -87,5 +87,5 @@ The entrypoint creates `/cache/dsh` and symlinks `$DSH_HOME/cache` and
 `/data`, `/workspace`, `/cache`, `/logs` and `/backups` as described in
 [data layout](data-layout.md); never mount test or source trees over `/opt`.
 
-Do not add `latest`, publish host ports, or bake credentials, UIDs, edge keys or
-proxy private keys into build arguments or labels.
+Do not add `latest`, publish host ports, or bake credentials, subject values,
+edge keys or proxy private keys into build arguments or labels.

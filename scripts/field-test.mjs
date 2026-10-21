@@ -15,7 +15,7 @@ if (expectedArch) assert.equal(process.arch, expectedArch, `Expected ${expectedA
 async function importPackage(name) {
   await import(pathToFileURL(require.resolve(name)).href);
 }
-await importPackage('@soulwhisper/dsh-sso');
+await importPackage('@soulwhisper/dsh-forward-auth');
 await importPackage('yaml');
 
 function packageSource(name) {
@@ -27,9 +27,9 @@ const boot = await packageSource('@deepseek-ai/dsh-app-boot');
 const market = await packageSource('dshmarket');
 assert.match(host, /required-access-gate-v1/u, 'Patched Host gate API');
 assert.match(host, /runRequiredAccessGate/u, 'Patched Host route guard');
-assert.match(manager, /@soulwhisper\/dsh-sso/u, 'Patched manager protects SSO');
+assert.match(manager, /@soulwhisper\/dsh-forward-auth/u, 'Patched manager protects forward-auth');
 assert.match(manager, /@deepseek-ai\/dsh-app-boot/u, 'Patched manager protects app-boot');
-assert.match(boot, /distribution-sso/u, 'Patched startup requires SSO');
+assert.match(boot, /distribution-forward-auth/u, 'Patched startup requires forward-auth');
 assert.match(boot, /dsh-market/u, 'Patched startup requires Web market');
 assert.match(boot, /distributionStartupReady/u, 'Patched startup readiness audit');
 assert.match(market, /createOfficialDesktopRuntime/u, 'Patched market uses native manager');

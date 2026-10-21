@@ -8,6 +8,7 @@ import { spawnSync } from 'node:child_process';
 
 const [mode, json = '{}'] = process.argv.slice(2);
 const config = JSON.parse(json);
+const forwardHeader = config.header ?? 'x-authentik-uid';
 const runtimeRequire = createRequire('/opt/dsh/runtime/package.json');
 function check(condition, label) { assert.ok(condition, label); }
 function request(path, headers = {}, method = 'GET', body, deadline = 10_000) {
@@ -65,9 +66,9 @@ async function rejection(headers) {
 }
 async function trusted() {
   await rejection({});
-  await rejection({ 'x-authentik-uid': 'not-allowed' });
-  await rejection({ 'x-authentik-uid': [config.uid, config.uid] });
-  const identity = { 'x-authentik-uid': config.uid };
+  await rejection({ [forwardHeader]: 'not-allowed' });
+  await rejection({ [forwardHeader]: [config.uid, config.uid] });
+  const identity = { [forwardHeader]: config.uid };
   let page = await request('/', identity);
   let cookie = '';
   for (let redirects = 0; redirects < 5; redirects++) {
@@ -83,16 +84,17 @@ async function trusted() {
     page = await request(`${location.pathname}${location.search}`, { ...identity, Cookie: cookie });
   }
   check(page.status === 200 && /<html/iu.test(page.text), 'Actual application HTML');
-  check(cookie.length > 0, 'SSO clean root must issue a native browser cookie');
+  check(cookie.length > 0, 'forward-auth clean root must issue a native browser cookie');
   check(!/[?&]token=/iu.test(page.text), 'No native launch token in app HTML');
   const headers = { ...identity, Cookie: cookie };
   const again = await request('/', headers);
   check(again.status === 200, 'Native cookie works with a verified edge identity');
+  check((await request('/?token=upstream', identity)).status === 403, 'Upstream launch-token URL is rejected');
   await rejection({ Cookie: cookie });
   const wrongOrigin = await request('/api/pluginInventory/list', { ...headers, Origin: 'http://evil.invalid' });
-  check(wrongOrigin.status === 403, 'Native Origin fence must survive SSO exchange');
+  check(wrongOrigin.status === 403, 'Native Origin fence must survive forward-auth exchange');
   const wrongHost = await request('/api/pluginInventory/list', { ...headers, Host: 'evil.invalid' });
-  check(wrongHost.status === 403, 'Native Host fence must survive SSO exchange');
+  check(wrongHost.status === 403, 'Native Host fence must survive forward-auth exchange');
   const scripts = [...page.text.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["']/giu)]
     .map(match => match[1].replaceAll('&amp;', '&').replaceAll('&quot;', '"').replaceAll('&#39;', "'"));
   check(scripts.length > 0, 'Real client script must be referenced');
@@ -149,7 +151,7 @@ async function trusted() {
   });
 }
 async function manager() {
-  const identity = { 'x-authentik-uid': config.uid };
+  const identity = { [forwardHeader]: config.uid };
   const index = await request('/', identity);
   check(index.status === 200, 'Manager clean index admission');
   const cookie = (index.headers['set-cookie'] ?? []).map(value => value.split(';', 1)[0]).join('; ');
@@ -166,21 +168,21 @@ async function manager() {
       'Real native manager RPC envelope');
     return envelope.result.value;
   };
-  const protectedName = '@soulwhisper/dsh-sso';
+  const protectedName = '@soulwhisper/dsh-forward-auth';
   const before = await rpc('listBundles', {});
-  check(before.some(bundle => bundle.name === protectedName && bundle.enabled), 'Required SSO bundle selected');
+  check(before.some(bundle => bundle.name === protectedName && bundle.enabled), 'Required forward-auth bundle selected');
   const rows = await rpc('listPlugins', {});
-  const ssoRow = rows.find(row => row.moduleName === protectedName);
-  check(typeof ssoRow?.entryId === 'string', 'Native SSO inventory entry');
+  const authRow = rows.find(row => row.moduleName === protectedName);
+  check(typeof authRow?.entryId === 'string', 'Native forward-auth inventory entry');
   for (const [method, args] of [
-    ['setPluginEnabled', { id: ssoRow.entryId, enabled: false }],
+    ['setPluginEnabled', { id: authRow.entryId, enabled: false }],
     ['setBundleEnabled', { name: protectedName, enabled: false }],
     ['removeBundle', { name: protectedName }],
     ['installBundle', { spec: protectedName }],
   ]) {
     const rejected = await rpc(method, args);
     check(rejected.application === 'failed'
-      && ['management-required', 'not-removable'].includes(rejected.error?.code), 'Native SSO mutation refusal');
+      && ['management-required', 'not-removable'].includes(rejected.error?.code), 'Native forward-auth mutation refusal');
   }
   if (process.env.DSH_PROFILE === 'web') {
     const status = await request('/dsh-market/status', headers, 'GET', undefined, 30_000);
@@ -190,7 +192,7 @@ async function manager() {
     const forbidden = await request('/dsh-market/uninstall', headers, 'POST', JSON.stringify({ name: protectedName }), 180_000);
     const refusal = JSON.parse(forbidden.text);
     check(forbidden.status >= 400 && refusal.ok !== true
-      && /management-required|not-removable/u.test(JSON.stringify(refusal)), 'Market cannot remove required SSO');
+      && /management-required|not-removable/u.test(JSON.stringify(refusal)), 'Market cannot remove required forward-auth');
     const registry = await request('/dsh-market/registry', headers, 'GET', undefined, 90_000);
     check(registry.status === 200, 'Real curated market catalog');
     const entry = JSON.parse(registry.text).registry?.plugins?.find(plugin =>
@@ -233,7 +235,7 @@ async function manager() {
       && update.version === '0.28.0', 'Exact-current market update is honestly a no-op');
   }
   const after = await rpc('listBundles', {});
-  check(after.some(bundle => bundle.name === protectedName && bundle.enabled), 'SSO remains selected after mutation attempts');
+  check(after.some(bundle => bundle.name === protectedName && bundle.enabled), 'forward-auth remains selected after mutation attempts');
 }
 
 async function nativePty() {
@@ -264,7 +266,7 @@ async function architecture() {
   for (const name of Object.keys(manifest.dependencies)) {
     await stat(`/opt/dsh/runtime/node_modules/${name}`);
   }
-  for (const name of ['@soulwhisper/dsh-sso', 'yaml']) {
+  for (const name of ['@soulwhisper/dsh-forward-auth', 'yaml']) {
     await import(pathToFileURL(require.resolve(name)).href);
   }
   await nativePty();
@@ -289,8 +291,8 @@ async function runtime() {
   const manifestPath = `/data/dsh/profiles/${profile}/package.json`;
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const profileRequire = createRequire(manifestPath);
-  const expected = profile === 'web' ? ['@soulwhisper/dsh-sso', 'dshmarket']
-    : ['@soulwhisper/dsh-sso', 'dsh-tavern-wrongbook', 'dsh-tavern-comfy', 'dsh-tavern-knock-knock', 'narrative-anchor'];
+  const expected = profile === 'web' ? ['@soulwhisper/dsh-forward-auth', 'dshmarket']
+    : ['@soulwhisper/dsh-forward-auth', 'dsh-tavern-wrongbook', 'dsh-tavern-comfy', 'dsh-tavern-knock-knock', 'narrative-anchor'];
   for (const name of expected) check(Object.hasOwn(manifest.dependencies, name), 'Required profile package');
   for (const name of Object.keys(manifest.dependencies)) {
     await import(pathToFileURL(profileRequire.resolve(name)).href);
@@ -314,7 +316,7 @@ async function runtime() {
   await nativePty();
 }
 try {
-  if (mode === 'untrusted') await rejection({ 'x-authentik-uid': config.uid, 'x-forwarded-for': '127.0.0.1' });
+  if (mode === 'untrusted') await rejection({ [forwardHeader]: config.uid, 'x-forwarded-for': '127.0.0.1' });
   else if (mode === 'trusted') await trusted();
   else if (mode === 'manager') await manager();
   else if (mode === 'runtime') await runtime();

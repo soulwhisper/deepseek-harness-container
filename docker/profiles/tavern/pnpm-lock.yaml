@@ -310,7 +310,7 @@ overrides:
   '@deepseek-ai/libreoffice-kit-wasm': link:/opt/dsh/runtime/node_modules/@deepseek-ai/libreoffice-kit-wasm
   '@deepseek-ai/node-addon-system': link:/opt/dsh/runtime/node_modules/@deepseek-ai/node-addon-system
   '@deepseek-ai/schemastery': link:/opt/dsh/runtime/node_modules/@deepseek-ai/schemastery
-  '@soulwhisper/dsh-sso': link:/opt/dsh/runtime/node_modules/@soulwhisper/dsh-sso
+  '@soulwhisper/dsh-forward-auth': link:/opt/dsh/runtime/node_modules/@soulwhisper/dsh-forward-auth
 
 patchedDependencies:
   dsh-better-sidebar@0.28.0: 4f54fe004a0c388c920fb4827618d7795673580b54a583675b959a2b3fa7fac6
@@ -325,9 +325,9 @@ importers:
       '@deepseek-ai/dsh-web-app':
         specifier: link:/opt/dsh/runtime/node_modules/@deepseek-ai/dsh-web-app
         version: link:/opt/dsh/runtime/node_modules/@deepseek-ai/dsh-web-app
-      '@soulwhisper/dsh-sso':
-        specifier: link:/opt/dsh/runtime/node_modules/@soulwhisper/dsh-sso
-        version: link:/opt/dsh/runtime/node_modules/@soulwhisper/dsh-sso
+      '@soulwhisper/dsh-forward-auth':
+        specifier: link:/opt/dsh/runtime/node_modules/@soulwhisper/dsh-forward-auth
+        version: link:/opt/dsh/runtime/node_modules/@soulwhisper/dsh-forward-auth
       dsh-better-sidebar:
         specifier: 0.28.0
         version: 0.28.0(patch_hash=4f54fe004a0c388c920fb4827618d7795673580b54a583675b959a2b3fa7fac6)

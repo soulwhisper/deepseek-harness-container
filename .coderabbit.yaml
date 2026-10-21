@@ -56,14 +56,16 @@ reviews:
         apply a patch at runtime. Version, source commit and hash must agree with
         versions.json and the corresponding source archive.
 
-    - path: "plugins/sso/**"
+    - path: "plugins/forward-auth/**"
       instructions: |
-        Mandatory trusted-proxy admission gate. Check the real TCP peer CIDR and
-        exactly one allowlisted x-authentik-uid on every HTTP request and
-        WebSocket upgrade. Never trust forwarded headers, add an OIDC flow,
-        expose a token URL, or restore an unguarded listener. Missing/duplicate
-        identity and untrusted peers must deny. SSO stays required and
-        non-removable in the native manager.
+        Mandatory trusted-edge forward-auth gate. Check the real TCP peer CIDR
+        and exactly one configured, allowlisted subject header on every HTTP
+        request and WebSocket upgrade. Never trust forwarded headers, add an
+        OIDC flow, add a local password or bootstrap admin, accept the upstream
+        launch-token URL as authentication, or restore an unguarded listener.
+        Missing/duplicate identity and untrusted peers must deny. Forward-auth
+        stays required and non-removable in the native manager. Status logs must
+        be fixed categories and must not include subject/header/cookie values.
 
     - path: "docker/**"
       instructions: |

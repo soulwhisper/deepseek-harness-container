@@ -122,7 +122,7 @@ If an active/passive experiment is pursued, it needs at minimum:
 2. A drain endpoint that stops accepting work, closes live streams and waits
    for session handles and subprocesses to finish.
 3. Edge routing that can move between pods without changing Host/Origin or
-   bypassing SSO.
+   bypassing forward-auth.
 4. A tested RWX backend with POSIX `flock`, atomic rename and fsync semantics.
 5. Recovery tests for crash before/after lock release, profile migration and
    source/attachment writes.

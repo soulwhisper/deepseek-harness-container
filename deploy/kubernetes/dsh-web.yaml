@@ -65,17 +65,19 @@ spec:
               value: https://dsh.example.net
             - name: DSH_TRUSTED_HOSTS
               value: dsh.example.net
-            - name: DSH_SSO_ALLOWED_UIDS
+            - name: DSH_FORWARD_AUTH_HEADER
+              value: x-authentik-uid
+            - name: DSH_FORWARD_AUTH_ALLOWED_SUBJECTS
               valueFrom:
                 secretKeyRef:
-                  name: dsh-web-sso
-                  key: allowed-uids
-            - name: DSH_SSO_TRUSTED_PROXY_CIDRS
+                  name: dsh-web-forward-auth
+                  key: allowed-subjects
+            - name: DSH_FORWARD_AUTH_TRUSTED_PROXY_CIDRS
               valueFrom:
                 secretKeyRef:
-                  name: dsh-web-sso
+                  name: dsh-web-forward-auth
                   key: trusted-proxy-cidrs
-            - name: DSH_SSO_MAX_CONNECTION_SECONDS
+            - name: DSH_FORWARD_AUTH_MAX_CONNECTION_SECONDS
               value: "900"
             - name: DSH_BACKUP_ROOT
               value: /backups

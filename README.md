@@ -2,7 +2,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-An independent, self-packaged [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) distribution for a **single shared owner behind a verified Authentik edge**. It ships two OCI images, an independently maintained SSO gate, explicit state and backup boundaries, and no desktop stack.
+An independent, self-packaged [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) distribution for a **single shared owner behind a verified forward-auth edge**. It ships two OCI images, an independently maintained forward-auth gate, explicit state and backup boundaries, and no desktop stack.
 
 > DSH `0.2.1-rc.2` is a developer preview, not an audited production platform. A working login does not prove the edge, plugins, model credentials, backups or agent sandbox are safe. Never expose the native listener directly.
 
@@ -10,8 +10,8 @@ An independent, self-packaged [DeepSeek Harness](https://github.com/deepseek-ai/
 
 | Image | Release tag | Profile |
 | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web + `dshmarket` + required SSO |
-| `ghcr.io/soulwhisper/dsh-tavern:3.0` | `tavern-3.0` | Custom Tavern workspace + SSO + bundled ecosystem |
+| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web + `dshmarket` + required forward-auth |
+| `ghcr.io/soulwhisper/dsh-tavern:3.0` | `tavern-3.0` | Custom Tavern workspace + forward-auth + bundled ecosystem |
 
 Web follows the DSH upstream version; Tavern follows dsh-tavern. They are
 released independently, use Node 24/glibc, run as UID/GID `1000:1000`, bind
@@ -33,7 +33,7 @@ or replacement mux server.
 | [Patches](docs/patches.md) | Exact-hash upstream modifications |
 | [Source build](docs/source-build.md) | Tavern corresponding source |
 | [Regulations](docs/regulations.md) | Apache/MIT/AGPL obligations |
-| [OIDC plan](docs/oidc-connector-plan.md) | Generic OIDC connector design |
+| [Forward-auth](docs/forward-auth.md) | Trusted-edge authentication, status logs, token URL |
 | [HA plan](docs/ha-plan.md) | Replicas, PDB, RWX and DSH limits |
 
 `handoff-*.md` files are local working notes and are ignored by Git.
@@ -68,7 +68,7 @@ docker volume create dsh-web-logs
 docker volume create dsh-web-backups
 
 export IMAGE=ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2
-export ALLOWED_UIDS='your-stable-authentik-uid'
+export ALLOWED_SUBJECTS='your-stable-owner-id'
 
 docker run --detach --name dsh-web --restart unless-stopped \
   --network dsh-private --ip 172.30.80.3 \
@@ -83,8 +83,9 @@ docker run --detach --name dsh-web --restart unless-stopped \
   --env DSH_HOST=172.30.80.3 \
   --env DSH_PUBLIC_URL=https://dsh.example.net \
   --env DSH_TRUSTED_HOSTS=dsh.example.net \
-  --env DSH_SSO_ALLOWED_UIDS="$ALLOWED_UIDS" \
-  --env DSH_SSO_TRUSTED_PROXY_CIDRS=172.30.80.2/32 \
+  --env DSH_FORWARD_AUTH_HEADER=x-authentik-uid \
+  --env DSH_FORWARD_AUTH_ALLOWED_SUBJECTS="$ALLOWED_SUBJECTS" \
+  --env DSH_FORWARD_AUTH_TRUSTED_PROXY_CIDRS=172.30.80.2/32 \
   "$IMAGE"
 ```
 
@@ -110,25 +111,28 @@ Do not place cache, logs, rollback copies or scratch inside `/data`; the
 entrypoint moves legacy `cache`/`logs` directories once and excludes them from
 rollback copies. See [data layout](docs/data-layout.md).
 
-## SSO boundary
+## Forward-auth boundary
 
 The verified edge, not this image, performs OAuth/OIDC, login, MFA, session
 validation and access policy. It must authenticate every HTTP request and
-WebSocket upgrade, remove client-supplied `x-authentik-*` headers, set exactly
-one stable Authentik UID, preserve public Host/Origin and be the only network
-peer allowed to reach DSH.
+WebSocket upgrade, remove client-supplied identity headers, set exactly one
+configured stable subject header, preserve public Host/Origin and be the only
+network peer allowed to reach DSH.
 
-The local plugin is a **trusted-header gate**, not an OIDC client. It checks the
-real peer CIDR and UID allowlist, protects assets/source/native manager, and
-exchanges a native `HttpOnly; SameSite=Strict` cookie through DSH Connection
-APIs. Missing or failed SSO denies routes; there is no unguarded fallback. All
-allowed UIDs share one DSH owner and its files, tools, models and credentials;
-this is not multi-user isolation.
+`@soulwhisper/dsh-forward-auth` checks the real peer CIDR and subject allowlist,
+protects assets/source/native manager, and exchanges a native
+`HttpOnly; SameSite=Strict` cookie through DSH Connection APIs. The header is
+configurable (`x-authentik-uid`, Authelia `Remote-User`, etc.); no OIDC client,
+local password, bootstrap admin or user panel is included. Missing or failed
+authentication denies routes; there is no unguarded fallback. All allowed
+subjects share one DSH owner and its files, tools, models and credentials; this
+is not multi-user isolation.
 
-The optional path to a generic OIDC RP, including PKCE, state/nonce, JWKS/JWT
-validation, logout and negative tests, is documented in
-[OIDC connector plan](docs/oidc-connector-plan.md). It is not implemented in
-this release.
+The gate also rejects any request whose query contains a `token` parameter,
+including the upstream DSH launch-token URL. Startup stdout may still contain
+that token; treat logs as sensitive. Status logs report `waiting-for-edge`,
+`active`, rate-limited denial reasons, or `broken` with a fixed category. See
+[forward-auth](docs/forward-auth.md).
 
 ## Release and automation
 

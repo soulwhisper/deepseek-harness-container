@@ -2,10 +2,12 @@
 
 ## First boot
 
-The entrypoint requires `DSH_HOST` (a concrete container/Pod IP),
-`DSH_SSO_ALLOWED_UIDS` and `DSH_SSO_TRUSTED_PROXY_CIDRS`. It creates the
-declared persistent/cache/log/rollback roots, materializes `/data/dsh`, links
-DSH's cache and logs to their dedicated roots, and starts one DSH process.
+The entrypoint requires `DSH_HOST` (a concrete container/Pod IP). The plugin
+requires `DSH_FORWARD_AUTH_HEADER`, `DSH_FORWARD_AUTH_ALLOWED_SUBJECTS` and
+`DSH_FORWARD_AUTH_TRUSTED_PROXY_CIDRS`; it logs `state=broken` if they are
+missing or invalid. The entrypoint creates the declared
+persistent/cache/log/rollback roots, materializes `/data/dsh`, links DSH's cache
+and logs to their dedicated roots, and starts one DSH process.
 
 Fresh state is seeded once. The marker `/data/dsh/.distribution-state.json`
 records schema, distribution and profile. Existing state from another
@@ -50,7 +52,7 @@ image to already migrated data.
 
 The old `dsh-ui-auth` private model keys were encrypted with the old local
 password. Export or re-enter them deliberately before retiring the old instance;
-SSO cannot decrypt them.
+the forward-auth plugin has no local password and cannot decrypt them.
 
 ## Backup and restore
 
@@ -89,7 +91,7 @@ IdP, model provider, database, edge or agent sandbox.
 
 ## Plugin updates
 
-Distribution-owned DSH, SSO, guard patches and bundled baseline packages change
+Distribution-owned DSH, forward-auth, guard patches and bundled baseline packages change
 through reviewed source/lock updates and a rebuilt image. User-added Web
 plugins go through the native manager and its explicit script approvals; the
 market is not a privileged installer. Tavern core requires its pinned custom

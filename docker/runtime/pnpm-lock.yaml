@@ -14,9 +14,9 @@ importers:
       '@deepseek-ai/dsh':
         specifier: 0.2.1-rc.2
         version: 0.2.1-rc.2(854930db07a25de88aa03d38b664078d)
-      '@soulwhisper/dsh-sso':
-        specifier: file:../../plugins/sso
-        version: file:../../plugins/sso(@deepseek-ai/cordis@4.0.5)(@deepseek-ai/dsh-client-connection@0.2.1-rc.2(@deepseek-ai/cordis@4.0.5)(@deepseek-ai/dsh-scope@0.2.1-rc.2(@deepseek-ai/cordis@4.0.5)))(@deepseek-ai/dsh-host-webserver@0.2.1-rc.2(@deepseek-ai/cordis@4.0.5))
+      '@soulwhisper/dsh-forward-auth':
+        specifier: file:../../plugins/forward-auth
+        version: file:../../plugins/forward-auth(@deepseek-ai/cordis@4.0.5)(@deepseek-ai/dsh-client-connection@0.2.1-rc.2(@deepseek-ai/cordis@4.0.5)(@deepseek-ai/dsh-scope@0.2.1-rc.2(@deepseek-ai/cordis@4.0.5)))(@deepseek-ai/dsh-host-webserver@0.2.1-rc.2(@deepseek-ai/cordis@4.0.5))
       dshmarket:
         specifier: 1.66.44
         version: 1.66.44(@deepseek-ai/cordis@4.0.5)(@deepseek-ai/dsh-settings@0.2.1-rc.2(f19463d923a7a6aadc4d6ed675af1c31))(@deepseek-ai/schemastery@3.18.5)
@@ -3035,8 +3035,8 @@ packages:
     resolution: {integrity: sha512-r7jh49VJxGerfAcTQA6gXcKc+98zOp/tqRwzYjgOE+iSQsP6cEU1hq2QzbuipmP68QtYdY9wKEhiCQZIzHgZ4Q==}
     engines: {node: '>=18.0.0'}
 
-  '@soulwhisper/dsh-sso@file:../../plugins/sso':
-    resolution: {directory: ../../plugins/sso, type: directory}
+  '@soulwhisper/dsh-forward-auth@file:../../plugins/forward-auth':
+    resolution: {directory: ../../plugins/forward-auth, type: directory}
     engines: {node: '>=24'}
     peerDependencies:
       '@deepseek-ai/cordis': ~4.0.5
@@ -7826,7 +7826,7 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@soulwhisper/dsh-sso@file:../../plugins/sso(@deepseek-ai/cordis@4.0.5)(@deepseek-ai/dsh-client-connection@0.2.1-rc.2(@deepseek-ai/cordis@4.0.5)(@deepseek-ai/dsh-scope@0.2.1-rc.2(@deepseek-ai/cordis@4.0.5)))(@deepseek-ai/dsh-host-webserver@0.2.1-rc.2(@deepseek-ai/cordis@4.0.5))':
+  '@soulwhisper/dsh-forward-auth@file:../../plugins/forward-auth(@deepseek-ai/cordis@4.0.5)(@deepseek-ai/dsh-client-connection@0.2.1-rc.2(@deepseek-ai/cordis@4.0.5)(@deepseek-ai/dsh-scope@0.2.1-rc.2(@deepseek-ai/cordis@4.0.5)))(@deepseek-ai/dsh-host-webserver@0.2.1-rc.2(@deepseek-ai/cordis@4.0.5))':
     dependencies:
       '@deepseek-ai/cordis': 4.0.5(@deepseek-ai/cordis-plugin-include@1.0.10)(@deepseek-ai/cordis-plugin-loader@1.0.6)
       '@deepseek-ai/dsh-client-connection': 0.2.1-rc.2(@deepseek-ai/cordis@4.0.5)(@deepseek-ai/dsh-scope@0.2.1-rc.2(@deepseek-ai/cordis@4.0.5))

@@ -9,7 +9,7 @@ const seed = process.env.DSH_SEED_DIR ?? '/opt/dsh-seed';
 const runtime = '/opt/dsh/runtime';
 const source = '/opt/dsh-tavern/apps/dsh-tavern';
 const YAML = createRequire(join(runtime, 'package.json'))('yaml');
-const base = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@soulwhisper/dsh-sso'];
+const base = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@soulwhisper/dsh-forward-auth'];
 const link = name => `link:${runtime}/node_modules/${name}`;
 // Override the existing official closure, not arbitrary user packages. Every
 // protected host module must resolve to the patched immutable runtime copy.
@@ -21,7 +21,7 @@ for (const name of await readdir(`${runtime}/node_modules/@deepseek-ai`)) {
   if (/-(?:linux|darwin|win32)-(?:x64|arm64|arm|ia32)$/u.test(name)) continue;
   overrides[`@deepseek-ai/${name}`] = link(`@deepseek-ai/${name}`);
 }
-overrides['@soulwhisper/dsh-sso'] = link('@soulwhisper/dsh-sso');
+overrides['@soulwhisper/dsh-forward-auth'] = link('@soulwhisper/dsh-forward-auth');
 for (const profile of ['web', 'tavern'].filter(name => !process.env.DSH_BUILD_PROFILE || name === process.env.DSH_BUILD_PROFILE)) {
   const dir = join(seed, 'profiles', profile);
   await mkdir(dir, { recursive: true });

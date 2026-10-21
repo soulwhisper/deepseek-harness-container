@@ -10,7 +10,7 @@ import { request } from 'node:http';
 import { connect } from 'node:net';
 import { once } from 'node:events';
 import { EventEmitter } from 'node:events';
-import { configuration, externalIdentity, createAdmission } from '../plugins/sso/admission.mjs';
+import { configuration, externalIdentity, identityFailure, createAdmission } from '../plugins/forward-auth/admission.mjs';
 import { patchSource } from '../patches/dsh/patch-host.mjs';
 
 const rootRequire = createRequire(import.meta.url);
@@ -31,7 +31,7 @@ async function nativeModules() {
     // The exact published server runs unchanged except the distribution patch.
     // Absolute import locations let the temporary real module reuse installed dependencies.
     source = source.replace(/from "([^"\n]+)"/g, (match, name) => name.startsWith('node:') ? match : `from ${JSON.stringify(pathToFileURL(hostRequire.resolve(name)).href)}`);
-    const temporary = await mkdtemp(join(tmpdir(), 'dsh-sso-host-'));
+    const temporary = await mkdtemp(join(tmpdir(), 'dsh-forward-auth-host-'));
     let host;
     try {
       const path = join(temporary, 'host.mjs');
@@ -46,12 +46,14 @@ async function nativeModules() {
   })();
   return modules;
 }
+const AUTH_HEADER = 'x-authentik-uid';
 const baseEnvironment = {
-  DSH_SSO_ALLOWED_UIDS: 'stable_uid,another-uid',
-  DSH_SSO_TRUSTED_PROXY_CIDRS: '127.0.0.1/32,2001:db8::/32',
+  DSH_FORWARD_AUTH_HEADER: AUTH_HEADER,
+  DSH_FORWARD_AUTH_ALLOWED_SUBJECTS: 'stable_uid,another-uid',
+  DSH_FORWARD_AUTH_TRUSTED_PROXY_CIDRS: '127.0.0.1/32,2001:db8::/32',
 };
-function facts(peer, uid = 'stable_uid', extra = []) {
-  return { socket: { remoteAddress: peer }, rawHeaders: ['Host', 'dsh.example', 'x-authentik-uid', uid, ...extra], headers: { host: 'dsh.example', 'x-authentik-uid': uid } };
+function facts(peer, uid = 'stable_uid', extra = [], url = '/', header = AUTH_HEADER) {
+  return { url, socket: { remoteAddress: peer }, rawHeaders: ['Host', 'dsh.example', header, uid, ...extra], headers: { host: 'dsh.example', [header.toLowerCase()]: uid } };
 }
 function get(port, path = '/', headers = {}) {
   return new Promise((resolve, reject) => {
@@ -87,11 +89,23 @@ async function fixture(t, { native = false } = {}) {
   return { ctx, server, port: server.port };
 }
 
-test('configuration requires explicit nonempty trust/UID sets and bounded timers', () => {
+test('configuration requires header, subjects, trust CIDRs and bounded timers', () => {
   assert.throws(() => configuration({}), /mandatory/);
-  for (const value of ['127.0.0.1', 'hostname/32', '127.0.0.1/33', '::ffff:127.0.0.1/128', '127.0.0.1/32,']) assert.throws(() => configuration({ ...baseEnvironment, DSH_SSO_TRUSTED_PROXY_CIDRS: value }));
-  for (const value of ['', '0', '-1', '1.5', '2147484']) assert.throws(() => configuration({ ...baseEnvironment, DSH_SSO_MAX_CONNECTION_SECONDS: value }));
+  for (const value of ['', 'bad header', 'host', 'origin', 'cookie']) {
+    assert.throws(() => configuration({ ...baseEnvironment, DSH_FORWARD_AUTH_HEADER: value }), /HEADER/);
+  }
+  for (const value of ['127.0.0.1', 'hostname/32', '127.0.0.1/33', '::ffff:127.0.0.1/128', '127.0.0.1/32,']) assert.throws(() => configuration({ ...baseEnvironment, DSH_FORWARD_AUTH_TRUSTED_PROXY_CIDRS: value }));
+  for (const value of ['', '0', '-1', '1.5', '2147484']) assert.throws(() => configuration({ ...baseEnvironment, DSH_FORWARD_AUTH_MAX_CONNECTION_SECONDS: value }));
+  assert.equal(configuration(baseEnvironment).header, AUTH_HEADER);
   assert.equal(configuration(baseEnvironment).maxConnectionMilliseconds, 900000);
+});
+
+test('generic forward-auth headers and upstream launch-token URLs', () => {
+  const authelia = configuration({ ...baseEnvironment, DSH_FORWARD_AUTH_HEADER: 'Remote-User' });
+  assert.equal(externalIdentity(facts('127.0.0.1', 'stable_uid', [], '/', 'Remote-User'), authelia), true);
+  assert.equal(externalIdentity(facts('127.0.0.1'), authelia), false);
+  assert.equal(identityFailure(facts('127.0.0.1', 'stable_uid', [], '/?token=upstream'), configuration(baseEnvironment)), 'upstream-token');
+  assert.equal(identityFailure(facts('127.0.0.1', 'stable_uid', [], '/?clean=yes'), configuration(baseEnvironment)), undefined);
 });
 
 test('peer CIDRs normalize mapped IPv6 but never trust forwarded IPs', () => {
@@ -127,6 +141,7 @@ test('actual native Connection exchanges cookie internally and preserves Host/Or
   const release = server.registerRequiredAccessGate(admission);
   t.after(() => { release(); admission.dispose(); });
   assert.equal((await get(port)).status, 403);
+  assert.equal((await get(port, '/?token=upstream', { [AUTH_HEADER]: 'stable_uid' })).status, 403, 'upstream token URL is blocked even with an edge identity');
   const allowed = await get(port, '/?clean=yes', { 'x-authentik-uid': 'stable_uid', origin: 'http://dsh.example' });
   assert.equal(allowed.status, 200);
   assert.equal(allowed.body, '/?clean=yes');
@@ -183,6 +198,23 @@ test('gate exception permanently denies until a deliberate replacement registrat
   assert.equal((await get(port)).status, 503);
 });
 
+test('admission reports fixed status reasons without exposing identity', () => {
+  const config = configuration(baseEnvironment);
+  const events = [];
+  const response = () => ({ writeHead() {}, end() {} });
+  const connection = { requestRejection: () => undefined, authorizeIndex() {}, authenticatedUrl() {} };
+  const gate = createAdmission(connection, config, { report: event => events.push(event) });
+  gate.http(facts('127.0.0.2'), response());
+  gate.http(facts('127.0.0.1'), response());
+  assert.deepEqual(events, [{ type: 'denied', reason: 'untrusted-peer' }, { type: 'active' }]);
+
+  const broken = [];
+  const failing = createAdmission({ requestRejection() { throw new Error('fixture'); }, authorizeIndex() {}, authenticatedUrl() {} },
+    config, { report: event => broken.push(event) });
+  assert.throws(() => failing.http(facts('127.0.0.1'), response()), /fixture/);
+  assert.deepEqual(broken, [{ type: 'broken', reason: 'native-rejection' }]);
+});
+
 test('upgrade timers are bounded, cleared on close and cleaned on disposal', () => {
   const active = new Map();
   let sequence = 0;
@@ -209,7 +241,7 @@ test('upgrade timers are bounded, cleared on close and cleaned on disposal', () 
 });
 
 test('real Cordis readiness waits for the startup audit, disappears on unload and reload stays guarded', async t => {
-  const plugin = await import('../plugins/sso/index.mjs');
+  const plugin = await import('../plugins/forward-auth/index.mjs');
   const { ctx, port } = await fixture(t, { native: true });
   const saved = Object.fromEntries(Object.keys(baseEnvironment).map(key => [key, process.env[key]]));
   for (const [key, value] of Object.entries(baseEnvironment)) process.env[key] = value;

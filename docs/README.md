@@ -17,7 +17,7 @@ Git.
 | [Patches](patches.md) | Exact-hash upstream modifications |
 | [Source build](source-build.md) | Tavern corresponding source and rebuild recipe |
 | [Regulations](regulations.md) | Apache/MIT/AGPL licensing and source-offer obligations |
-| [OIDC connector plan](oidc-connector-plan.md) | Path from the trusted-header gate to a generic OIDC RP |
+| [Forward-auth](forward-auth.md) | Trusted-edge authentication, status logs and launch-token handling |
 | [HA plan](ha-plan.md) | Replica, PDB and shared-RWX evaluation; DSH hot-switch limits |
 
 ## Documentation rules

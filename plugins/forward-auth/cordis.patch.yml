@@ -1,5 +1,5 @@
 # Required Host-only security boundary. No client roster or user database.
 - insert:
-    - id: distribution-sso
-      name: '@soulwhisper/dsh-sso'
+    - id: distribution-forward-auth
+      name: '@soulwhisper/dsh-forward-auth'
       inject: [webServer, connection]

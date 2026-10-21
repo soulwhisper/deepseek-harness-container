@@ -216,7 +216,7 @@ try {
     const helperCommand = ['-e', 'setInterval(() => {}, 60000)'];
     const publicPort = await freeLoopbackPort();
     await start(edge, image, null, ['--entrypoint', 'node', '--publish', `127.0.0.1:${publicPort}:8080`],
-      ['--input-type=module', '-e', edgeSource, JSON.stringify({ host: appIP, port: 3080, uid: 'smoke-owner-uid' })]);
+      ['--input-type=module', '-e', edgeSource, JSON.stringify({ host: appIP, port: 3080, uid: 'smoke-owner-uid', header: 'x-authentik-uid' })]);
     const edgeState = JSON.parse((await docker(['inspect', edge])).stdout)[0];
     const edgeIP = edgeState.NetworkSettings.Networks[network].IPAddress;
     if (!edgeIP) throw new Error('Docker did not assign the smoke edge address');
@@ -228,12 +228,13 @@ try {
       '--env', `DSH_HOST=${appIP}`, '--env', 'DSH_PORT=3080',
       '--env', `DSH_PUBLIC_URL=http://${authority}`,
       '--env', `DSH_TRUSTED_HOSTS=${authority}`,
-      '--env', 'DSH_SSO_ALLOWED_UIDS=smoke-owner-uid',
-      '--env', `DSH_SSO_TRUSTED_PROXY_CIDRS=${edgeIP}/32`,
-      '--env', 'DSH_SSO_MAX_CONNECTION_SECONDS=20',
+      '--env', 'DSH_FORWARD_AUTH_HEADER=x-authentik-uid',
+      '--env', 'DSH_FORWARD_AUTH_ALLOWED_SUBJECTS=smoke-owner-uid',
+      '--env', `DSH_FORWARD_AUTH_TRUSTED_PROXY_CIDRS=${edgeIP}/32`,
+      '--env', 'DSH_FORWARD_AUTH_MAX_CONNECTION_SECONDS=20',
     ]);
     await awaitReady(app);
-    const config = { host: appIP, port: 3080, authority, uid: 'smoke-owner-uid' };
+    const config = { host: appIP, port: 3080, authority, uid: 'smoke-owner-uid', header: 'x-authentik-uid' };
     await execute(attacker, 'untrusted', config);
     await execute(edge, 'trusted', config);
     await execute(edge, 'manager', config);
@@ -247,7 +248,7 @@ try {
     if (/failed to import|skipping profile bundle|failed to activate/iu.test(`${boot.stdout}\n${boot.stderr}`)) {
       throw new Error('Runtime reported a profile/plugin import or activation failure; raw logs withheld');
     }
-    console.log(`PASS image ${index + 1}: SSO rejection, protected manager, plugin install/reinstall, real browser/sidebar, persistent native cookie, mux, expiry, PTY, profile/source imports`);
+    console.log(`PASS image ${index + 1}: forward-auth rejection, protected manager, plugin install/reinstall, real browser/sidebar, persistent native cookie, mux, expiry, PTY, profile/source imports`);
     await cleanup();
   }
 } catch (error) {

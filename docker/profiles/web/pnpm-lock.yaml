@@ -310,7 +310,7 @@ overrides:
   '@deepseek-ai/libreoffice-kit-wasm': link:/opt/dsh/runtime/node_modules/@deepseek-ai/libreoffice-kit-wasm
   '@deepseek-ai/node-addon-system': link:/opt/dsh/runtime/node_modules/@deepseek-ai/node-addon-system
   '@deepseek-ai/schemastery': link:/opt/dsh/runtime/node_modules/@deepseek-ai/schemastery
-  '@soulwhisper/dsh-sso': link:/opt/dsh/runtime/node_modules/@soulwhisper/dsh-sso
+  '@soulwhisper/dsh-forward-auth': link:/opt/dsh/runtime/node_modules/@soulwhisper/dsh-forward-auth
 
 importers:
 
@@ -322,9 +322,9 @@ importers:
       '@deepseek-ai/dsh-web-app':
         specifier: link:/opt/dsh/runtime/node_modules/@deepseek-ai/dsh-web-app
         version: link:/opt/dsh/runtime/node_modules/@deepseek-ai/dsh-web-app
-      '@soulwhisper/dsh-sso':
-        specifier: link:/opt/dsh/runtime/node_modules/@soulwhisper/dsh-sso
-        version: link:/opt/dsh/runtime/node_modules/@soulwhisper/dsh-sso
+      '@soulwhisper/dsh-forward-auth':
+        specifier: link:/opt/dsh/runtime/node_modules/@soulwhisper/dsh-forward-auth
+        version: link:/opt/dsh/runtime/node_modules/@soulwhisper/dsh-forward-auth
       dshmarket:
         specifier: link:/opt/dsh/runtime/node_modules/dshmarket
         version: link:/opt/dsh/runtime/node_modules/dshmarket

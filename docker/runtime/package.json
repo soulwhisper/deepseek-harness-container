@@ -8,7 +8,7 @@
   "dependencies": {
     "@deepseek-ai/cordis-plugin-group": "1.0.5",
     "@deepseek-ai/dsh": "0.2.1-rc.2",
-    "@soulwhisper/dsh-sso": "file:../../plugins/sso",
+    "@soulwhisper/dsh-forward-auth": "file:../../plugins/forward-auth",
     "dshmarket": "1.66.44",
     "yaml": "2.9.1"
   }

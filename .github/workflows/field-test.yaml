@@ -12,7 +12,7 @@ on:
     types: [opened, synchronize, reopened]
     paths:
       - 'docker/runtime/**'
-      - 'plugins/sso/**'
+      - 'plugins/forward-auth/**'
       - 'patches/**'
       - 'scripts/field-test.mjs'
       - 'versions.json'

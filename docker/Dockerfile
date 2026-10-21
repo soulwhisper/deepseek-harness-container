@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 FROM scratch AS distribution-source
 COPY docker /docker
 COPY patches /patches
-COPY plugins/sso /plugins/sso
+COPY plugins/forward-auth /plugins/forward-auth
 COPY --chmod=0755 scripts/entrypoint.sh /scripts/entrypoint.sh
 COPY scripts/materialize-state.mjs scripts/normalize-locks.mjs \
      scripts/materialize-profiles.mjs scripts/readiness.mjs \
@@ -31,12 +31,12 @@ COPY versions.json package.json pnpm-lock.yaml LICENSE NOTICE README.md README.z
 COPY docs/source-build.md docs/regulations.md /docs/
 
 FROM tools AS runtime-build
-# The runtime manifest's file: dependency is ../../plugins/sso. Keep that
+# The runtime manifest's file: dependency is ../../plugins/forward-auth. Keep that
 # relative layout in the image and expose the stable /opt/dsh/runtime alias
 # used by runtime scripts, PATH and generated profile links.
 WORKDIR /opt/dsh/docker/runtime
 COPY docker/runtime/package.json docker/runtime/pnpm-workspace.yaml docker/runtime/pnpm-lock.yaml ./
-COPY plugins/sso /opt/dsh/plugins/sso
+COPY plugins/forward-auth /opt/dsh/plugins/forward-auth
 COPY patches/dsh /opt/dsh/patches/dsh
 RUN pnpm install --frozen-lockfile --prod \
     && node /opt/dsh/patches/dsh/patch-host.mjs /opt/dsh/docker/runtime \
@@ -127,7 +127,7 @@ FROM application AS web
 ENV DSH_PROFILE=web
 COPY --from=web-build /opt/dsh /opt/dsh
 COPY --from=web-build /opt/dsh-seed /opt/dsh-seed
-LABEL org.opencontainers.image.title="DeepSeek Harness Web with dshmarket and SSO" \
+LABEL org.opencontainers.image.title="DeepSeek Harness Web with dshmarket and forward-auth" \
       org.opencontainers.image.version="0.2.1-rc.2" \
       org.opencontainers.image.licenses="Apache-2.0 AND MIT"
 
@@ -142,7 +142,7 @@ COPY --from=tavern-build /opt/dsh-seed /opt/dsh-seed
 COPY --from=tavern-build /opt/dsh-tavern /opt/dsh-tavern
 COPY --from=tavern-build /opt/dsh-source /opt/dsh-source
 RUN test "${#IMAGE_REVISION}" -eq 40 && test -z "$(printf '%s' "$IMAGE_REVISION" | tr -d '0-9a-f')"
-LABEL org.opencontainers.image.title="DeepSeek Harness Tavern with SSO" \
+LABEL org.opencontainers.image.title="DeepSeek Harness Tavern with forward-auth" \
       org.opencontainers.image.version="3.0" \
       org.opencontainers.image.licenses="Apache-2.0 AND MIT AND AGPL-3.0-only" \
       io.github.soulwhisper.dsh-tavern.commit="7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d"

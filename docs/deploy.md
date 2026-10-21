@@ -1,9 +1,9 @@
 # Deploy
 
-The examples are application-side only. They do not install Authentik, the
-verified edge, TLS termination, DNS or a model provider. The edge remains
+The examples are application-side only. They do not install Authentik, Authelia,
+the verified edge, TLS termination, DNS or a model provider. The edge remains
 responsible for OIDC/MFA, removing client-supplied identity headers, injecting
-exactly one verified stable UID, preserving public Host/Origin, and forwarding
+exactly one stable subject header, preserving public Host/Origin, and forwarding
 WebSocket upgrades.
 
 Pin an inspected `@sha256:…` digest in production. The tags in the examples
@@ -48,13 +48,18 @@ Create the namespace and referenced Secret first:
 
 ```bash
 kubectl create namespace dsh
-kubectl -n dsh create secret generic dsh-web-sso \
-  --from-literal=allowed-uids='<stable-authentik-uid>' \
+kubectl -n dsh create secret generic dsh-web-forward-auth \
+  --from-literal=allowed-subjects='<stable-owner-subject>' \
   --from-literal=trusted-proxy-cidrs='<edge-pod-cidr>'
 ```
 
 Restrict the Pod with the platform's network policy so only the verified edge
-can reach port `3080`; the manifest does not guess your edge namespace.
+can reach port `3080`; the manifest does not guess your edge namespace. The
+plugin logs `state=waiting-for-edge` at startup and `state=active` after the
+first verified request. A missing identity logs `reason=missing-identity`; it
+does not open a password or setup page. `state=broken` means local configuration
+or a native contract failed; inspect the fixed reason category, not a subject or
+token value.
 
 Do not scale the StatefulSet to two replicas. DSH has no leader election or
 live-session handoff, and one live writer per home is a hard constraint. See
@@ -75,7 +80,7 @@ edge, IdP, model provider or sandbox works.
 ## TLS and cookies
 
 Native TLS is optional but recommended for the edge-to-DSH leg when it crosses
-an untrusted network. Mount the certificate and key read-only, readable by UID
+an untrusted network. Mount the certificate and key read-only, readable by subject
 1000, set both `DSH_TLS_CERT` and `DSH_TLS_KEY`, and configure the edge to
 verify the backend. Changing the native listener between HTTP and HTTPS changes
 the native cookie identity; expect reauthentication. `DSH_PUBLIC_URL` alone

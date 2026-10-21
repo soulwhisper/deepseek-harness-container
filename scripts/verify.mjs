@@ -53,16 +53,16 @@ for (const profile of ['web', 'tavern']) {
   assert.doesNotMatch(lockText, /node-addon-system-(?:linux|darwin|win32)-/u,
     `${profile} lock must not contain architecture-specific overrides`);
 }
-// Keep local patches, the SSO plugin, image build, scaffold and examples in
-// separate trees so an upstream break stays local to its patch surface.
+// Keep local patches, the forward-auth plugin, image build, scaffold and
+// examples in separate trees so an upstream break stays local to its surface.
 async function present(path) { try { await access(join(root, path)); return true; } catch { return false; } }
 for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/profiles/web/pnpm-lock.yaml',
   'patches/dsh/patch-host.mjs', 'patches/market/patch-market.mjs', 'patches/tavern/patch-tavern.mjs',
-  'plugins/sso/index.mjs', 'scripts/normalize-locks.mjs', 'scripts/field-test.mjs', 'test/packaging.test.mjs',
+  'plugins/forward-auth/index.mjs', 'scripts/normalize-locks.mjs', 'scripts/field-test.mjs', 'test/packaging.test.mjs',
   'deploy/docker/compose.yaml', 'deploy/kubernetes/dsh-web.yaml',
   'docs/README.md', 'docs/architecture.md', 'docs/constraints.md', 'docs/build.md', 'docs/deploy.md',
   'docs/operations.md', 'docs/data-layout.md', 'docs/patches.md', 'docs/source-build.md',
-  'docs/regulations.md', 'docs/oidc-connector-plan.md', 'docs/ha-plan.md',
+  'docs/regulations.md', 'docs/forward-auth.md', 'docs/ha-plan.md',
   '.github/CODEOWNERS', '.github/PULL_REQUEST_TEMPLATE.md', '.github/labels.yaml',
   '.github/labeler.yaml', '.github/workflows/labeler.yaml', '.github/workflows/label-sync.yaml',
   '.renovate/customManagers.json', '.renovate/groups.json', '.renovate/packageRules.json',
@@ -89,7 +89,7 @@ assert.match(await text('.github/workflows/label-sync.yaml'), /sparse-checkout-c
 const preCommit = parse(await text('.pre-commit-config.yaml'));
 const checkYaml = preCommit.repos.flatMap(repo => repo.hooks ?? []).find(hook => hook.id === 'check-yaml');
 assert.deepEqual(checkYaml?.args, ['--allow-multiple-documents'], 'Deploy YAML may contain multiple documents');
-for (const directory of ['plugins/sso', 'scripts']) {
+for (const directory of ['plugins/forward-auth', 'scripts']) {
   for (const name of await readdir(join(root, directory))) {
     assert.doesNotMatch(name, /^patch-.*\.mjs$/u, `Patches belong under patches/, not ${directory}/${name}`);
   }

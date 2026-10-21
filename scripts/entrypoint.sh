@@ -3,8 +3,9 @@ set -eu
 umask 077
 
 : "${DSH_HOST:?Set DSH_HOST to the container or Pod concrete local IP}"
-: "${DSH_SSO_ALLOWED_UIDS:?Set the comma-separated stable Authentik UID allowlist}"
-: "${DSH_SSO_TRUSTED_PROXY_CIDRS:?Set explicit trusted proxy peer CIDRs}"
+# Forward-auth configuration is validated by the plugin so a broken header,
+# subject or CIDR configuration produces a fixed status=broken log before the
+# Host denies every route.
 : "${DSH_HOME:=/data/dsh}"
 : "${HOME:=/data/home}"
 : "${DSH_BACKUP_ROOT:=/backups}"

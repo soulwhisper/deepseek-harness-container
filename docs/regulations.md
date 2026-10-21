@@ -6,7 +6,7 @@ or operating the images.
 
 ## Distribution code
 
-Original packaging, CI, documentation and `@soulwhisper/dsh-sso` are licensed
+Original packaging, CI, documentation and `@soulwhisper/dsh-forward-auth` are licensed
 under Apache-2.0; see the unchanged root [LICENSE](../LICENSE). This notice does
 not relicense upstream software or dependencies.
 
@@ -33,7 +33,7 @@ The Tavern image retains:
   `/opt/dsh-tavern/apps/dsh-tavern`;
 - the distribution build inputs at `/opt/dsh/distribution-source`;
 - an authenticated archive at `/opt/dsh-source/tavern.tar.gz`, served at
-  `/distribution/source.tar.gz` through the mandatory SSO gate;
+  `/distribution/source.tar.gz` through the mandatory forward-auth gate;
 - `DSH_SOURCE_URL`, identifying the distribution revision;
 - the exact route/theme hashes in `versions.json`.
 

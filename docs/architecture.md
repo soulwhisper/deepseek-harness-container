@@ -4,8 +4,8 @@
 
 | Image | Release tag | Profile | Purpose |
 | --- | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web, `dshmarket`, required SSO | General DSH Web with owner-approved community plugins |
-| `ghcr.io/soulwhisper/dsh-tavern:3.0` | `tavern-3.0` | Custom Tavern workspace, SSO, ecosystem | Dedicated Tavern instance |
+| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web, `dshmarket`, required forward-auth | General DSH Web with owner-approved community plugins |
+| `ghcr.io/soulwhisper/dsh-tavern:3.0` | `tavern-3.0` | Custom Tavern workspace, forward-auth, ecosystem | Dedicated Tavern instance |
 
 Both use Node 24/glibc, UID/GID `1000:1000`, `tini`, native DSH listening on
 port `3080`, and a read-only root filesystem. They are built for native
@@ -20,7 +20,7 @@ plus the distribution build inputs, not installed dependencies or user data.
 
 ```text
 browser -- HTTPS + IdP session --> verified edge
-        -- preserved Host/Origin + exactly one UID header --> DSH native listener
+        -- preserved Host/Origin + exactly one subject header --> DSH native listener
                                                         --> one shared DSH owner
 ```
 
@@ -42,7 +42,7 @@ to the listener; the CIDR allowlist is a second layer, not a replacement.
 | `patches/dsh/` | Host gate, startup audit, manager policy | DSH host/manager/app-boot files and exact anchors |
 | `patches/market/` | Market-to-native-manager bridge | dshmarket artifact and one anchor |
 | `patches/tavern/` | Tavern Origin fence and theme limit | Tavern route/theme sources; route and theme hashes |
-| `plugins/sso/` | Own SSO plugin, notices, native Connection exchange | This package's API contract and DSH Connection APIs |
+| `plugins/forward-auth/` | Own forward-auth plugin, notices, native Connection exchange | This package's API contract and DSH Connection APIs |
 | `docker/` | Dockerfile, runtime closure, profile workspaces/locks | Build graph, Node/native ABI, pnpm lock format |
 | `scripts/` | Build, state migration, readiness, verification | Maintenance tooling; not a separate runtime |
 | `test/` | Behavioral and packaging regressions | Test harness only |

@@ -2,7 +2,7 @@
 
 [English](README.md) | 简体中文
 
-面向 **已验证 Authentik 入口之后的单一共享 owner**，自行打包的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 发行版。提供两个 OCI 镜像、独立维护的 SSO gate、明确的状态/备份边界，不包含桌面栈。
+面向 **已验证 forward-auth 入口之后的单一共享 owner**，自行打包的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 发行版。提供两个 OCI 镜像、独立维护的 forward-auth gate、明确的状态/备份边界，不包含桌面栈。
 
 > DSH `0.2.1-rc.2` 仍是 developer preview，不是经过安全审计的生产平台。登录成功不代表入口、插件、模型凭据、备份或 Agent 沙箱已安全。不要直接暴露原生监听端口。
 
@@ -10,8 +10,8 @@
 
 | 镜像 | Release 标签 | Profile |
 | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web + `dshmarket` + 必需 SSO |
-| `ghcr.io/soulwhisper/dsh-tavern:3.0` | `tavern-3.0` | 自定义 Tavern workspace + SSO + 配套插件 |
+| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web + `dshmarket` + 必需 forward-auth |
+| `ghcr.io/soulwhisper/dsh-tavern:3.0` | `tavern-3.0` | 自定义 Tavern workspace + forward-auth + 配套插件 |
 
 Web 跟随 DSH 上游版本，Tavern 跟随 dsh-tavern；两者独立发版。镜像使用 Node 24/glibc、UID/GID `1000:1000`、单一具体 IP 的 `3080` 监听和只读根文件系统。CI 在原生 `linux/amd64` 与 `linux/arm64` runner 上构建，不使用 QEMU。镜像不包含 Chromium、GUI、X11、VNC、本地密码库、OIDC 客户端或替代 mux 服务。
 
@@ -28,7 +28,7 @@ Web 跟随 DSH 上游版本，Tavern 跟随 dsh-tavern；两者独立发版。�
 | [Patches](docs/patches.md) | 精确哈希上游补丁 |
 | [Source build](docs/source-build.md) | Tavern 对应源码与重建配方 |
 | [Regulations](docs/regulations.md) | Apache/MIT/AGPL 义务 |
-| [OIDC plan](docs/oidc-connector-plan.md) | 通用 OIDC connector 设计 |
+| [Forward-auth](docs/forward-auth.md) | trusted-edge 认证、状态日志、token URL |
 | [HA plan](docs/ha-plan.md) | replica、PDB、RWX 与 DSH 限制 |
 
 `handoff-*.md` 是本地工作记录，已加入 `.gitignore`。
@@ -59,7 +59,7 @@ docker volume create dsh-web-logs
 docker volume create dsh-web-backups
 
 export IMAGE=ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2
-export ALLOWED_UIDS='your-stable-authentik-uid'
+export ALLOWED_SUBJECTS='your-stable-owner-id'
 
 docker run --detach --name dsh-web --restart unless-stopped \
   --network dsh-private --ip 172.30.80.3 \
@@ -74,8 +74,9 @@ docker run --detach --name dsh-web --restart unless-stopped \
   --env DSH_HOST=172.30.80.3 \
   --env DSH_PUBLIC_URL=https://dsh.example.net \
   --env DSH_TRUSTED_HOSTS=dsh.example.net \
-  --env DSH_SSO_ALLOWED_UIDS="$ALLOWED_UIDS" \
-  --env DSH_SSO_TRUSTED_PROXY_CIDRS=172.30.80.2/32 \
+  --env DSH_FORWARD_AUTH_HEADER=x-authentik-uid \
+  --env DSH_FORWARD_AUTH_ALLOWED_SUBJECTS="$ALLOWED_SUBJECTS" \
+  --env DSH_FORWARD_AUTH_TRUSTED_PROXY_CIDRS=172.30.80.2/32 \
   "$IMAGE"
 ```
 
@@ -96,13 +97,13 @@ docker run --detach --name dsh-web --restart unless-stopped \
 
 不要把 cache、logs、backup 或 scratch 放回 `/data`；entrypoint 会把旧的 `cache`/`logs` 目录移动一次，并在回滚副本中排除。详见 [data layout](docs/data-layout.md)。
 
-## SSO 边界
+## Forward-auth 边界
 
-OAuth/OIDC、登录、MFA、会话校验和访问策略由已验证入口负责，**不是**镜像内的 OIDC 客户端。入口必须认证每个 HTTP 请求与 WebSocket upgrade，删除客户端提交的 `x-authentik-*`，设置唯一稳定 Authentik UID，保留公开 Host/Origin，并成为唯一可访问 DSH 的网络 peer。
+OAuth/OIDC、登录、MFA、会话校验和访问策略由已验证入口负责，**不是**镜像内的 OIDC 客户端。入口必须认证每个 HTTP 请求与 WebSocket upgrade，删除客户端提交的身份头，设置唯一、可配置的稳定 subject header，保留公开 Host/Origin，并成为唯一可访问 DSH 的网络 peer。
 
-本地插件是 **trusted-header gate**：检查真实 peer CIDR 与 UID allowlist，保护静态资源、源码和原生 manager，并通过 DSH Connection API 换取原生 `HttpOnly; SameSite=Strict` cookie。SSO 缺失或失败时路由保持拒绝，不会退回无保护监听。所有允许 UID 共享一个 DSH owner 的文件、工具、模型与凭据，不是多用户隔离。
+`@soulwhisper/dsh-forward-auth` 检查真实 peer CIDR 与 subject allowlist，保护静态资源、源码和原生 manager，并通过 DSH Connection API 换取原生 `HttpOnly; SameSite=Strict` cookie。header 可配置（Authentik `x-authentik-uid`、Authelia `Remote-User` 等）；镜像不包含 OIDC client、本地密码、bootstrap admin 或用户面板。认证缺失或失败时路由保持拒绝，不会退回无保护监听。所有允许 subject 共享一个 DSH owner 的文件、工具、模型与凭据，不是多用户隔离。
 
-通用 OIDC RP（PKCE、state/nonce、JWKS/JWT 校验、logout 和负向测试）的可选路径见 [OIDC connector plan](docs/oidc-connector-plan.md)；本版本未实现。
+gate 还会拒绝任何查询字符串包含 `token` 的请求，包括 upstream DSH launch-token URL 和 WebSocket upgrade。启动日志仍可能包含该 token；必须把容器日志视为敏感数据。状态日志会报告 `waiting-for-edge`、`active`、限速的拒绝原因，或固定分类的 `broken`。详见 [forward-auth](docs/forward-auth.md)。
 
 ## 发布与自动化
 

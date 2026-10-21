@@ -13,7 +13,7 @@ import { patchRoutes, verifyTheme } from '../patches/tavern/patch-tavern.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const runtimeManifest = join(root, 'package.json');
-const base = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@soulwhisper/dsh-sso'];
+const base = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@soulwhisper/dsh-forward-auth'];
 const makeManifest = () => ({
   name: 'dsh-profile-web', private: true, packageManager: 'pnpm@11.25.0',
   dependencies: Object.fromEntries([...base, 'dshmarket'].map(name => [name, `link:/opt/dsh/runtime/node_modules/${name}`])),
@@ -22,7 +22,7 @@ const makeManifest = () => ({
 const makeWorkspace = () => ({
   packages: ['.'], nodeLinker: 'hoisted', autoInstallPeers: false,
   allowBuilds: { 'node-pty': false },
-  overrides: { '@soulwhisper/dsh-sso': 'link:/opt/dsh/runtime/node_modules/@soulwhisper/dsh-sso' },
+  overrides: { '@soulwhisper/dsh-forward-auth': 'link:/opt/dsh/runtime/node_modules/@soulwhisper/dsh-forward-auth' },
 });
 const makeLock = () => ({ lockfileVersion: '9.0', settings: { autoInstallPeers: false }, importers: { '.': { dependencies: Object.fromEntries(Object.entries(makeManifest().dependencies).map(([name, specifier]) => [name, { specifier, version: specifier }])) } }, packages: {}, snapshots: {} });
 async function fixture(t) {
@@ -73,11 +73,11 @@ test('seed lock relative link versions are anchored to the immutable runtime', a
 test('a dangling managed link is restored; a real directory is still refused', async t => {
   const options = await fixture(t);
   await materializeState(options);
-  const path = join(options.home, 'profiles/web/node_modules/@soulwhisper/dsh-sso');
+  const path = join(options.home, 'profiles/web/node_modules/@soulwhisper/dsh-forward-auth');
   await rm(path);
-  await symlink('../../../../runtime/node_modules/@soulwhisper/dsh-sso', path);
+  await symlink('../../../../runtime/node_modules/@soulwhisper/dsh-forward-auth', path);
   assert.equal((await materializeState(options)).action, 'unchanged');
-  assert.equal(await readlink(path), '/opt/dsh/runtime/node_modules/@soulwhisper/dsh-sso');
+  assert.equal(await readlink(path), '/opt/dsh/runtime/node_modules/@soulwhisper/dsh-forward-auth');
 });
 
 test('registry dependencies stay in the writable profile and resolve override links there', async t => {
@@ -134,7 +134,7 @@ test('explicit migration preserves user graph, credentials and workspace, remove
   assert.equal(manifest.pnpm.overrides['user-transitive'], '1.2.3');
   assert.deepEqual(manifest.dsh.profile.bundles, [...makeManifest().dsh.profile.bundles, 'user-plugin']);
   assert.equal(await readFile(join(profile, 'node_modules/user-plugin/index.js'), 'utf8'), 'user-owned-code');
-  assert.equal(await readlink(join(profile, 'node_modules/@soulwhisper/dsh-sso')), '/opt/dsh/runtime/node_modules/@soulwhisper/dsh-sso');
+  assert.equal(await readlink(join(profile, 'node_modules/@soulwhisper/dsh-forward-auth')), '/opt/dsh/runtime/node_modules/@soulwhisper/dsh-forward-auth');
   await assert.rejects(lstat(join(profile, 'node_modules/dsh-ui-auth')), { code: 'ENOENT' });
   assert.equal(await readFile(join(options.home, '.credentials.yaml'), 'utf8'), 'credentials-must-survive');
   assert.equal((await lstat(join(options.home, '.credentials.yaml'))).mode & 0o777, 0o600);
@@ -195,17 +195,17 @@ test('legacy-home import is explicit, non-destructive and preserves credentials'
   assert.equal(await readFile(join(options.home, '.credentials.yaml'), 'utf8'), 'legacy-credential');
 });
 
-test('a writable package directory cannot shadow protected immutable SSO after seeding', async t => {
+test('a writable package directory cannot shadow protected immutable forward-auth after seeding', async t => {
   const options = await fixture(t);
   await materializeState(options);
-  const packagePath = join(options.home, 'profiles/web/node_modules/@soulwhisper/dsh-sso');
+  const packagePath = join(options.home, 'profiles/web/node_modules/@soulwhisper/dsh-forward-auth');
   await rm(packagePath);
   await mkdir(packagePath);
   await writeFile(join(packagePath, 'index.mjs'), 'untrusted-shadow');
   await assert.rejects(materializeState(options), /Managed package was shadowed/);
   assert.equal(await readFile(join(packagePath, 'index.mjs'), 'utf8'), 'untrusted-shadow');
   assert.equal((await materializeState({ ...options, action: 'apply' })).action, 'migrated');
-  assert.equal(await readlink(packagePath), '/opt/dsh/runtime/node_modules/@soulwhisper/dsh-sso');
+  assert.equal(await readlink(packagePath), '/opt/dsh/runtime/node_modules/@soulwhisper/dsh-forward-auth');
 });
 
 test('rollback and future schemas never silently overwrite newer state', async t => {

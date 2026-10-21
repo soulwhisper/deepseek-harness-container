@@ -1,6 +1,6 @@
 import { connect } from 'node:net';
 
-const socket = connect('/tmp/dsh-sso-ready.sock');
+const socket = connect('/tmp/dsh-forward-auth-ready.sock');
 let received = '';
 const fail = () => { socket.destroy(); process.exitCode = 1; };
 socket.setTimeout(2000, fail);

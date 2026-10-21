@@ -2,13 +2,15 @@
 // Deliberately forwards opaque HTTP/WebSocket bytes; it never understands mux frames.
 import http from 'node:http';
 import net from 'node:net';
-const { host, port, uid } = JSON.parse(process.argv[1]);
+const { host, port, uid, header = 'x-authentik-uid' } = JSON.parse(process.argv[1]);
+const configured = header.toLowerCase();
 const headersFor = request => {
   const headers = { ...request.headers };
   for (const name of Object.keys(headers)) {
-    if (name.toLowerCase().startsWith('x-authentik-')) delete headers[name];
+    const lower = name.toLowerCase();
+    if (lower.startsWith('x-authentik-') || lower === configured) delete headers[name];
   }
-  headers['x-authentik-uid'] = uid;
+  headers[header] = uid;
   return headers;
 };
 const server = http.createServer((request, response) => {

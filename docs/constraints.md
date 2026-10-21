@@ -18,15 +18,19 @@ that relaxes one needs an explicit design review, tests and updated pins.
 
 - The native DSH listener is never exposed directly. A verified edge terminates
   public TLS and authenticates every HTTP request and WebSocket upgrade.
-- The current `@soulwhisper/dsh-sso` is a **trusted-header gate**, not an OIDC
-  client. It checks the real TCP peer CIDR and exactly one authenticated UID
-  header, then exchanges DSH's native cookie through its own Connection APIs.
+- The current `@soulwhisper/dsh-forward-auth` is a **trusted-edge header gate**,
+  not an OIDC client. It checks the real TCP peer CIDR and exactly one
+  configured subject header, then exchanges DSH's native cookie through its own
+  Connection APIs.
 - The edge must remove client-supplied identity headers, set exactly one stable
-  Authentik UID, preserve public Host/Origin and be the only allowed peer.
-- All admitted UIDs are one shared DSH owner. They share sessions, files,
+  subject header, preserve public Host/Origin and be the only allowed peer.
+- All admitted subjects are one shared DSH owner. They share sessions, files,
   credentials, tools and model access. This is not multi-user isolation.
-- Missing, unloaded or failed SSO denies application routes; it must never fall
-  back to an unguarded listener. The Host patch's exact-hash gate is mandatory.
+- Missing, unloaded or failed forward-auth denies application routes; it must
+  never fall back to an unguarded listener. There is no local password or
+  bootstrap admin. The Host patch's exact-hash gate is mandatory.
+- The upstream DSH launch-token URL is blocked by the gate; it is not an
+  authentication path.
 - A working login does not prove the agent sandbox, model providers, plugins or
   backups are safe. Test those independently.
 

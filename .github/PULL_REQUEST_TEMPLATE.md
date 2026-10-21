@@ -10,7 +10,7 @@ source commit, patch hashes, locks, release tags and docs together.
 
 ## Changes
 
-<!-- Bullet list. Call out patches, SSO behavior, image layout or release tags. -->
+<!-- Bullet list. Call out patches, forward-auth behavior, image layout or release tags. -->
 
 -
 
@@ -39,7 +39,7 @@ availability. -->
 
 - [ ] Human review requested; no `automerge` or direct push to `main`
 - [ ] No secrets, UIDs, credentials or private keys in code, logs or images
-- [ ] SSO remains mandatory and fails closed; OIDC/forwarded-IP trust changes follow `docs/oidc-connector-plan.md` and are reviewed as security changes
+- [ ] Forward-auth remains mandatory and fails closed; no OIDC/bootstrap/password fallback; header/CIDR changes follow `docs/forward-auth.md` and include an upstream launch-token URL test
 - [ ] Upstream exact-hash patches and theme hashes were re-based deliberately, not loosened
 - [ ] README/docs/NOTICE/AGPL corresponding-source statements remain accurate
 - [ ] No unrelated dependency or version churn

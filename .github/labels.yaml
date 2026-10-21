@@ -8,7 +8,7 @@
   description: Exact-hash upstream patches
 - name: area/plugin
   color: "0e8a16"
-  description: Local SSO plugin
+  description: Local forward-auth plugin
 - name: area/docker
   color: "0e8a16"
   description: Image build and profile locks

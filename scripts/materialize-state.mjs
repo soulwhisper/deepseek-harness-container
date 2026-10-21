@@ -13,7 +13,7 @@ async function normalizeLockFile(path) {
   if (normalized !== text) await writeFile(path, normalized);
 }
 const obsolete = name => name === 'dsh-ui-auth' || name.startsWith('dsh-ui-auth/');
-const managed = (name, seed, workspace = {}) => name === '@soulwhisper/dsh-sso'
+const managed = (name, seed, workspace = {}) => name === '@soulwhisper/dsh-forward-auth'
   || Object.hasOwn(workspace.overrides ?? seed.pnpm?.overrides ?? {}, name)
   || Object.hasOwn(seed.dependencies ?? {}, name);
 

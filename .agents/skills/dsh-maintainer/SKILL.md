@@ -23,8 +23,13 @@ directory is seeded into the Web image as user-facing skills.
   image inputs, followed by `CI checks passed`.
 - Deploy and compare published image digests, not mutable tags.
 
-## CI gating
+## CI gating and non-blocking workflow
 
+- Do not block the next implementation step on CI completion.
+- Check the latest run for the current HEAD once as the gate. If it failed,
+  fix that failure. If it is still running, leave it running and continue with
+  the remaining work.
+- Never run local verify/tests as a substitute for the latest CI gate.
 - CI keeps the workflow and required static check running for every same-repo
   PR, but skips the four image jobs when only docs, tests, scaffold, deploy
   examples or non-critical dotfiles changed.

@@ -24,7 +24,7 @@ captured at one consistent point. Encrypt the archive and restrict access.
 | `/logs` | Diagnostics | DSH startup reports via `$DSH_HOME/logs` symlink | No | Yes if retention is handled elsewhere; content is sensitive |
 | `/backups` | Local rollback copy | Migration snapshots made before adopting a new distribution | **No:** not an independent backup | Yes, if migrations are supervised; external snapshots are mandatory |
 | `/tmp` | Scratch | Readiness socket, shell activity, ephemeral files | No | Yes, tmpfs |
-| `/opt/dsh`, `/opt/dsh-seed`, `/opt/dsh-tavern`, `/opt/dsh-source` | Immutable image | Runtime, seed, source, archive | No | Read-only; replaced by image |
+| `/opt/dsh`, `/opt/dsh-seed`, `/opt/dsh/skills`, `/opt/dsh-tavern`, `/opt/dsh-source` | Immutable image | Runtime, seed, bundled skill bundles, source, archive | No | Read-only; replaced by image |
 
 ## DSH subtrees
 

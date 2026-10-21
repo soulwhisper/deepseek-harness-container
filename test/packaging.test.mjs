@@ -54,6 +54,54 @@ test('new state is seeded once, then user mutations remain untouched', async t =
   assert.equal(await readFile(patch, 'utf8'), before);
 });
 
+test('injected config mounts do not block the initial seed', async t => {
+  const options = await fixture(t);
+  const skill = join(options.home, 'skills', 'demo', 'SKILL.md');
+  const patch = join(options.home, 'cordis.patch.yml');
+  await mkdir(join(options.home, 'skills', 'demo'), { recursive: true });
+  await writeFile(skill, '---\nname: demo\ndescription: fixture\n---\n');
+  await writeFile(patch, '- id: injected\n  config: {keep: true}\n');
+  assert.equal((await materializeState(options)).action, 'seeded');
+  assert.equal(await readFile(skill, 'utf8'), '---\nname: demo\ndescription: fixture\n---\n');
+  assert.equal(await readFile(patch, 'utf8'), '- id: injected\n  config: {keep: true}\n');
+  assert.equal(await readFile(join(options.home, 'BUNDLED_VERSIONS'), 'utf8'),
+    await readFile(join(options.seed, 'BUNDLED_VERSIONS'), 'utf8'));
+  assert.equal((await lstat(join(options.home, '.distribution-state.json'))).isFile(), true);
+});
+
+test('durable state without a marker still refuses even with injected mounts', async t => {
+  const options = await fixture(t);
+  await mkdir(join(options.home, 'profiles/web'), { recursive: true });
+  await writeFile(join(options.home, 'profiles/web/package.json'), '{"private":true}\n');
+  await mkdir(join(options.home, 'skills', 'demo'), { recursive: true });
+  await writeFile(join(options.home, 'skills', 'demo', 'SKILL.md'), 'fixture\n');
+  await assert.rejects(materializeState(options), /explicit migration/);
+  assert.equal(await readFile(join(options.home, 'profiles/web/package.json'), 'utf8'), '{"private":true}\n');
+});
+
+test('a version file alone is not proof of seeded state', async t => {
+  const options = await fixture(t);
+  await mkdir(options.home, { recursive: true });
+  await writeFile(join(options.home, 'BUNDLED_VERSIONS'), await readFile(join(options.seed, 'BUNDLED_VERSIONS'), 'utf8'));
+  await assert.rejects(materializeState(options), /explicit migration/);
+});
+
+test('a matching marker restores a missing image-owned version file', async t => {
+  const options = await fixture(t);
+  await materializeState(options);
+  await rm(join(options.home, 'BUNDLED_VERSIONS'));
+  assert.equal((await materializeState(options)).action, 'unchanged');
+  assert.equal(await readFile(join(options.home, 'BUNDLED_VERSIONS'), 'utf8'),
+    await readFile(join(options.seed, 'BUNDLED_VERSIONS'), 'utf8'));
+});
+
+test('a missing seed version file fails closed', async t => {
+  const options = await fixture(t);
+  await rm(join(options.seed, 'BUNDLED_VERSIONS'));
+  await assert.rejects(materializeState(options));
+  await assert.rejects(lstat(join(options.home, '.distribution-state.json')), { code: 'ENOENT' });
+});
+
 test('seed lock relative link versions are anchored to the immutable runtime', async t => {
   const options = await fixture(t);
   const seedLockPath = join(options.seed, 'profiles/web/pnpm-lock.yaml');

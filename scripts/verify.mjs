@@ -62,6 +62,7 @@ assert.ok(!forwardAuthManifest.files.includes('upstream-MIT-LICENSE'), 'forward-
 assert.equal(await present('plugins/forward-auth/upstream-MIT-LICENSE'), false, 'Upstream DSH MIT notice belongs under patches/dsh');
 assert.ok(await present('patches/dsh/upstream-MIT-LICENSE'), 'Patched upstream DSH notice must remain in the distribution');
 for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/profiles/web/pnpm-lock.yaml',
+  'docker/skills/README',
   'patches/dsh/patch-host.mjs', 'patches/market/patch-market.mjs', 'patches/tavern/patch-tavern.mjs',
   'plugins/forward-auth/index.mjs', 'scripts/normalize-locks.mjs', 'scripts/field-test.mjs', 'test/packaging.test.mjs',
   'deploy/docker/compose.yaml', 'deploy/kubernetes/dsh-web.yaml',
@@ -86,6 +87,8 @@ assert.match(dockerfile, /FROM scratch AS distribution-source/u, 'Explicit sourc
 assert.match(dockerfile, /COPY --from=distribution-source/u, 'Final image uses the source payload stage');
 assert.match(dockerfile, /XDG_CACHE_HOME=\/cache/u, 'Cache is outside /data');
 assert.match(dockerfile, /DSH_BACKUP_ROOT=\/backups/u, 'Rollback root is outside /data');
+assert.match(dockerfile, /DSH_BUNDLED_SKILL_DIR=\/opt\/dsh\/skills/u, 'Bundled skills are immutable image content');
+assert.match(dockerfile, /COPY docker\/skills\/ \/opt\/dsh\/skills\//u, 'Bundled skills are copied into the image');
 assert.doesNotMatch(dockerfile, /scripts\/smoke\.mjs|test\/|deploy\/|\.github\//u,
   'Test, smoke, deploy and CI inputs must not be copied into images');
 const ignore = await text('.gitignore');

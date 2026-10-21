@@ -8,16 +8,18 @@ umask 077
 # Host denies every route.
 : "${DSH_HOME:=/data/dsh}"
 : "${HOME:=/data/home}"
+: "${DSH_AGENTS_HOME:=$HOME/.agents}"
+: "${DSH_BUNDLED_SKILL_DIR:=/opt/dsh/skills}"
 : "${DSH_BACKUP_ROOT:=/backups}"
 : "${XDG_CACHE_HOME:=/cache}"
 : "${DSH_PROFILE:=web}"
-export DSH_HOME HOME DSH_BACKUP_ROOT XDG_CACHE_HOME
+export DSH_HOME HOME DSH_AGENTS_HOME DSH_BUNDLED_SKILL_DIR DSH_BACKUP_ROOT XDG_CACHE_HOME
 node --input-type=module -e 'import { isIP } from "node:net"; const host = process.env.DSH_HOST; if (!isIP(host) || host === "0.0.0.0" || host === "::") throw new Error("DSH_HOST must be a concrete local IP, never a wildcard");'
 if [ -n "${DSH_TLS_CERT:-}" ] || [ -n "${DSH_TLS_KEY:-}" ]; then
   : "${DSH_TLS_CERT:?DSH_TLS_CERT and DSH_TLS_KEY must be supplied together}"
   : "${DSH_TLS_KEY:?DSH_TLS_CERT and DSH_TLS_KEY must be supplied together}"
 fi
-mkdir -p "$HOME" "$XDG_CACHE_HOME" "$DSH_HOME" /logs "$DSH_BACKUP_ROOT" /workspace
+mkdir -p "$HOME" "$DSH_AGENTS_HOME" "$XDG_CACHE_HOME" "$DSH_HOME" /logs "$DSH_BACKUP_ROOT" /workspace
 node /opt/dsh/scripts/materialize-state.mjs
 
 # The previous image used /data/cache as XDG_CACHE_HOME. Move that legacy root

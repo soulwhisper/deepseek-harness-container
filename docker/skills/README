@@ -1,0 +1,16 @@
+Bundled skills
+================
+
+Add image-owned skills here as either:
+
+  <name>/SKILL.md
+
+or a flat:
+
+  <name>.md
+
+Each file needs YAML frontmatter with `name` and `description`. The image
+copies this directory to `/opt/dsh/skills`; the runtime scans it through
+`DSH_BUNDLED_SKILL_DIR`, read-only, outside `/data`. Do not put README.md here:
+the provider would treat it as a flat skill candidate and reject it for
+missing frontmatter. This `README` file has no `.md` extension for that reason.

@@ -13,6 +13,10 @@ async function normalizeLockFile(path) {
   if (normalized !== text) await writeFile(path, normalized);
 }
 const obsolete = name => name === 'dsh-ui-auth' || name.startsWith('dsh-ui-auth/');
+// Deployment-injected configuration may exist before the first boot. It is
+// not durable DSH state and must not make an empty home look migrated.
+const INJECTED_HOME_ENTRIES = new Set(['cordis.patch.yml', 'skills']);
+const stateEntries = entries => entries.filter(name => !INJECTED_HOME_ENTRIES.has(name));
 const managed = (name, seed, workspace = {}) => name === '@soulwhisper/dsh-forward-auth'
   || Object.hasOwn(workspace.overrides ?? seed.pnpm?.overrides ?? {}, name)
   || Object.hasOwn(seed.dependencies ?? {}, name);
@@ -127,12 +131,12 @@ export async function materializeState(options = {}) {
   const markerPath = join(home, '.distribution-state.json');
   await mkdir(home, { recursive: true, mode: 0o700 });
   let entries = await readdir(home);
-  if (entries.length === 0 && legacy !== home && await exists(legacy) && (await readdir(legacy)).length) {
+  if (stateEntries(entries).length === 0 && legacy !== home && await exists(legacy) && (await readdir(legacy)).length) {
     if (action !== 'apply') throw new Error('Legacy /home/node/.dsh detected; snapshot it and set DSH_STATE_MIGRATION=apply to copy it without deleting the original');
     await cp(legacy, home, { recursive: true, verbatimSymlinks: true, preserveTimestamps: true });
     entries = await readdir(home);
   }
-  if (entries.length === 0) {
+  if (stateEntries(entries).length === 0) {
     await cp(seed, home, { recursive: true, verbatimSymlinks: true });
     await normalizeLockFile(join(home, 'profiles', profile, 'pnpm-lock.yaml'));
     const source = join(seed, 'profiles', profile);
@@ -151,6 +155,9 @@ export async function materializeState(options = {}) {
       const seedManifest = await json(join(source, 'package.json'));
       const seedWorkspace = YAML.parse(await readFile(join(source, 'pnpm-workspace.yaml'), 'utf8'));
       await managedLinks(join(home, 'profiles', profile), source, seedManifest, false, seedWorkspace);
+      // The image-owned version file is not user state. Restore it without
+      // re-seeding the profiles, credentials, sessions or workspace.
+      if (!await exists(join(home, 'BUNDLED_VERSIONS'))) await cp(join(seed, 'BUNDLED_VERSIONS'), join(home, 'BUNDLED_VERSIONS'));
       return { action: 'unchanged' };
     } catch (error) {
       if (action !== 'apply') throw error;

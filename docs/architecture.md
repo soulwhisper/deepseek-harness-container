@@ -72,7 +72,7 @@ documentation trees are not copied into either image.
 
 | Area | Examples | Nature |
 | --- | --- | --- |
-| Immutable image | `/opt/dsh/runtime`, `/opt/dsh-seed`, `/opt/dsh/profiles`, `/opt/dsh-tavern`, `/opt/dsh-source` | Read-only, replaced by image |
+| Immutable image | `/opt/dsh/runtime`, `/opt/dsh-seed`, `/opt/dsh/skills`, `/opt/dsh/profiles`, `/opt/dsh-tavern`, `/opt/dsh-source` | Read-only, replaced by image |
 | Durable DSH state | `/data/dsh` profiles, sessions, storages, attachments, credentials | Back up encrypted |
 | Durable home | `/data/home` HOME, XDG config/data, pnpm home | Back up |
 | Durable projects | `/workspace` | Back up consistently with DSH state |

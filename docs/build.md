@@ -71,6 +71,30 @@ scripts are excluded. The Tavern source archive is built from that same
 whitelisted tree plus the complete Tavern checkout, so test and deployment
 harnesses do not ship with the release image.
 
+## Bundled skills and plugins
+
+Image-owned skills live under `docker/skills/` and are copied read-only to
+`/opt/dsh/skills`. The final image exports:
+
+```text
+DSH_BUNDLED_SKILL_DIR=/opt/dsh/skills
+DSH_AGENTS_HOME=/data/home/.agents
+```
+
+The filesystem skill provider scans the bundled root at the lowest priority;
+user and injected skills remain under `/data`. Add a skill as
+`<name>/SKILL.md` (or a flat `<name>.md`) with valid frontmatter, rebuild the
+image, and restart. Do not use `README.md` in that directory because the
+provider treats top-level `.md` files as skill candidates.
+
+Bundled plugins are not copied by the entrypoint. Add them to the profile
+recipe in `scripts/materialize-profiles.mjs` and the relevant `versions.json`
+pin, regenerate both committed profile locks through the documented bootstrap
+workflow, and bump the distribution identity. Existing state then adopts the
+new distribution through the explicit `DSH_STATE_MIGRATION=apply` migration,
+which merges managed bundles and dependencies while preserving user plugins.
+Automatic plugin migration is intentionally unsupported.
+
 ## Pins and locks
 
 The runtime is installed under `/opt/dsh/docker/runtime`, with
@@ -97,6 +121,8 @@ The final image sets:
 ```text
 DSH_HOME=/data/dsh
 HOME=/data/home
+DSH_AGENTS_HOME=/data/home/.agents
+DSH_BUNDLED_SKILL_DIR=/opt/dsh/skills
 DSH_BACKUP_ROOT=/backups
 XDG_CACHE_HOME=/cache
 XDG_CONFIG_HOME=/data/home/.config

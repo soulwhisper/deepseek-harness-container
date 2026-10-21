@@ -58,8 +58,8 @@ same-origin browser requests. The patch allows only:
 
 It does not trust forwarded headers alone. The theme change raises only the
 content font maximum from 22 to 32; code and terminal limits stay unchanged. The
-font change is cosmetic and is skipped when the pinned theme contract does not
-match.
+font change is cosmetic, but a theme package or file hash mismatch fails the
+build before the change is applied.
 
 ### Sidebar history fix
 

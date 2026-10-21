@@ -56,6 +56,11 @@ for (const profile of ['web', 'tavern']) {
 // Keep local patches, the forward-auth plugin, image build, scaffold and
 // examples in separate trees so an upstream break stays local to its surface.
 async function present(path) { try { await access(join(root, path)); return true; } catch { return false; } }
+const forwardAuthManifest = JSON.parse(await text('plugins/forward-auth/package.json'));
+assert.equal(forwardAuthManifest.license, 'Apache-2.0', 'forward-auth is an original Apache-2.0 package');
+assert.ok(!forwardAuthManifest.files.includes('upstream-MIT-LICENSE'), 'forward-auth must not package upstream DSH licensing as its own');
+assert.equal(await present('plugins/forward-auth/upstream-MIT-LICENSE'), false, 'Upstream DSH MIT notice belongs under patches/dsh');
+assert.ok(await present('patches/dsh/upstream-MIT-LICENSE'), 'Patched upstream DSH notice must remain in the distribution');
 for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/profiles/web/pnpm-lock.yaml',
   'patches/dsh/patch-host.mjs', 'patches/market/patch-market.mjs', 'patches/tavern/patch-tavern.mjs',
   'plugins/forward-auth/index.mjs', 'scripts/normalize-locks.mjs', 'scripts/field-test.mjs', 'test/packaging.test.mjs',

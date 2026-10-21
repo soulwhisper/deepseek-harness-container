@@ -15,7 +15,7 @@ MIT License
 Copyright (c) 2026 DeepSeek
 The distribution applies an exact-hash host-webserver pre-dispatch gate and
 plugin-manager policy patch; these changes are not upstream endorsements.
-plugins/forward-auth/upstream-MIT-LICENSE preserves the upstream license text.
+patches/dsh/upstream-MIT-LICENSE preserves the upstream license text.
 
 DSH Market 1.66.44
 Source: https://github.com/dsh-market/dsh-market/tree/29dcbd78290be89d83771e3734b128be110645c5

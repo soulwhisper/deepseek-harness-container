@@ -13,12 +13,15 @@ implementation are licensed under Apache-2.0. The unchanged root
 `"license": "Apache-2.0"` metadata all express that.
 
 The authentication plugin's own `.mjs` files carry
-`SPDX-License-Identifier: Apache-2.0`. The separate
-`plugins/forward-auth/upstream-MIT-LICENSE` file is **not** a second license for
-those files. It preserves the MIT notice for the pinned DeepSeek Harness source
-that the distribution patches and redistributes. Apache-2.0 is compatible with
-that MIT-licensed upstream, but it does not relicense it. Keep the MIT notice and
-the upstream copyright.
+`SPDX-License-Identifier: Apache-2.0`. No upstream DSH source is vendored in the
+plugin package. The separate `patches/dsh/upstream-MIT-LICENSE` file is **not**
+a license for the plugin; it preserves the MIT notice for the pinned DeepSeek
+Harness source that the distribution patches and redistributes. Apache-2.0 is
+compatible with that MIT-licensed upstream, but it does not relicense it. Keep
+the MIT notice and the upstream copyright.
+
+Tavern is a separate component and is **AGPL-3.0-only**, not MIT; its complete
+source and license remain in the Tavern image and source archive.
 
 This distinction also appears in the root
 [NOTICE](https://github.com/soulwhisper/deepseek-harness-container/blob/main/NOTICE): distribution code

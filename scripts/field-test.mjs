@@ -30,7 +30,7 @@ assert.match(host, /runRequiredAccessGate/u, 'Patched Host route guard');
 assert.match(manager, /@soulwhisper\/dsh-forward-auth/u, 'Patched manager protects forward-auth');
 assert.match(manager, /@deepseek-ai\/dsh-app-boot/u, 'Patched manager protects app-boot');
 assert.match(boot, /distribution-forward-auth/u, 'Patched startup requires forward-auth');
-assert.match(boot, /dsh-market/u, 'Patched startup requires Web market');
+assert.doesNotMatch(boot, /"dsh-market"/u, 'Web market remains optional, not required');
 assert.match(boot, /distributionStartupReady/u, 'Patched startup readiness audit');
 assert.match(market, /createOfficialDesktopRuntime/u, 'Patched market uses native manager');
 
@@ -49,4 +49,4 @@ await new Promise((resolve, reject) => {
     else reject(new Error('Field-test PTY failed'));
   });
 });
-console.log(`PASS field-test: ${process.arch}, patched host/manager/boot/market, native PTY`);
+console.log(`PASS field-test: ${process.arch}, patched host/manager/boot/market-optional, native PTY`);

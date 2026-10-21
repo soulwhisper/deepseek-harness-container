@@ -34,6 +34,21 @@ function hasUpstreamToken(request) {
     return true;
   }
 }
+function isTopLevelNavigation(request) {
+  const method = typeof request?.method === 'string' ? request.method.toUpperCase() : '';
+  const headers = request?.headers ?? {};
+  return (method === 'GET' || method === 'HEAD')
+    && (headers['sec-fetch-mode'] === 'navigate' || headers['sec-fetch-dest'] === 'document');
+}
+// A link from another origin is a top-level GET/HEAD navigation, not an API
+// call. The edge has already authenticated it; keep the Host/Origin and
+// identity checks, and keep cross-site API/upgrade rejection intact.
+function withoutCrossSiteNavigation(request) {
+  if (!isTopLevelNavigation(request)) return request;
+  const headers = { ...request.headers };
+  delete headers['sec-fetch-site'];
+  return { ...request, headers };
+}
 export function configuration(env = process.env) {
   const header = headerName(env.DSH_FORWARD_AUTH_HEADER);
   const allowedSubjects = new Set(list(env.DSH_FORWARD_AUTH_ALLOWED_SUBJECTS, 'DSH_FORWARD_AUTH_ALLOWED_SUBJECTS'));
@@ -144,9 +159,10 @@ export function createAdmission(connection, config, { setTimer = setTimeout, cle
     if (disposed) return deny('disposed', target, kind);
     const failure = identityFailure(request, config);
     if (failure) return deny(failure, target, kind);
+    const trustRequest = withoutCrossSiteNavigation(request);
     let rejection;
     try {
-      rejection = connection.requestRejection(request);
+      rejection = connection.requestRejection(trustRequest);
     } catch (error) {
       notify({ type: 'broken', reason: 'native-rejection' });
       throw error;
@@ -159,7 +175,7 @@ export function createAdmission(connection, config, { setTimer = setTimeout, cle
     let cookie;
     try {
       // Only synthesize an internal root GET after the native Host/Origin fence accepted.
-      cookie = rejection === 401 ? nativeCookie(connection, request) : undefined;
+      cookie = rejection === 401 ? nativeCookie(connection, trustRequest) : undefined;
       if (kind === 'http' && cookie) appendCookie(target, cookie);
       if (kind === 'upgrade' && !sockets.has(target)) {
         // The handshake owner retains all framing/Set-Cookie behavior. The internally

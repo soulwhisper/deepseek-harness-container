@@ -28,10 +28,10 @@ The Host patch adds that guarantee:
 - The gate runs before HTTP dispatch and before `upgrade`.
 - A missing gate or gate exception leaves the listener denied with 503.
 - Shutdown destroys tracked sockets.
-- App boot marks `distribution-forward-auth` and `dsh-market` as required when
-  present and enabled. Upstream ignores absent/disabled IDs; Tavern has no market
-  bundle, so this does not force market into Tavern. If forward-auth never
-  registers, the Host gate still denies all traffic.
+- App boot marks only `distribution-forward-auth` as required. Bundled
+  plugins, including `dsh-market`, remain recommendations and may be disabled
+  or removed. If forward-auth never registers, the Host gate still denies all
+  traffic.
 - The manager protects forward-auth and app-boot from disable/removal and direct
   known-spec installation.
 

@@ -1,7 +1,7 @@
-Bundled skills
-================
+Bundled skill recommendations
+============================
 
-Add image-owned skills here as either:
+Add recommended skills here as either:
 
   <name>/SKILL.md
 
@@ -10,7 +10,11 @@ or a flat:
   <name>.md
 
 Each file needs YAML frontmatter with `name` and `description`. The image
-copies this directory to `/opt/dsh/skills`; the runtime scans it through
-`DSH_BUNDLED_SKILL_DIR`, read-only, outside `/data`. Do not put README.md here:
-the provider would treat it as a flat skill candidate and reject it for
-missing frontmatter. This `README` file has no `.md` extension for that reason.
+copies this directory to `/opt/dsh-seed/skills`. On first seed or explicit
+state migration, missing bundles are copied into `$DSH_HOME/skills`; users may
+edit or delete them. They are not scanned from `/opt`, are not part of the
+mandatory auth boundary, and are not restored on every restart.
+
+Do not put README.md here: the provider treats top-level `.md` files as flat
+skill candidates and rejects them for missing frontmatter. This README has no
+`.md` extension for that reason.

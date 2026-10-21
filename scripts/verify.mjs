@@ -87,8 +87,9 @@ assert.match(dockerfile, /FROM scratch AS distribution-source/u, 'Explicit sourc
 assert.match(dockerfile, /COPY --from=distribution-source/u, 'Final image uses the source payload stage');
 assert.match(dockerfile, /XDG_CACHE_HOME=\/cache/u, 'Cache is outside /data');
 assert.match(dockerfile, /DSH_BACKUP_ROOT=\/backups/u, 'Rollback root is outside /data');
-assert.match(dockerfile, /DSH_BUNDLED_SKILL_DIR=\/opt\/dsh\/skills/u, 'Bundled skills are immutable image content');
-assert.match(dockerfile, /COPY docker\/skills\/ \/opt\/dsh\/skills\//u, 'Bundled skills are copied into the image');
+assert.match(dockerfile, /COPY docker\/skills\/ \/opt\/dsh-seed\/skills\//u, 'Bundled skill recommendations are seeded from the image');
+assert.doesNotMatch(dockerfile, /DSH_BUNDLED_SKILL_DIR/u, 'Bundled skills are not an immutable runtime scan root');
+assert.doesNotMatch(dockerfile, /COPY docker\/skills\/ \/opt\/dsh\/skills\//u, 'Skills must not be mounted as immutable runtime content');
 assert.doesNotMatch(dockerfile, /scripts\/smoke\.mjs|test\/|deploy\/|\.github\//u,
   'Test, smoke, deploy and CI inputs must not be copied into images');
 const ignore = await text('.gitignore');

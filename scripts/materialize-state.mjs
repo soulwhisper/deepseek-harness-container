@@ -17,6 +17,19 @@ const obsolete = name => name === 'dsh-ui-auth' || name.startsWith('dsh-ui-auth/
 // not durable DSH state and must not make an empty home look migrated.
 const INJECTED_HOME_ENTRIES = new Set(['cordis.patch.yml', 'skills']);
 const stateEntries = entries => entries.filter(name => !INJECTED_HOME_ENTRIES.has(name));
+// Bundled skills are recommendations, not enforced runtime content. Copy only
+// missing top-level bundles so an injected or user-edited skill wins.
+async function seedSkills(seed, home) {
+  const source = join(seed, 'skills');
+  if (!await exists(source)) return;
+  const target = join(home, 'skills');
+  await mkdir(target, { recursive: true });
+  for (const entry of await readdir(source, { withFileTypes: true })) {
+    const destination = join(target, entry.name);
+    if (await exists(destination)) continue;
+    await cp(join(source, entry.name), destination, { recursive: entry.isDirectory(), verbatimSymlinks: true });
+  }
+}
 const managed = (name, seed, workspace = {}) => name === '@soulwhisper/dsh-forward-auth'
   || Object.hasOwn(workspace.overrides ?? seed.pnpm?.overrides ?? {}, name)
   || Object.hasOwn(seed.dependencies ?? {}, name);
@@ -137,7 +150,13 @@ export async function materializeState(options = {}) {
     entries = await readdir(home);
   }
   if (stateEntries(entries).length === 0) {
-    await cp(seed, home, { recursive: true, verbatimSymlinks: true });
+    const seedSkillsRoot = join(seed, 'skills');
+    await cp(seed, home, {
+      recursive: true,
+      verbatimSymlinks: true,
+      filter: path => path !== seedSkillsRoot && !path.startsWith(`${seedSkillsRoot}${sep}`),
+    });
+    await seedSkills(seed, home);
     await normalizeLockFile(join(home, 'profiles', profile, 'pnpm-lock.yaml'));
     const source = join(seed, 'profiles', profile);
     const seedManifest = await json(join(source, 'package.json'));
@@ -223,6 +242,7 @@ export async function materializeState(options = {}) {
       await writeFile(overlay, YAML.stringify(migrateOverlay(YAML.parse(await readFile(overlay, 'utf8')), home)));
     }
     if (!await exists(join(target, 'cordis.patch.yml'))) await cp(join(source, 'cordis.patch.yml'), join(target, 'cordis.patch.yml'));
+    await seedSkills(seed, home);
     if (await exists(join(home, '.credentials.yaml'))) await chmod(join(home, '.credentials.yaml'), 0o600);
     await writeFile(join(home, 'BUNDLED_VERSIONS'), bundled);
     const temporary = `${markerPath}.tmp`;

@@ -69,6 +69,22 @@ test('injected config mounts do not block the initial seed', async t => {
   assert.equal((await lstat(join(options.home, '.distribution-state.json'))).isFile(), true);
 });
 
+test('bundled skills seed as recommendations and deleted skills stay deleted', async t => {
+  const options = await fixture(t);
+  const bundled = join(options.seed, 'skills', 'bundled');
+  await mkdir(bundled, { recursive: true });
+  await writeFile(join(bundled, 'SKILL.md'), '---\nname: bundled\ndescription: fixture\n---\n');
+  assert.equal((await materializeState(options)).action, 'seeded');
+  const installed = join(options.home, 'skills', 'bundled', 'SKILL.md');
+  assert.equal(await readFile(installed, 'utf8'), '---\nname: bundled\ndescription: fixture\n---\n');
+  await rm(join(options.home, 'skills', 'bundled'), { recursive: true });
+  assert.equal((await materializeState(options)).action, 'unchanged');
+  await assert.rejects(lstat(join(options.home, 'skills', 'bundled')), { code: 'ENOENT' });
+  await writeFile(join(options.home, '.distribution-state.json'), JSON.stringify({ schema: 1, distribution: 'old', profile: 'web' }));
+  assert.equal((await materializeState({ ...options, action: 'apply' })).action, 'migrated');
+  assert.equal(await readFile(installed, 'utf8'), '---\nname: bundled\ndescription: fixture\n---\n');
+});
+
 test('durable state without a marker still refuses even with injected mounts', async t => {
   const options = await fixture(t);
   await mkdir(join(options.home, 'profiles/web'), { recursive: true });

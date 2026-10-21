@@ -24,7 +24,7 @@ captured at one consistent point. Encrypt the archive and restrict access.
 | `/logs` | Diagnostics | DSH startup reports via `$DSH_HOME/logs` symlink | No | Yes if retention is handled elsewhere; content is sensitive |
 | `/backups` | Local rollback copy | Migration snapshots made before adopting a new distribution | **No:** not an independent backup | Yes, if migrations are supervised; external snapshots are mandatory |
 | `/tmp` | Scratch | Readiness socket, shell activity, ephemeral files | No | Yes, tmpfs |
-| `/opt/dsh`, `/opt/dsh-seed`, `/opt/dsh/skills`, `/opt/dsh-tavern`, `/opt/dsh-source` | Immutable image | Runtime, seed, bundled skill bundles, source, archive | No | Read-only; replaced by image |
+| `/opt/dsh`, `/opt/dsh-seed`, `/opt/dsh-tavern`, `/opt/dsh-source` | Immutable image | Runtime, seed, source, archive | No | Read-only; replaced by image |
 
 ## DSH subtrees
 
@@ -34,6 +34,8 @@ captured at one consistent point. Encrypt the archive and restrict access.
   metadata. Back it up.
 - `$DSH_HOME/attachments/v1` — persistent content-addressed attachments. Back
   it up; attachments may contain personal data.
+- `$DSH_HOME/skills` — user-owned skill recommendations and edits. Bundled
+  recommendations are seeded once; deleted skills are not restored on restart.
 - `$DSH_HOME/cache` — DSH's hard-coded cache path. The entrypoint makes it a
   symlink to `/cache/dsh`, so it is not part of a state backup.
 - `$DSH_HOME/logs` — DSH's hard-coded startup report path. The entrypoint makes

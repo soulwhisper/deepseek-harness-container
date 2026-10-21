@@ -50,9 +50,9 @@ RUN chmod 0755 /opt/dsh/scripts/entrypoint.sh
 COPY docker/profiles/web/pnpm-workspace.yaml /opt/dsh/profiles/web/pnpm-workspace.yaml
 COPY docker/profiles/tavern/pnpm-workspace.yaml /opt/dsh/profiles/tavern/pnpm-workspace.yaml
 COPY docker/profiles/distribution.patch.yml /opt/dsh/profiles/distribution.patch.yml
-# Immutable, image-owned skill bundles. The filesystem skill provider scans
-# this root via DSH_BUNDLED_SKILL_DIR; user and injected skills stay in /data.
-COPY docker/skills/ /opt/dsh/skills/
+# Seed-only skill recommendations. These are copied into DSH_HOME/skills on
+# first seed or explicit migration and may be edited or deleted by the user.
+COPY docker/skills/ /opt/dsh-seed/skills/
 
 FROM runtime-build AS tavern-source
 COPY patches/tavern /opt/dsh/patches/tavern
@@ -107,7 +107,6 @@ FROM tools AS application
 ENV DSH_HOME=/data/dsh \
     HOME=/data/home \
     DSH_AGENTS_HOME=/data/home/.agents \
-    DSH_BUNDLED_SKILL_DIR=/opt/dsh/skills \
     DSH_BACKUP_ROOT=/backups \
     XDG_CACHE_HOME=/cache \
     XDG_CONFIG_HOME=/data/home/.config \

@@ -22,7 +22,7 @@ export function patchSource(kind, source) {
     source = replaceOnce(source, 'export declare class WebServer extends Service {', 'export declare class WebServer extends Service {' + gateClassDeclarations);
     source = replaceOnce(source, 'export default WebServer;', gateDeclarations + '\nexport default WebServer;');
   } else if (kind === 'boot') {
-    source = replaceOnce(source, 'const requiredStartupEntryIds = new Set([', 'const requiredStartupEntryIds = new Set([\n\t"distribution-forward-auth",\n\t"dsh-market",');
+    source = replaceOnce(source, 'const requiredStartupEntryIds = new Set([', 'const requiredStartupEntryIds = new Set([\n\t"distribution-forward-auth",');
     source = replaceOnce(source, '\t\tawait auditStartupEntries(ctx, binName);\n\t\treturn ctx;', '\t\tawait auditStartupEntries(ctx, binName);\n\t\tctx.provide("distributionStartupReady", true);\n\t\treturn ctx;');
   } else if (kind === 'manager') {
     source = replaceOnce(source, 'const protectedModules = new Set([', 'const protectedModules = new Set([\n\t"@soulwhisper/dsh-forward-auth",\n\t"@deepseek-ai/dsh-app-boot",');

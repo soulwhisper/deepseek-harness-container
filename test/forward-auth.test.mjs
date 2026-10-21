@@ -215,6 +215,34 @@ test('admission reports fixed status reasons without exposing identity', () => {
   assert.deepEqual(broken, [{ type: 'broken', reason: 'native-rejection' }]);
 });
 
+test('top-level cross-site navigation is admitted; cross-site API and POST are not', () => {
+  const config = configuration(baseEnvironment);
+  const seen = [];
+  const connection = {
+    requestRejection(request) {
+      const site = request.headers['sec-fetch-site'];
+      seen.push(site);
+      return site === 'cross-site' ? 403 : undefined;
+    },
+    authorizeIndex() {},
+    authenticatedUrl() {},
+  };
+  const gate = createAdmission(connection, config);
+  const response = () => ({ writeHead() {}, end() {} });
+  const base = facts('127.0.0.1');
+  const navigation = {
+    ...base,
+    method: 'GET',
+    headers: { ...base.headers, 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' },
+  };
+  assert.equal(gate.http(navigation, response()), true);
+  const api = { ...base, method: 'GET', headers: { ...base.headers, 'sec-fetch-site': 'cross-site' } };
+  assert.equal(gate.http(api, response()), false);
+  const post = { ...base, method: 'POST', headers: { ...navigation.headers } };
+  assert.equal(gate.http(post, response()), false);
+  assert.deepEqual(seen, [undefined, 'cross-site', 'cross-site']);
+});
+
 test('upgrade timers are bounded, cleared on close and cleaned on disposal', () => {
   const active = new Map();
   let sequence = 0;

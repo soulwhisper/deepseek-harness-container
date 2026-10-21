@@ -118,8 +118,10 @@ edge keys or proxy private keys into build arguments or labels.
 
 Only `web-<dsh-version>` and `tavern-<version>` tags publish. Each tag must match
 `versions.json`, point into `main`, and pass a native amd64 and arm64 build plus
-final-image smoke. The publish workflow creates one multi-arch index per tag.
-There is no floating tag, branch publication or candidate `sha-` image.
+final-image smoke. Each build records the tested per-architecture manifest
+digest; the combine job creates one multi-arch index from those digest-qualified
+manifests, not from mutable staging tags. There is no floating tag, branch
+publication or candidate `sha-` image.
 
 A release tag is not proof that a state migration, community plugin or model
 configuration is approved. Startup installs nothing. See

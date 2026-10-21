@@ -44,6 +44,7 @@ localized entry point, not a second docs tree.
 Build context is the repository root; the Dockerfile is `docker/Dockerfile`.
 
 ```bash
+# Use linux/arm64 instead on an arm64 host.
 docker buildx build -f docker/Dockerfile --platform linux/amd64 --target web \
   --build-arg IMAGE_REVISION="$(git rev-parse HEAD)" --load -t dsh-web:local .
 docker buildx build -f docker/Dockerfile --platform linux/amd64 --target tavern \

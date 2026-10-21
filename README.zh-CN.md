@@ -38,6 +38,7 @@ Web 跟随 DSH 上游版本，Tavern 跟随 dsh-tavern；两者独立发版。�
 Build context 是仓库根目录，Dockerfile 为 `docker/Dockerfile`。
 
 ```bash
+# arm64 主机请把 linux/amd64 换成 linux/arm64。
 docker buildx build -f docker/Dockerfile --platform linux/amd64 --target web \
   --build-arg IMAGE_REVISION="$(git rev-parse HEAD)" --load -t dsh-web:local .
 docker buildx build -f docker/Dockerfile --platform linux/amd64 --target tavern \

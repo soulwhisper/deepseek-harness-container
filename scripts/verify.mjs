@@ -120,6 +120,11 @@ assert.equal(publishWorkflow.on.push.branches, undefined, 'Branch pushes must no
 assert.equal(publishWorkflow.on.pull_request, undefined, 'Release must not duplicate PR validation');
 const publishText = await text('.github/workflows/publish.yaml');
 assert.match(publishText, /create-github-app-token/u, 'Release uses the GitHub App token');
+assert.match(publishText, /release-digests\/staging-amd64\.digest/u, 'Combine reads the recorded amd64 digest');
+assert.match(publishText, /"\$\{IMAGE\}@\$\{amd64_digest\}"/u, 'Combine promotes the amd64 digest-qualified manifest');
+assert.match(publishText, /"\$\{IMAGE\}@\$\{arm64_digest\}"/u, 'Combine promotes the arm64 digest-qualified manifest');
+assert.doesNotMatch(publishText, /imagetools create[\s\S]{0,400}:tmp-\$\{GITHUB_SHA\}-amd64/u,
+  'Combine must not promote mutable staging tags');
 assert.doesNotMatch(publishText, /GITHUB_TOKEN:\s*\$\{\{\s*github\.token\s*\}\}/u, 'Release must not write with the default bot token');
 const lockWorkflow = parse(await text('.github/workflows/profile-locks.yaml'));
 assert.deepEqual(Object.keys(lockWorkflow.on), ['workflow_dispatch'], 'Profile-lock bootstrap is manual only');

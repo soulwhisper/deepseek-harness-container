@@ -54,22 +54,3 @@ jobs:
           retain_days: "14"
           keep_minimum_runs: "3"
           delete_run_by_conclusion_pattern: "action_required,failure"
-
-  workflow-keepalive:
-    if: github.event_name == 'schedule'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Generate Token
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
-        id: app-token
-        with:
-          client-id: ${{ secrets.APP_CLIENT_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          permission-actions: write
-          permission-contents: read
-
-      - name: Dispatch the cleanup workflow
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        shell: bash
-        run: gh workflow run schedule-cleanup.yaml --repo "$GITHUB_REPOSITORY" --ref main

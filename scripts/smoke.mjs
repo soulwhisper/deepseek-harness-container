@@ -175,7 +175,13 @@ async function awaitReady(app) {
     const health = await docker(['exec', app, 'node', '/opt/dsh/scripts/readiness.mjs'], undefined, true);
     if (health.code === 0) return;
     const state = JSON.parse((await docker(['inspect', '--format', '{{json .State}}', app])).stdout);
-    if (!state.Running) throw new Error('Application exited before guarded readiness; raw logs withheld');
+    if (!state.Running) {
+      const logs = await docker(['logs', '--tail', '40', app], undefined, true);
+      const detail = `${logs.stdout}\n${logs.stderr}`.split('\n')
+        .filter(line => /error|failed|cannot|uncaught|ENOENT|EACCES|not found/iu.test(line))
+        .slice(-3).join(' | ');
+      throw new Error(`Application exited before guarded readiness${detail ? `: ${detail}` : '; raw logs withheld'}`);
+    }
     await sleep(1000);
   }
   throw new Error('Guarded readiness timed out; raw logs withheld');

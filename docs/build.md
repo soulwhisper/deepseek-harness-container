@@ -115,7 +115,10 @@ The Web build installs `dsh-context` into the immutable runtime from npm
 `latest`, then adds an immutable `link:` dependency and bundle entry to the
 generated profile. It leaves the committed profile lock unchanged and
 regenerates the in-image lock with `--no-frozen-lockfile`; state migration can
-restore the link without running pnpm or copying a registry tree. A moved skill
+restore the link without running pnpm or copying a registry tree. Because a
+runtime install can replace the patched manager package, the build immediately
+runs `patch-host.mjs --repair` to restore any missing forward-auth patch while
+leaving already patched host/app-boot files untouched. A moved skill
 path, changed package identity, missing release asset, absent `dsh.bundle` or
 unsupported current-DSH declaration fails the build; it does not silently ship
 stale content. This is a deliberate upstream-tracking tradeoff: reproducing the

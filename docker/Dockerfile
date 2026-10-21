@@ -151,7 +151,8 @@ RUN set -eux; \
 # profile. Keeping it out of the writable profile lets state migration restore
 # the link without running pnpm or copying a registry tree.
 RUN pnpm --dir /opt/dsh/runtime add dsh-context@latest --prod --ignore-scripts \
-      --config.auto-install-peers=false
+      --config.auto-install-peers=false \
+    && node /opt/dsh/patches/dsh/patch-host.mjs --repair /opt/dsh/runtime
 RUN DSH_BUILD_PROFILE=web node /opt/dsh/scripts/materialize-profiles.mjs \
     && cp /opt/dsh/profiles/web/pnpm-lock.yaml /opt/dsh-seed/profiles/web/pnpm-lock.yaml \
     && node /opt/dsh/scripts/floating-bundles.mjs add web /opt/dsh-seed/profiles/web \

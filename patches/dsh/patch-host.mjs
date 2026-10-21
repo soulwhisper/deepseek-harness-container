@@ -63,7 +63,16 @@ async function packageRoots(nodeModules, found = new Set(), seen = new Set()) {
   }
   return found;
 }
-export async function patchInstallation(runtime) {
+const patchedMarkers = Object.freeze({
+  host: ['required-access-gate-v1', 'runRequiredAccessGate'],
+  types: ['required-access-gate-v1'],
+  manager: ['"@soulwhisper/dsh-forward-auth"'],
+  boot: ['distributionStartupReady'],
+});
+function alreadyPatched(kind, source) {
+  return patchedMarkers[kind].every(marker => source.includes(marker));
+}
+export async function patchInstallation(runtime, { repair = false } = {}) {
   const pending = [];
   const counts = { host: 0, manager: 0, boot: 0 };
   for (const root of await packageRoots(join(resolve(runtime), 'node_modules'))) {
@@ -73,15 +82,21 @@ export async function patchInstallation(runtime) {
     if (manifest.version !== upstreamVersion) throw new Error(`forward-auth patch: unsupported ${manifest.name} version`);
     counts[kind]++;
     for (const [fileKind, path] of [[kind, join(root, 'lib/index.js')], ...(kind === 'host' ? [['types', join(root, 'lib/types/index.d.ts')]] : [])]) {
-      pending.push([path, patchSource(fileKind, await readFile(path, 'utf8'))]);
+      const source = await readFile(path, 'utf8');
+      if (repair && alreadyPatched(fileKind, source)) continue;
+      pending.push([path, patchSource(fileKind, source)]);
     }
   }
   if (!counts.host || !counts.manager || !counts.boot) throw new Error('forward-auth patch: required host/manager/app-boot packages not found');
-  // Validate every package before writing any package. Never accept an unknown/already patched input.
+  // Validate every unpatched package before writing any package. In repair mode
+  // only files that an install replaced are patched; partial patches still fail
+  // the exact upstream hash check rather than being overwritten.
   for (const [path, content] of pending) await writeFile(path, content);
   return counts;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  if (process.argv.length !== 3) throw new Error('Usage: node patch-host.mjs RUNTIME_DIRECTORY');
-  console.log('forward-auth required gate installed:', await patchInstallation(process.argv[2]));
+  const repair = process.argv[2] === '--repair';
+  const runtime = repair ? process.argv[3] : process.argv[2];
+  if (!runtime || process.argv.length !== (repair ? 4 : 3)) throw new Error('Usage: node patch-host.mjs [--repair] RUNTIME_DIRECTORY');
+  console.log('forward-auth required gate installed:', await patchInstallation(runtime, { repair }));
 }

@@ -28,12 +28,14 @@ The Host patch adds that guarantee:
 - The gate runs before HTTP dispatch and before `upgrade`.
 - A missing gate or gate exception leaves the listener denied with 503.
 - Shutdown destroys tracked sockets.
-- App boot marks only `distribution-forward-auth` as required. Bundled
-  plugins, including `dsh-market`, remain recommendations and may be disabled
-  or removed. If forward-auth never registers, the Host gate still denies all
-  traffic.
-- The manager protects forward-auth and app-boot from disable/removal and direct
-  known-spec installation.
+- App boot marks only `distribution-forward-auth` as required. Web floating
+  plugins, including `dsh-market` and `dsh-context`, remain removable
+  recommendations. If forward-auth never registers, the Host gate still denies
+  all traffic.
+- The manager protects forward-auth, app-boot and Tavern's
+  `dshTavern.managedBundles`/plugin rows from disable/removal and direct
+  known-spec installation. Tavern pinned ecosystem entries are restored from
+  the immutable seed on restart.
 
 The local plugin is not the patch. It registers the gate through the patched API.
 See [Authentication](forward-auth.md).

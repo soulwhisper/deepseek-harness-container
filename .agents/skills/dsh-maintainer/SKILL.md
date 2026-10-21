@@ -38,14 +38,21 @@ directory is seeded into the Web image as user-facing skills.
 
 ## Web and Tavern boundary
 
-- The Web image owns all optional assets:
+- The Web image owns all **floating** optional assets:
   - `dsh-context`
   - Caveman skill seed
   - RTK OSS binary and RTK skill seed
-- The Tavern image owns none of those optional assets. Its profile keeps the
-  Tavern distribution and ecosystem only.
-- `scripts/verify-runtime.mjs` must keep asserting the Tavern absences and the
-  Web assets.
+- The Tavern image owns none of those floating assets. Its profile keeps the
+  pinned Tavern distribution and ecosystem only.
+- Tavern pinned ecosystem is immutable like forward-auth:
+  - `versions.json` + committed lock pin the packages
+  - the package set is installed into the immutable seed profile
+  - `dshTavern.managedBundles` is manager-protected
+  - pinned plugin rows are `management-required`
+  - startup restores missing pinned manifest entries and seed links
+  - `dsh-tavern-knock-knock` has no `dsh.bundle`; it is dependency-only
+- `scripts/verify-runtime.mjs` must keep asserting the Tavern absences, the
+  protected pinned bundles, and the Web assets.
 - The base `distribution-source` payload excludes `docker/skills/`. The Web
   final stage adds those sources only to the Web payload; Tavern has neither
   active skills nor skill source files.
@@ -60,10 +67,27 @@ directory is seeded into the Web image as user-facing skills.
 - Keep `/opt` entries short and explicit; only `/opt/dsh` and `/opt/apps`
   should remain at the top level.
 
+## Tavern pinned ecosystem
+
+These are pinned, not floating, and are installed only in the Tavern seed
+profile:
+
+| Package | Bundle ID | Note |
+| --- | --- | --- |
+| `dsh-tavern-wrongbook` | `dsh-tavern-wrongbook` | Bundle |
+| `dsh-tavern-comfy` | `dsh-tavern-image` | Bundle |
+| `narrative-anchor` | `narrative-anchor` | Bundle |
+| `dsh-better-sidebar` | `better-sidebar` | Bundle; has its own duplicate-mount guard |
+| `dsh-tavern-knock-knock` | none | Dependency-only; no `dsh.bundle` |
+
+Bundle IDs are unique. Keep the bundle order stable, especially around
+`dsh-better-sidebar` and aggregate bundles. Do not move these packages to the
+Web floating path or into the writable market set.
+
 ## Floating optional assets
 
-These upstream inputs are deliberately **not version-pinned** in this
-repository:
+Only the Web image has these; they are deliberately **not version-pinned** in
+this repository:
 
 | Asset | Source | Resolution |
 | --- | --- | --- |
@@ -92,9 +116,10 @@ Rules:
   current DSH release.
 - The manager must report `dsh-context` as `availability: profile`,
   `installed: true`, and `removable: true`.
-- Only `@soulwhisper/dsh-forward-auth` is manager-protected. Do not add plugin
-  installs to the runtime and do not reintroduce `patch-host.mjs --repair` just
-  to support one.
+- Only `@soulwhisper/dsh-forward-auth` and the Tavern
+  `dshTavern.managedBundles` set are manager-protected. Do not add Web floating
+  plugin installs to the runtime and do not reintroduce
+  `patch-host.mjs --repair` just to support one.
 - Removal by the user is intended and must persist across restarts.
 
 ## Caveman skill

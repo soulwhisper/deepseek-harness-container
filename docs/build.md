@@ -138,9 +138,13 @@ builder or disable the cache for the `runtime-build` and `web-build` stages when
 you explicitly want to refresh these upstream assets. Release CI builds on
 clean runners, so the published digest reflects the resolutions of that run.
 
-The only required startup entry is `distribution-forward-auth`. Bundled
-plugins and skills, including the floating assets, are optional; the manager
-does not protect them.
+The only required startup entry is `distribution-forward-auth`. On Tavern, the
+pinned ecosystem listed in `dshTavern.managedBundles` is immutable in the same
+sense as forward-auth: the manager refuses disable/remove operations and the
+startup materializer restores missing manifest entries and seed links. The
+pinned `dsh-tavern-knock-knock` package has no `dsh.bundle`; it remains an
+immutable dependency only. Web-only floating plugins and skills are removable
+and are not protected by the manager.
 
 ## Pins and locks
 

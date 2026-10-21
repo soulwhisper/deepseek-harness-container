@@ -53,6 +53,12 @@ function immutableEntries(seed, source, workspace = {}) {
     if (typeof spec !== 'string' || !spec.startsWith('link:/opt/dsh/runtime/node_modules/')) throw new Error(`Invalid immutable override: ${name}`);
     entries.set(name, spec.slice('link:'.length));
   }
+  // Tavern's pinned ecosystem is part of the immutable seed, unlike Web's
+  // floating plugins. Link every managed dependency from the seed and restore
+  // it if a manager or manual edit removes the active profile entry.
+  for (const name of seed.dshTavern?.managedDependencies ?? []) {
+    if (!entries.has(name)) entries.set(name, join(source, 'node_modules', name));
+  }
   return entries;
 }
 
@@ -68,7 +74,16 @@ async function managedLinks(target, source, seed, install, workspace = {}) {
       await rm(destination, { recursive: true, force: true });
       await symlink(expected, destination);
     } else {
-      const info = await lstat(destination);
+      let info;
+      try {
+        info = await lstat(destination);
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+        await mkdir(dirname(destination), { recursive: true });
+        if (!(await lstat(dirname(destination))).isDirectory()) throw new Error(`Managed scope is not a real directory: ${name}`);
+        await symlink(expected, destination);
+        continue;
+      }
       if (!info.isSymbolicLink()) throw new Error(`Managed package was shadowed: ${name}; restore immutable links with an explicit state migration`);
       const recorded = await readlink(destination);
       // Exact immutable paths are valid even when a test fixture has no /opt/dsh.
@@ -169,11 +184,22 @@ export async function materializeState(options = {}) {
   if (marker?.schema > 1) throw new Error('Newer state schema cannot be rolled back; restore the pre-upgrade volume snapshot');
   if (marker?.schema === 1 && marker.distribution === identity && marker.profile === profile) {
     const source = join(seed, 'profiles', profile);
-    await normalizeLockFile(join(home, 'profiles', profile, 'pnpm-lock.yaml'));
+    const target = join(home, 'profiles', profile);
+    await normalizeLockFile(join(target, 'pnpm-lock.yaml'));
     try {
       const seedManifest = await json(join(source, 'package.json'));
       const seedWorkspace = YAML.parse(await readFile(join(source, 'pnpm-workspace.yaml'), 'utf8'));
-      await managedLinks(join(home, 'profiles', profile), source, seedManifest, false, seedWorkspace);
+      if (profile === 'tavern') {
+        const manifestPath = join(target, 'package.json');
+        if (await exists(manifestPath)) {
+          const previous = await json(manifestPath);
+          const restored = mergeManifest(previous, seedManifest, home, profile, seedWorkspace);
+          if (JSON.stringify(restored) !== JSON.stringify(previous)) {
+            await writeFile(manifestPath, `${JSON.stringify(restored, null, 2)}\n`);
+          }
+        }
+      }
+      await managedLinks(target, source, seedManifest, false, seedWorkspace);
       // The image-owned version file is not user state. Restore it without
       // re-seeding the profiles, credentials, sessions or workspace.
       if (!await exists(join(home, 'BUNDLED_VERSIONS'))) await cp(join(seed, 'BUNDLED_VERSIONS'), join(home, 'BUNDLED_VERSIONS'));

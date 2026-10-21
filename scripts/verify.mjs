@@ -119,6 +119,12 @@ const floatingText = await text('scripts/floating-bundles.mjs');
 assert.match(floatingText, /runtimeLinks/u, 'dsh-context runtime peers stay immutable links');
 assert.match(floatingText, /manifest\.dependencies\[name\] = 'latest'/u, 'dsh-context remains a latest profile package');
 assert.match(floatingText, /dsh\.bundle/u, 'Build verification rejects an upstream package without a bundle patch');
+assert.match(await text('patches/dsh/patch-host.mjs'), /dshTavern\?\.managedBundles/u,
+  'Manager protects the pinned Tavern bundle set');
+assert.match(await text('scripts/materialize-state.mjs'), /managedDependencies/u,
+  'State materialization restores pinned Tavern dependencies');
+assert.match(await text('scripts/materialize-state.mjs'), /managedLinks\(target/u,
+  'Tavern restart restores managed seed links');
 const ignore = await text('.gitignore');
 assert.match(ignore, /^handoff-\*\.md$/mu, 'Handoff files are ignored');
 assert.match(await text('.github/workflows/label-sync.yaml'), /sparse-checkout-cone-mode:\s*false/u,

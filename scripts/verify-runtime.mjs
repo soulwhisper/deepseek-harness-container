@@ -182,10 +182,23 @@ async function manager() {
     check(context?.enabled === true && context.installed === true
       && context.availability === 'profile' && context.removable === true
       && context.readOnlyReason === undefined, 'dsh-context is profile-owned and removable');
+  } else {
+    for (const name of ['dsh-better-sidebar', 'dsh-tavern-wrongbook', 'dsh-tavern-comfy', 'narrative-anchor']) {
+      const bundle = before.find(item => item.name === name);
+      check(bundle?.enabled === true && bundle.installed === true
+        && (bundle.removable === false || bundle.readOnlyReason === 'management-required'),
+        `Pinned Tavern bundle is manager-protected: ${name}`);
+    }
   }
   const rows = await rpc('listPlugins', {});
   const authRow = rows.find(row => row.moduleName === protectedName);
   check(typeof authRow?.entryId === 'string', 'Native forward-auth inventory entry');
+  if (process.env.DSH_PROFILE === 'tavern') {
+    for (const name of ['dsh-better-sidebar', 'dsh-tavern-wrongbook', 'dsh-tavern-comfy', 'narrative-anchor']) {
+      const row = rows.find(item => item.moduleName === name);
+      check(row?.readOnlyReason === 'management-required', `Pinned Tavern plugin row is read-only: ${name}`);
+    }
+  }
   for (const [method, args] of [
     ['setPluginEnabled', { id: authRow.entryId, enabled: false }],
     ['setBundleEnabled', { name: protectedName, enabled: false }],

@@ -66,10 +66,12 @@ The final images do **not** copy the repository root. The
 - `LICENSE`, `NOTICE`, both READMEs;
 - `docs/source-build.md` and `docs/regulations.md`.
 
-`test/`, `deploy/`, `.github/`, `.renovate/`, handoff notes and smoke/verify
-scripts are excluded. The Tavern source archive is built from that same
-whitelisted tree plus the complete Tavern checkout, so test and deployment
-harnesses do not ship with the release image.
+`test/`, `deploy/`, `.github/`, `.renovate/`, `.agents/`, handoff notes and
+smoke/verify scripts are excluded. The Tavern source archive is built from that
+same whitelisted tree plus the complete Tavern checkout, so test and deployment
+harnesses do not ship with the release image. The base source payload excludes
+`docker/skills/`; the Web final stage adds those sources back only to the Web
+payload, while Tavern has neither active skills nor skill source files.
 
 ## Bundled skills and plugins
 

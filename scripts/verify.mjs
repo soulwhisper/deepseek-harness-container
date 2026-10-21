@@ -105,7 +105,9 @@ assert.equal((dockerfile.match(/COPY docker\/skills\/ \/opt\/dsh-seed\/skills\//
 const webStage = dockerfile.slice(dockerfile.indexOf('FROM application AS web'), dockerfile.indexOf('FROM application AS tavern'));
 const tavernStage = dockerfile.slice(dockerfile.indexOf('FROM application AS tavern'));
 assert.match(webStage, /usr\/local\/bin\/rtk/u, 'Web image receives the RTK binary');
-assert.doesNotMatch(tavernStage, /rtk|caveman|dsh-context/iu, 'Tavern must not receive optional Web assets');
+assert.match(webStage, /distribution-source\/docker\/skills/u, 'Web source payload retains its skill sources');
+assert.match(await text('.dockerignore'), /^\.agents$/mu, 'Maintainer-only .agents skill is excluded from build context');
+assert.doesNotMatch(tavernStage, /rtk|caveman|dsh-context|docker\/skills/iu, 'Tavern must not receive optional Web assets or their source payload');
 assert.doesNotMatch(JSON.stringify(versions), /dsh-context|caveman|rtk/iu,
   'Floating assets are not version-pinned in versions.json');
 assert.deepEqual([...floatingBundles.web], ['dsh-context'], 'Only dsh-context is a floating web bundle');

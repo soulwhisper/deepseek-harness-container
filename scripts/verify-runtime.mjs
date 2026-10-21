@@ -305,13 +305,17 @@ async function runtime() {
     check((await stat('/opt/dsh-seed/skills/caveman/SKILL.md')).isFile(), 'Caveman skill seed');
     check((await stat('/opt/dsh-seed/skills/caveman/LICENSE')).isFile(), 'Caveman license retained');
     check((await stat('/opt/dsh-seed/skills/caveman/NOTICE')).isFile(), 'Caveman notice retained');
+    check((await stat('/opt/dsh/distribution-source/docker/skills/rtk/SKILL.md')).isFile(), 'Web skill source payload');
     check((await stat('/usr/local/share/rtk/LICENSE')).isFile(), 'RTK license retained');
     check(spawnSync('/usr/local/bin/rtk', ['--version'], { encoding: 'utf8' }).status === 0, 'RTK binary runs');
   } else {
-    for (const path of ['/opt/dsh-seed/skills', '/usr/local/bin/rtk', '/usr/local/share/rtk',
-      '/opt/dsh/runtime/node_modules/dsh-context']) {
+    for (const path of ['/opt/dsh-seed/skills', '/opt/dsh/distribution-source/docker/skills',
+      '/usr/local/bin/rtk', '/usr/local/share/rtk', '/opt/dsh/runtime/node_modules/dsh-context']) {
       check(await absent(path), `Tavern excludes Web optional asset ${path}`);
     }
+  }
+  for (const path of ['/opt/dsh/.agents', '/opt/dsh/distribution-source/.agents']) {
+    check(await absent(path), `Maintainer skill is not bundled: ${path}`);
   }
   for (const name of Object.keys(manifest.dependencies)) {
     await import(pathToFileURL(profileRequire.resolve(name)).href);

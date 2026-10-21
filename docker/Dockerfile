@@ -20,7 +20,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Test, smoke, CI, deploy and general docs are deliberately not copied into
 # either final image; only the source-build and licensing docs belong here.
 FROM scratch AS distribution-source
-COPY docker /docker
+# docker/skills is Web-only. The Web final stage adds its source back to the
+# Web distribution-source payload; the Tavern payload and source archive omit it.
+COPY docker/Dockerfile /docker/Dockerfile
+COPY docker/runtime /docker/runtime
+COPY docker/profiles /docker/profiles
 COPY patches /patches
 COPY plugins/forward-auth /plugins/forward-auth
 COPY --chmod=0755 scripts/entrypoint.sh /scripts/entrypoint.sh
@@ -205,6 +209,9 @@ FROM application AS web
 ENV DSH_PROFILE=web
 COPY --from=web-build /opt/dsh /opt/dsh
 COPY --from=web-build /opt/dsh-seed /opt/dsh-seed
+# Restore Web-only skill sources into the Web source payload. Tavern never
+# receives this directory, so its source archive stays free of skill content.
+COPY docker/skills/ /opt/dsh/distribution-source/docker/skills/
 # RTK and the Caveman skill are Web-only optional assets. Tavern intentionally
 # has neither the binary nor the seed skills.
 COPY --from=web-build /usr/local/bin/rtk /usr/local/bin/rtk

@@ -30,8 +30,9 @@ tavern.tar.gz
 
 The archive does **not** contain user state, credentials, `/workspace`, installed
 `node_modules`, Git object databases, test/smoke harnesses, deploy examples, CI
-workflows or general documentation. The image retains the Tavern checkout at
-`/opt/dsh-tavern/apps/dsh-tavern` and the distribution inputs at
+workflows, general documentation, the repository `.agents/` maintainer skill or
+the Web-only `docker/skills/` source payload. The image retains the Tavern
+checkout at `/opt/dsh-tavern/apps/dsh-tavern` and the distribution inputs at
 `/opt/dsh/distribution-source`; the authenticated route is
 `/distribution/source.tar.gz` and `DSH_SOURCE_URL` identifies the distribution
 commit.

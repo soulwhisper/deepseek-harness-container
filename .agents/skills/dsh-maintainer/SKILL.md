@@ -35,8 +35,11 @@ directory is seeded into the Web image as user-facing skills.
   Tavern distribution and ecosystem only.
 - `scripts/verify-runtime.mjs` must keep asserting the Tavern absences and the
   Web assets.
-- The shared `distribution-source` payload may contain build recipes for the
-  Web-only assets; that is source material, not active Tavern runtime content.
+- The base `distribution-source` payload excludes `docker/skills/`. The Web
+  final stage adds those sources only to the Web payload; Tavern has neither
+  active skills nor skill source files.
+- The repository maintainer skill under `.agents/` is excluded from the Docker
+  build context and must never appear in either image.
 - Do not remove Tavern's own ecosystem packages when tightening this boundary.
 
 ## Floating optional assets

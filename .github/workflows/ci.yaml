@@ -104,23 +104,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker run --rm --entrypoint sh dsh-${{ matrix.target }}:smoke -c '
-            p=/opt/dsh/docker/runtime/node_modules/node-addon-require-builtin-linux-$(test "$(uname -m)" = aarch64 && echo arm64 || echo x64)-gnu
-            test -d "$p"
-            find "$p" -maxdepth 3 -type f | sort
-            node -e "require(process.argv[1])" "$p"
-            node -e "
-              const loader = require('/opt/dsh/docker/runtime/node_modules/node-addon-native-custom-loader');
-              try {
-                loader.createEntryApi('/opt/dsh/docker/runtime/node_modules/node-addon-require-builtin');
-                console.log('entry api ok');
-              } catch (error) {
-                console.error(error.message);
-                console.error(JSON.stringify(error.attempts ?? null));
-                process.exit(1);
-              }
-            "
-          '
+          docker run --rm -i --entrypoint node dsh-${{ matrix.target }}:smoke \
+            --input-type=module - < scripts/verify-addon.mjs
 
       - name: Run final-image smoke (${{ matrix.arch }})
         shell: bash

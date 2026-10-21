@@ -30,12 +30,13 @@ Web image only. The installed package retains its LICENSE.
 
 Caveman skill — Apache License 2.0
 Source: https://github.com/JuliusBrussee/caveman
-The skill seed retains the upstream LICENSE and NOTICE.
+Web image only. The skill seed retains the upstream LICENSE and NOTICE.
 
 RTK OSS — Apache License 2.0
 Source: https://github.com/rtk-ai/rtk
-The image uses the rtk-oss release asset and retains its LICENSE at
-/usr/local/share/rtk/LICENSE. The BUSL-1.1 rtk release is not bundled.
+Web image only. The image uses the rtk-oss release asset and retains its
+LICENSE at /usr/local/share/rtk/LICENSE. The BUSL-1.1 rtk release is not
+bundled.
 
 Tavern ecosystem (tavern image only)
 dsh-tavern-wrongbook v1.33.0 — MIT License

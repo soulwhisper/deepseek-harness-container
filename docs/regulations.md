@@ -34,17 +34,17 @@ is Apache-2.0; bundled upstream components keep their own licenses.
 | DeepSeek Harness | MIT | Host/manager/app-boot patched at build time; upstream notice retained |
 | DSH Market | MIT | Managed-runtime bridge patch applied |
 | `dsh-context` | Apache-2.0 | Web only; installed from npm `latest` at build time; packaged LICENSE retained |
-| Caveman skill | Apache-2.0 | Fetched from upstream `main`; `LICENSE` and `NOTICE` retained in the skill seed |
-| RTK OSS | Apache-2.0 | `rtk-oss-*` release asset only; the BUSL-1.1 edition is not bundled; LICENSE retained |
+| Caveman skill | Apache-2.0 | Web only; fetched from upstream `main`; `LICENSE` and `NOTICE` retained in the skill seed |
+| RTK OSS | Apache-2.0 | Web only; `rtk-oss-*` release asset only; the BUSL-1.1 edition is not bundled; LICENSE retained |
 | Tavern ecosystem packages | MIT | Installed in the Tavern image only |
 | Tavern itself | **AGPL-3.0-only** | Not Apache-2.0 or MIT |
 
 Installed dependency trees retain their packaged license files. The root
 [NOTICE](../NOTICE) records the DSH, market, ecosystem, Tavern and inspiration
 notices. An OCI SBOM is an inventory, not a substitute for those licenses.
-Floating assets retain their upstream license/notice files in the image:
+The Web image retains the floating assets' upstream license/notice files:
 `dsh-context` under the immutable runtime `node_modules`, Caveman under the skill
-seed, and RTK under `/usr/local/share/rtk`.
+seed, and RTK under `/usr/local/share/rtk`. Tavern does not include them.
 
 The distribution patches DSH Host/manager/app-boot and applies the recorded
 Tavern route/theme modifications. Those modifications are not upstream

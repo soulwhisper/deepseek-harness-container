@@ -13,7 +13,7 @@
 | `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web + `dshmarket` + `dsh-context` + 必需 forward-auth |
 | `ghcr.io/soulwhisper/dsh-tavern:3.0` | `tavern-3.0` | 自定义 Tavern workspace + forward-auth + 配套插件 |
 
-Web 跟随 DSH 上游版本，Tavern 跟随 dsh-tavern；两者独立发版。镜像使用 Node 24/glibc、UID/GID `1000:1000`、单一具体 IP 的 `3080` 监听和只读根文件系统。两个镜像都会 seed 可选的 Caveman、RTK skill，并安装 RTK OSS binary；Web 额外捆绑 `dsh-context`。这三项上游资产在镜像构建时取各自最新状态，不在仓库中锁定版本，也不由 Renovate 跟踪；因此部署应使用发布 digest，不能假设从 `latest` 重建完全可复现。详见 [build](docs/build.md#floating-optional-assets)。CI 在原生 `linux/amd64` 与 `linux/arm64` runner 上构建，不使用 QEMU。镜像不包含 Chromium、GUI、X11、VNC、本地密码库、OIDC 客户端或替代 mux 服务。
+Web 跟随 DSH 上游版本，Tavern 跟随 dsh-tavern；两者独立发版。镜像使用 Node 24/glibc、UID/GID `1000:1000`、单一具体 IP 的 `3080` 监听和只读根文件系统。Web 镜像会 seed 可选的 Caveman、RTK skill，安装 RTK OSS binary，并捆绑 `dsh-context`；Tavern 镜像刻意不包含这些可选资产。这三项上游资产在 Web 镜像构建时取各自最新状态，不在仓库中锁定版本，也不由 Renovate 跟踪；因此部署应使用发布 digest，不能假设从 `latest` 重建完全可复现。详见 [build](docs/build.md#floating-optional-assets)。CI 在原生 `linux/amd64` 与 `linux/arm64` runner 上构建，不使用 QEMU。镜像不包含 Chromium、GUI、X11、VNC、本地密码库、OIDC 客户端或替代 mux 服务。
 
 ## 文档
 

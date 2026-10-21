@@ -11,6 +11,12 @@ const config = JSON.parse(json);
 const forwardHeader = config.header ?? 'x-authentik-uid';
 const runtimeRequire = createRequire('/opt/dsh/runtime/package.json');
 function check(condition, label) { assert.ok(condition, label); }
+async function absent(path) {
+  try { await lstat(path); return false; } catch (error) {
+    if (error.code === 'ENOENT') return true;
+    throw error;
+  }
+}
 function request(path, headers = {}, method = 'GET', body, deadline = 10_000) {
   return new Promise((resolve, reject) => {
     const req = http.request({ hostname: config.host, port: config.port, path, method,
@@ -294,12 +300,19 @@ async function runtime() {
   const expected = profile === 'web' ? ['@soulwhisper/dsh-forward-auth', 'dshmarket', 'dsh-context']
     : ['@soulwhisper/dsh-forward-auth', 'dsh-tavern-wrongbook', 'dsh-tavern-comfy', 'dsh-tavern-knock-knock', 'narrative-anchor'];
   for (const name of expected) check(Object.hasOwn(manifest.dependencies, name), 'Required profile package');
-  check((await stat('/opt/dsh-seed/skills/rtk/SKILL.md')).isFile(), 'RTK skill seed');
-  check((await stat('/opt/dsh-seed/skills/caveman/SKILL.md')).isFile(), 'Caveman skill seed');
-  check((await stat('/opt/dsh-seed/skills/caveman/LICENSE')).isFile(), 'Caveman license retained');
-  check((await stat('/opt/dsh-seed/skills/caveman/NOTICE')).isFile(), 'Caveman notice retained');
-  check((await stat('/usr/local/share/rtk/LICENSE')).isFile(), 'RTK license retained');
-  check(spawnSync('/usr/local/bin/rtk', ['--version'], { encoding: 'utf8' }).status === 0, 'RTK binary runs');
+  if (profile === 'web') {
+    check((await stat('/opt/dsh-seed/skills/rtk/SKILL.md')).isFile(), 'RTK skill seed');
+    check((await stat('/opt/dsh-seed/skills/caveman/SKILL.md')).isFile(), 'Caveman skill seed');
+    check((await stat('/opt/dsh-seed/skills/caveman/LICENSE')).isFile(), 'Caveman license retained');
+    check((await stat('/opt/dsh-seed/skills/caveman/NOTICE')).isFile(), 'Caveman notice retained');
+    check((await stat('/usr/local/share/rtk/LICENSE')).isFile(), 'RTK license retained');
+    check(spawnSync('/usr/local/bin/rtk', ['--version'], { encoding: 'utf8' }).status === 0, 'RTK binary runs');
+  } else {
+    for (const path of ['/opt/dsh-seed/skills', '/usr/local/bin/rtk', '/usr/local/share/rtk',
+      '/opt/dsh/runtime/node_modules/dsh-context']) {
+      check(await absent(path), `Tavern excludes Web optional asset ${path}`);
+    }
+  }
   for (const name of Object.keys(manifest.dependencies)) {
     await import(pathToFileURL(profileRequire.resolve(name)).href);
   }

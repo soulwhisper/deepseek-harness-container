@@ -20,12 +20,12 @@ Both are built natively for `linux/amd64` and `linux/arm64` (no QEMU). The
 images contain no Chromium, GUI, X11, VNC, local password database, OIDC client
 or replacement mux server.
 
-Both images seed the optional Caveman and RTK skills and install the RTK OSS
-binary. Web additionally bundles `dsh-context`. These three upstream assets are
-resolved at image-build time from their latest upstream state; they are not
-version-pinned or tracked by Renovate, so deploy the published digest rather
-than expecting a reproducible rebuild from `latest`. See
-[build](docs/build.md#floating-optional-assets).
+The Web image seeds the optional Caveman and RTK skills, installs the RTK OSS
+binary and bundles `dsh-context`. Tavern intentionally includes none of these
+optional assets. The three upstream inputs are resolved at Web image-build time
+from their latest upstream state; they are not version-pinned or tracked by
+Renovate, so deploy the published digest rather than expecting a reproducible
+rebuild from `latest`. See [build](docs/build.md#floating-optional-assets).
 
 ## Documentation
 

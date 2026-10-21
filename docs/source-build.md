@@ -37,10 +37,12 @@ workflows or general documentation. The image retains the Tavern checkout at
 commit.
 
 The optional `dsh-context`, Caveman skill and RTK OSS binary are deliberately
-floating upstream assets resolved during the build. Their exact bytes are not
-pinned in this archive; the build recipe, upstream URLs and the licenses
-retained in the final image are included. Reproducing those exact bytes
-requires the same upstream state or the published image digest. See
+floating upstream assets resolved only when building the **Web** image. Their
+exact bytes are not pinned in this archive; the build recipe, upstream URLs and
+the licenses retained in the Web image are included. Reproducing those exact
+bytes requires the same upstream state or the published image digest. Tavern
+does not activate or seed these optional assets; its archive keeps the shared
+distribution build recipe only. See
 [Build](build.md#floating-optional-assets).
 
 ## Rebuild from the archive

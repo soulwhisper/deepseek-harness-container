@@ -74,9 +74,11 @@ harnesses do not ship with the release image.
 ## Bundled skills and plugins
 
 Skill recommendations live under `docker/skills/` and are copied into the
-image seed at `/opt/dsh-seed/skills`. On first seed or explicit state
-migration, missing bundles are copied into `$DSH_HOME/skills`; users may edit or
-delete them. They are not immutable runtime content. The final image exports:
+**Web** image seed at `/opt/dsh-seed/skills`. Tavern does not copy that
+directory and has no bundled Caveman, RTK or `dsh-context` assets. On first seed
+or explicit state migration, missing bundles are copied into
+`$DSH_HOME/skills`; users may edit or delete them. They are not immutable
+runtime content. The final images export:
 
 ```text
 DSH_AGENTS_HOME=/data/home/.agents
@@ -105,9 +107,9 @@ image-build time and are tracked only by the published image digest:
 
 | Asset | Source | Build behavior |
 | --- | --- | --- |
-| `dsh-context` | npm `latest` dist-tag | Installed into the immutable Web runtime, then linked into the Web seed profile; its `dsh.bundle` and current-DSH compatibility declaration are verified before the image is published |
-| Caveman skill | `JuliusBrussee/caveman` `main` branch, `skills/caveman/SKILL.md` | Fetched into `/opt/dsh-seed/skills/caveman`; the upstream `LICENSE` and a `SOURCE` record are included |
-| RTK binary | `rtk-ai/rtk` latest release, **`rtk-oss-*` Apache-2.0 edition** | Checksum-verified and installed at `/usr/local/bin/rtk`; the normal BUSL-1.1 asset is never used |
+| `dsh-context` | npm `latest` dist-tag | **Web only.** Installed into the immutable Web runtime, then linked into the Web seed profile; its `dsh.bundle` and current-DSH compatibility declaration are verified before the image is published |
+| Caveman skill | `JuliusBrussee/caveman` `main` branch, `skills/caveman/SKILL.md` | **Web only.** Fetched into `/opt/dsh-seed/skills/caveman`; the upstream `LICENSE` and a `SOURCE` record are included |
+| RTK binary | `rtk-ai/rtk` latest release, **`rtk-oss-*` Apache-2.0 edition** | **Web only.** Checksum-verified and installed at `/usr/local/bin/rtk`; the normal BUSL-1.1 asset is never used |
 
 The Web build installs `dsh-context` into the immutable runtime from npm
 `latest`, then adds an immutable `link:` dependency and bundle entry to the

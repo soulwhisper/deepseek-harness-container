@@ -51,11 +51,39 @@ RUN chmod 0755 /opt/dsh/scripts/entrypoint.sh
 COPY docker/profiles/web/pnpm-workspace.yaml /opt/dsh/profiles/web/pnpm-workspace.yaml
 COPY docker/profiles/tavern/pnpm-workspace.yaml /opt/dsh/profiles/tavern/pnpm-workspace.yaml
 COPY docker/profiles/distribution.patch.yml /opt/dsh/profiles/distribution.patch.yml
-# Seed-only skill recommendations. These are copied into DSH_HOME/skills on
-# first seed or explicit migration and may be edited or deleted by the user.
+FROM runtime-build AS tavern-source
+COPY patches/tavern /opt/dsh/patches/tavern
+WORKDIR /opt/dsh-tavern/apps/dsh-tavern
+RUN git init . \
+    && git remote add origin https://github.com/flizzywine/dsh-tavern.git \
+    && git fetch --depth=1 origin 7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d \
+    && git checkout --detach FETCH_HEAD \
+    && test "$(git rev-parse HEAD)" = 7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d \
+    && rm -rf .git \
+    && node /opt/dsh/patches/tavern/patch-tavern.mjs
+
+# Maintainer-only lock generation. Export with:
+# docker buildx build --target profile-locks --output type=local,dest=. .
+# This target intentionally does not depend on the profile locks it generates.
+FROM tavern-source AS profile-lock-builder
+RUN node /opt/dsh/scripts/materialize-profiles.mjs \
+    && pnpm --dir /opt/dsh-seed/profiles/web install --lockfile-only --ignore-scripts \
+    && pnpm --dir /opt/dsh-seed/profiles/tavern install --lockfile-only --ignore-scripts \
+    && node /opt/dsh/scripts/normalize-locks.mjs \
+         /opt/dsh-seed/profiles/web/pnpm-lock.yaml \
+         /opt/dsh-seed/profiles/tavern/pnpm-lock.yaml
+FROM scratch AS profile-locks
+COPY --from=profile-lock-builder /opt/dsh-seed/profiles/web/pnpm-lock.yaml /profiles/web/pnpm-lock.yaml
+COPY --from=profile-lock-builder /opt/dsh-seed/profiles/tavern/pnpm-lock.yaml /profiles/tavern/pnpm-lock.yaml
+
+FROM runtime-build AS web-build
+COPY docker/profiles/web/pnpm-lock.yaml /opt/dsh/profiles/web/pnpm-lock.yaml
+COPY patches/market /opt/dsh/patches/market
+# Seed-only Web skills. Tavern intentionally receives neither these skills nor
+# the RTK binary; its profile remains the Tavern distribution only.
 COPY docker/skills/ /opt/dsh-seed/skills/
 
-# Floating optional assets are deliberately resolved from upstream at build
+# Floating optional Web assets are deliberately resolved from upstream at build
 # time, never pinned in versions.json or Renovate. The published image digest,
 # not a mutable tag, is the reproducibility boundary. A moved skill path,
 # changed frontmatter or missing release asset fails the build instead of
@@ -118,34 +146,6 @@ RUN set -eux; \
       > /usr/local/share/rtk/SOURCE; \
     rtk --version
 
-FROM runtime-build AS tavern-source
-COPY patches/tavern /opt/dsh/patches/tavern
-WORKDIR /opt/dsh-tavern/apps/dsh-tavern
-RUN git init . \
-    && git remote add origin https://github.com/flizzywine/dsh-tavern.git \
-    && git fetch --depth=1 origin 7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d \
-    && git checkout --detach FETCH_HEAD \
-    && test "$(git rev-parse HEAD)" = 7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d \
-    && rm -rf .git \
-    && node /opt/dsh/patches/tavern/patch-tavern.mjs
-
-# Maintainer-only lock generation. Export with:
-# docker buildx build --target profile-locks --output type=local,dest=. .
-# This target intentionally does not depend on the profile locks it generates.
-FROM tavern-source AS profile-lock-builder
-RUN node /opt/dsh/scripts/materialize-profiles.mjs \
-    && pnpm --dir /opt/dsh-seed/profiles/web install --lockfile-only --ignore-scripts \
-    && pnpm --dir /opt/dsh-seed/profiles/tavern install --lockfile-only --ignore-scripts \
-    && node /opt/dsh/scripts/normalize-locks.mjs \
-         /opt/dsh-seed/profiles/web/pnpm-lock.yaml \
-         /opt/dsh-seed/profiles/tavern/pnpm-lock.yaml
-FROM scratch AS profile-locks
-COPY --from=profile-lock-builder /opt/dsh-seed/profiles/web/pnpm-lock.yaml /profiles/web/pnpm-lock.yaml
-COPY --from=profile-lock-builder /opt/dsh-seed/profiles/tavern/pnpm-lock.yaml /profiles/tavern/pnpm-lock.yaml
-
-FROM runtime-build AS web-build
-COPY docker/profiles/web/pnpm-lock.yaml /opt/dsh/profiles/web/pnpm-lock.yaml
-COPY patches/market /opt/dsh/patches/market
 # dsh-context is a floating optional Web plugin, not a pinned runtime input.
 # Install it into the immutable runtime from npm latest, then link it into the
 # profile. Keeping it out of the writable profile lets state migration restore
@@ -190,10 +190,6 @@ ENV DSH_HOME=/data/dsh \
     DSH_PORT=3080 \
     TMPDIR=/tmp
 WORKDIR /workspace
-# RTK is installed in the common runtime stage, but the final base starts from
-# tools; copy the verified OSS binary and license explicitly.
-COPY --from=runtime-build /usr/local/bin/rtk /usr/local/bin/rtk
-COPY --from=runtime-build /usr/local/share/rtk /usr/local/share/rtk
 # Exact build/patch inputs, not the repository's test and deploy trees.
 COPY --from=distribution-source / /opt/dsh/distribution-source
 EXPOSE 3080
@@ -208,6 +204,10 @@ FROM application AS web
 ENV DSH_PROFILE=web
 COPY --from=web-build /opt/dsh /opt/dsh
 COPY --from=web-build /opt/dsh-seed /opt/dsh-seed
+# RTK and the Caveman skill are Web-only optional assets. Tavern intentionally
+# has neither the binary nor the seed skills.
+COPY --from=web-build /usr/local/bin/rtk /usr/local/bin/rtk
+COPY --from=web-build /usr/local/share/rtk /usr/local/share/rtk
 LABEL org.opencontainers.image.title="DeepSeek Harness Web with dshmarket, dsh-context and forward-auth" \
       org.opencontainers.image.version="0.2.1-rc.2" \
       org.opencontainers.image.licenses="Apache-2.0 AND MIT"
@@ -223,7 +223,7 @@ COPY --from=tavern-build /opt/dsh-seed /opt/dsh-seed
 COPY --from=tavern-build /opt/dsh-tavern /opt/dsh-tavern
 COPY --from=tavern-build /opt/dsh-source /opt/dsh-source
 RUN test "${#IMAGE_REVISION}" -eq 40 && test -z "$(printf '%s' "$IMAGE_REVISION" | tr -d '0-9a-f')"
-LABEL org.opencontainers.image.title="DeepSeek Harness Tavern with bundled skills, RTK and forward-auth" \
+LABEL org.opencontainers.image.title="DeepSeek Harness Tavern with forward-auth" \
       org.opencontainers.image.version="3.0" \
       org.opencontainers.image.licenses="Apache-2.0 AND MIT AND AGPL-3.0-only" \
       io.github.soulwhisper.dsh-tavern.commit="7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d"

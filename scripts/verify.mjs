@@ -100,6 +100,12 @@ assert.match(dockerfile, /pnpm --dir \/opt\/dsh-seed\/profiles\/web install --no
   'The floating dsh-context link gets a generated profile lock, not a stale committed pin');
 assert.match(dockerfile, /caveman\/main\/skills\/caveman\/SKILL\.md/u, 'Caveman skill is fetched from upstream latest');
 assert.match(dockerfile, /rtk-oss-/u, 'Only the Apache-2.0 RTK OSS asset may be bundled');
+assert.equal((dockerfile.match(/COPY docker\/skills\/ \/opt\/dsh-seed\/skills\//gu) ?? []).length, 1,
+  'Only one final stage may receive the optional skill seed');
+const webStage = dockerfile.slice(dockerfile.indexOf('FROM application AS web'), dockerfile.indexOf('FROM application AS tavern'));
+const tavernStage = dockerfile.slice(dockerfile.indexOf('FROM application AS tavern'));
+assert.match(webStage, /usr\/local\/bin\/rtk/u, 'Web image receives the RTK binary');
+assert.doesNotMatch(tavernStage, /rtk|caveman|dsh-context/iu, 'Tavern must not receive optional Web assets');
 assert.doesNotMatch(JSON.stringify(versions), /dsh-context|caveman|rtk/iu,
   'Floating assets are not version-pinned in versions.json');
 assert.deepEqual([...floatingBundles.web], ['dsh-context'], 'Only dsh-context is a floating web bundle');

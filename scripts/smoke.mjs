@@ -18,7 +18,6 @@ const prefix = `dsh-smoke-${randomBytes(6).toString('hex')}`;
 const containers = [];
 const volumes = [];
 let network;
-let egressNetwork;
 
 async function docker(args, input, allowFailure = false) {
   return await new Promise((resolve, reject) => {
@@ -169,8 +168,6 @@ async function awaitReady(app) {
 async function cleanup() {
   for (const name of containers.splice(0).reverse()) await docker(['rm', '--force', name], undefined, true);
   for (const name of volumes.splice(0)) await docker(['volume', 'rm', name], undefined, true);
-  if (egressNetwork) await docker(['network', 'rm', egressNetwork], undefined, true);
-  egressNetwork = undefined;
   if (network) await docker(['network', 'rm', network], undefined, true);
   network = undefined;
 }
@@ -182,9 +179,9 @@ try {
   for (const [index, image] of images.entries()) {
     network = `${prefix}-${index}`;
     await docker(['image', 'inspect', image]); // Require the caller to build/pull explicitly.
-    await docker(['network', 'create', '--internal', network]);
-    egressNetwork = `${network}-egress`;
-    await docker(['network', 'create', egressNetwork]);
+    // A normal bridge is required: Docker refuses to publish ports on an
+    // --internal network. The app needs registry egress for market installs.
+    await docker(['network', 'create', network]);
     const stateVolume = `${network}-state`;
     const workspaceVolume = `${network}-workspace`;
     for (const volume of [stateVolume, workspaceVolume]) {
@@ -219,8 +216,6 @@ try {
       '--env', `DSH_SSO_TRUSTED_PROXY_CIDRS=${edgeIP}/32`,
       '--env', 'DSH_SSO_MAX_CONNECTION_SECONDS=20',
     ]);
-    // Registry egress is separate and untrusted; the listener still binds ONLY appIP.
-    await docker(['network', 'connect', egressNetwork, app]);
     await awaitReady(app);
     const config = { host: appIP, port: 3080, authority, uid: 'smoke-owner-uid' };
     await execute(attacker, 'untrusted', config);

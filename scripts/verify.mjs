@@ -132,6 +132,13 @@ assert.ok(ciWorkflow.on.pull_request !== undefined && ciWorkflow.on.merge_group 
 assert.deepEqual(ciWorkflow.on.pull_request.types, ['opened', 'synchronize', 'reopened', 'ready_for_review'], 'CI has explicit PR activity types');
 assert.equal(ciWorkflow.on.push, undefined, 'CI must not duplicate on branch pushes');
 assert.equal(ciWorkflow.jobs?.label, undefined, 'Labeler is a separate workflow');
+assert.ok(ciWorkflow.jobs?.changes, 'CI keeps a change detector for image-input gating');
+assert.equal(ciWorkflow.on.pull_request.paths, undefined, 'Required CI status must exist for docs/test/dot-only PRs');
+assert.equal(ciWorkflow.on.pull_request['paths-ignore'], undefined, 'Do not path-filter the required CI workflow');
+assert.deepEqual(ciWorkflow.jobs.images.needs, ['changes', 'static'], 'Image matrix depends on the image-input gate');
+assert.match(ciText, /needs\.changes\.outputs\.images == 'true'/u, 'Image matrix runs only for image/build inputs');
+assert.match(ciText, /\.dockerignore\$/u, 'Docker build-context changes remain image-relevant');
+assert.deepEqual(ciWorkflow.jobs['ci-pass'].needs, ['changes', 'static', 'images'], 'Required gate includes the change detector');
 assert.doesNotMatch(ciText, /secrets\./u, 'CI build/test jobs must not receive repository secrets');
 const labelerText = await text('.github/workflows/labeler.yaml');
 const labelerWorkflow = parse(labelerText);

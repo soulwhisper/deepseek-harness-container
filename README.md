@@ -150,8 +150,9 @@ Only `web-<dsh-version>` and `tavern-<version>` tags publish. Each tag must matc
 runners, and is combined into one multi-arch index. There is no `latest` image
 tag, no branch publication and no candidate `sha-` image; the optional
 `dsh-context`, Caveman and RTK inputs are floating build-time upstream assets,
-not release tags. PRs run static checks, tests
-and native image smoke; they receive no repository secrets. The same-repo PR
+not release tags. PRs always run the required static checks and tests; native
+image smoke runs when image/build inputs change. Pull requests receive no
+repository secrets. The same-repo PR
 labeler and scheduled label sync use job-scoped default tokens with only
 `pull-requests: write` or `issues: write`. Registry pushes use the job-scoped
 `GITHUB_TOKEN` with `packages: write`; release notes and cleanup use the GitHub

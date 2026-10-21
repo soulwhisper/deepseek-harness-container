@@ -19,6 +19,10 @@ directory is seeded into the Web image as user-facing skills.
 - The authoritative image check is the GitHub Actions matrix:
   Web and Tavern, each on native amd64 and arm64, followed by
   `CI checks passed`.
+- CI keeps the workflow and required static check running for every same-repo
+  PR, but skips the four image jobs when only docs, tests, scaffold, deploy
+  examples or non-critical dotfiles changed. `.dockerignore` is an intentional
+  image-input exception.
 - Deploy and compare published image digests, not mutable tags.
 
 ## Web and Tavern boundary

@@ -64,22 +64,36 @@ function managedCopyNames(seed, source, workspace = {}) {
   return (seed.dshTavern?.managedDependencies ?? []).filter(name => !immutable.has(name));
 }
 
+async function sameManagedCopy(destination, expected) {
+  try {
+    const [actual, wanted] = await Promise.all([
+      readFile(join(destination, 'package.json'), 'utf8'),
+      readFile(join(expected, 'package.json'), 'utf8'),
+    ]);
+    const current = JSON.parse(actual);
+    const pinned = JSON.parse(wanted);
+    return current.name === pinned.name && current.version === pinned.version;
+  } catch {
+    return false;
+  }
+}
+
 async function restoreManagedCopies(target, source, seed, workspace = {}) {
   const modules = join(target, 'node_modules');
   await mkdir(modules, { recursive: true });
   for (const name of managedCopyNames(seed, source, workspace)) {
     const destination = join(modules, name);
+    const expected = join(source, 'node_modules', name);
     let info;
     try {
       info = await lstat(destination);
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
     }
-    // A real directory keeps its own dependency lookup. A missing entry, a
-    // file, or a symlink (including the old broken seed-link layout) is
-    // restored from the immutable seed.
-    if (info?.isDirectory() && !info.isSymbolicLink()) continue;
-    const expected = join(source, 'node_modules', name);
+    // A real directory keeps its own dependency lookup only while it matches
+    // the pinned seed version. Missing entries, files, symlinks (including the
+    // old broken seed-link layout), and stale copies are restored from the seed.
+    if (info?.isDirectory() && !info.isSymbolicLink() && await sameManagedCopy(destination, expected)) continue;
     await mkdir(dirname(destination), { recursive: true });
     if (!(await lstat(dirname(destination))).isDirectory()) throw new Error(`Managed scope is not a real directory: ${name}`);
     if (info) await rm(destination, { recursive: true, force: true });

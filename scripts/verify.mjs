@@ -155,6 +155,8 @@ assert.equal(ciWorkflow.on.pull_request['paths-ignore'], undefined, 'Do not path
 assert.deepEqual(ciWorkflow.jobs.images.needs, ['changes', 'static'], 'Image matrix depends on the image-input gate');
 assert.match(ciText, /needs\.changes\.outputs\.images == 'true'/u, 'Image matrix runs only for image/build inputs');
 assert.match(ciText, /\.dockerignore\$/u, 'Docker build-context changes remain image-relevant');
+assert.ok(ciText.includes(String.raw`github/workflows/ci\.yaml$`),
+  'Image-build workflow changes remain image-relevant');
 assert.deepEqual(ciWorkflow.jobs['ci-pass'].needs, ['changes', 'static', 'images'], 'Required gate includes the change detector');
 assert.doesNotMatch(ciText, /secrets\./u, 'CI build/test jobs must not receive repository secrets');
 const labelerText = await text('.github/workflows/labeler.yaml');

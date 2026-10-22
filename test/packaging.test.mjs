@@ -198,6 +198,9 @@ test('managed Tavern ecosystem copies stay writable and are restored when missin
   const installed = join(options.home, 'profiles/web/node_modules/external-plugin');
   assert.equal((await lstat(installed)).isSymbolicLink(), false);
   assert.equal(JSON.parse(await readFile(join(installed, 'package.json'), 'utf8')).version, '1.0.0');
+  await writeFile(join(installed, 'package.json'), JSON.stringify({ name: 'external-plugin', version: '0.9.0' }));
+  assert.equal((await materializeState(options)).action, 'unchanged');
+  assert.equal(JSON.parse(await readFile(join(installed, 'package.json'), 'utf8')).version, '1.0.0');
   await rm(installed, { recursive: true });
   assert.equal((await materializeState(options)).action, 'unchanged');
   assert.equal((await lstat(installed)).isSymbolicLink(), false);

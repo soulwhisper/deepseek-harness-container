@@ -44,8 +44,8 @@ function isTopLevelNavigation(request) {
 // A link from another origin is a top-level GET/HEAD navigation, not an API
 // call. The edge has already authenticated it; keep the Host/Origin and
 // identity checks, and keep cross-site API/upgrade rejection intact.
-function withoutCrossSiteNavigation(request) {
-  if (!isTopLevelNavigation(request)) return request;
+function withoutCrossSiteNavigation(request, kind) {
+  if (kind !== 'http' || !isTopLevelNavigation(request)) return request;
   const headers = { ...request.headers };
   delete headers['sec-fetch-site'];
   return { ...request, headers };
@@ -160,7 +160,7 @@ export function createAdmission(connection, config, { setTimer = setTimeout, cle
     if (disposed) return deny('disposed', target, kind);
     const failure = identityFailure(request, config);
     if (failure) return deny(failure, target, kind);
-    const trustRequest = withoutCrossSiteNavigation(request);
+    const trustRequest = withoutCrossSiteNavigation(request, kind);
     let rejection;
     try {
       rejection = connection.requestRejection(trustRequest);

@@ -246,7 +246,11 @@ test('top-level cross-site navigation is admitted; cross-site API and POST are n
   assert.equal(gate.http(api, response()), false);
   const post = { ...base, method: 'POST', headers: { ...navigation.headers } };
   assert.equal(gate.http(post, response()), false);
-  assert.deepEqual(seen, [undefined, 'cross-site', 'cross-site', 'cross-site']);
+  const upgradeSocket = new EventEmitter();
+  upgradeSocket.destroy = () => {};
+  upgradeSocket.end = () => {};
+  assert.equal(gate.upgrade({ ...navigation }, upgradeSocket), false);
+  assert.deepEqual(seen, [undefined, 'cross-site', 'cross-site', 'cross-site', 'cross-site']);
 });
 
 test('minted navigation cookie reaches the dispatched request and keeps sec-fetch-site', () => {

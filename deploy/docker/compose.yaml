@@ -5,7 +5,7 @@ name: dsh
 
 services:
   web:
-    image: ${DSH_WEB_IMAGE:-ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2}
+    image: ${DSH_WEB_IMAGE:-ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2-r2}
     container_name: dsh-web
     restart: unless-stopped
     user: "1000:1000"

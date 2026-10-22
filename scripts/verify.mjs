@@ -17,14 +17,14 @@ assert.equal(packageJson.license, 'Apache-2.0');
 assert.match(await text('LICENSE'), /Apache License\s+Version 2\.0/u);
 assert.equal(versions.schemaVersion, 2);
 assert.equal(versions.registry, 'ghcr.io/soulwhisper');
-for (const [target, version] of Object.entries({ web: versions.dsh.version, tavern: versions.tavern.version })) {
+for (const [target, version] of Object.entries({ web: versions.distribution, tavern: versions.tavern.version })) {
   const release = versions.release?.[target];
-  assert.equal(release?.tag, `${target}-${version}`, `${target} release tag must track its upstream version`);
+  assert.equal(release?.tag, `${target}-${version}`, `${target} release tag must track its release version`);
   assert.equal(release?.image, `dsh-${target}`, `${target} image name`);
 }
 assert.equal(versions.tavern.upstreamTag, `v${versions.tavern.version}`, 'Tavern upstream tag keeps its v prefix; release/image tags do not');
 assert.match(versions.node.image, new RegExp(`^node:${versions.node.version.replaceAll('.', '\\.')}-.+@sha256:[a-f0-9]{64}$`));
-assert.match(await text('docker/Dockerfile'), new RegExp(`org\\.opencontainers\\.image\\.version="${versions.dsh.version}"`, 'u'));
+assert.match(await text('docker/Dockerfile'), new RegExp(`org\\.opencontainers\\.image\\.version="${versions.distribution}"`, 'u'));
 assert.match(await text('docker/Dockerfile'), new RegExp(`org\\.opencontainers\\.image\\.version="${versions.tavern.version}"`, 'u'));
 assert.match(versions.dsh.commit, /^[a-f0-9]{40}$/u);
 assert.match(versions.tavern.commit, /^[a-f0-9]{40}$/u);

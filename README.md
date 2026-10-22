@@ -10,10 +10,11 @@ An independent, self-packaged [DeepSeek Harness](https://github.com/deepseek-ai/
 
 | Image | Release tag | Profile |
 | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web + `dshmarket` + `dsh-context` + required forward-auth |
+| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2-r2` | `web-0.2.1-rc.2-r2` | DSH Web + `dshmarket` + `dsh-context` + required forward-auth |
 | `ghcr.io/soulwhisper/dsh-tavern:3.1` | `tavern-3.1` | Custom Tavern workspace + forward-auth + pinned manager-protected ecosystem |
 
-Web follows the DSH upstream version; Tavern follows dsh-tavern. They are
+Web images use the distribution revision (`<dsh-version>-rN` when the image
+changes without a DSH bump); Tavern follows dsh-tavern. They are
 released independently, use Node 24/glibc, run as UID/GID `1000:1000`, bind
 exactly one concrete IP on port `3080`, and use a read-only root filesystem.
 Both are built natively for `linux/amd64` and `linux/arm64` (no QEMU). The
@@ -79,7 +80,7 @@ docker volume create dsh-web-cache
 docker volume create dsh-web-logs
 docker volume create dsh-web-backups
 
-export IMAGE=ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2
+export IMAGE=ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2-r2
 export ALLOWED_SUBJECTS='your-stable-owner-id'
 
 docker run --detach --name dsh-web --restart unless-stopped \
@@ -148,7 +149,7 @@ that token; treat logs as sensitive. Status logs report `waiting-for-edge`,
 
 ## Release and automation
 
-Only `web-<dsh-version>` and `tavern-<version>` tags publish. Each tag must match
+Only `web-<distribution>` and `tavern-<version>` tags publish. Each tag must match
 `versions.json`, point into `main`, is built and smoked on native amd64/arm64
 runners, and is combined into one multi-arch index. There is no `latest` image
 tag, no branch publication and no candidate `sha-` image; the optional

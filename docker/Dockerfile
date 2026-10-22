@@ -44,7 +44,15 @@ WORKDIR /opt/dsh/docker/runtime
 COPY docker/runtime/package.json docker/runtime/pnpm-workspace.yaml docker/runtime/pnpm-lock.yaml ./
 COPY plugins/forward-auth /opt/dsh/plugins/forward-auth
 COPY patches/dsh /opt/dsh/patches/dsh
+# pnpm resolves the runtime's file: dependency as a symlink under node_modules.
+# Remove only that generated package link before installing the reviewed build-
+# context bundle; /opt/dsh/plugins/forward-auth remains the source of truth.
 RUN pnpm install --frozen-lockfile --prod \
+    && rm -rf /opt/dsh/docker/runtime/node_modules/@soulwhisper/dsh-forward-auth \
+    && mkdir -p /opt/dsh/docker/runtime/node_modules/@soulwhisper/dsh-forward-auth \
+    && cp -a /opt/dsh/plugins/forward-auth/. /opt/dsh/docker/runtime/node_modules/@soulwhisper/dsh-forward-auth/ \
+    && grep -q "session-log-deepseek" /opt/dsh/docker/runtime/node_modules/@soulwhisper/dsh-forward-auth/cordis.patch.yml \
+    && grep -q "skill-filesystem" /opt/dsh/docker/runtime/node_modules/@soulwhisper/dsh-forward-auth/cordis.patch.yml \
     && node /opt/dsh/patches/dsh/patch-host.mjs /opt/dsh/docker/runtime \
     && ln -s docker/runtime /opt/dsh/runtime
 # Fail the build if native optional packages were resolved for the wrong

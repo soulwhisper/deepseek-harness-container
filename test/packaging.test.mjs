@@ -406,6 +406,47 @@ const routeFixture = `
         return 'allowed'
 `;
 
+test('forward-auth bundle keeps privacy defaults and exposes optional skill roots', async () => {
+  const text = await readFile(join(root, 'plugins/forward-auth/cordis.patch.yml'), 'utf8');
+  const patch = YAML.parse(text, {
+    customTags: [{ tag: 'tag:yaml.org,2002:js', resolve: value => value }],
+  });
+  const entry = id => patch.find(row => row.id === id);
+  assert.equal(entry('session-log-deepseek')?.name, '@deepseek-ai/dsh-session-log-deepseek');
+  assert.equal(entry('session-log-deepseek')?.config?.enabled, false);
+  assert.equal(entry('ui-settings-account')?.name, '@deepseek-ai/dsh-client-ui-settings-account');
+  assert.equal(entry('ui-settings-account')?.disabled, true);
+  assert.equal(entry('ui-settings-models')?.config?.credentialOnboarding, false);
+  const skills = entry('skill-filesystem');
+  assert.equal(skills?.name, '@deepseek-ai/dsh-skill-filesystem');
+  assert.match(String(skills?.disabled), /DSH_SKILL_DIRS/u);
+  const disabledExpression = String(skills?.disabled).replace(/^!!js\s*/u, '');
+  const disabledFor = dirs => new Function('process', `return ${disabledExpression}`)({
+    env: { DSH_SKILL_DIRS: dirs },
+  });
+  assert.equal(disabledFor(undefined), true);
+  assert.equal(disabledFor(''), true);
+  assert.equal(disabledFor('/skills'), false);
+  assert.equal(skills?.config?.providerName, 'filesystem-deployment');
+  assert.equal(skills?.config?.includeDefaultRoots, false);
+  assert.match(String(skills?.config?.customSkillDirs), /DSH_SKILL_DIRS/u);
+  assert.equal(skills?.config?.watch, true);
+  assert.equal(patch[0]?.insert?.[0]?.id, 'distribution-forward-auth');
+});
+
+test('Kubernetes example leaves state ownership to the image', async () => {
+  const documents = YAML.parseAllDocuments(await readFile(join(root, 'deploy/kubernetes/dsh-web.yaml'), 'utf8')).map(doc => doc.toJS());
+  const statefulSet = documents.find(doc => doc?.kind === 'StatefulSet');
+  const pod = statefulSet?.spec?.template?.spec;
+  assert.equal(pod?.initContainers, undefined, 'The example does not need a state-seed init');
+  const envNames = pod?.containers?.flatMap(container => container.env ?? []).map(item => item.name) ?? [];
+  for (const name of ['DSH_HOME', 'HOME', 'DSH_PROFILE', 'DSH_BACKUP_ROOT', 'DSH_AGENTS_HOME', 'DSH_PORT']) {
+    assert.equal(envNames.includes(name), false, `The example does not repeat image default ${name}`);
+  }
+  const mounts = pod?.containers?.flatMap(container => container.volumeMounts ?? []).map(mount => mount.mountPath);
+  assert.equal(mounts?.some(path => path?.startsWith('/data/home')), false, 'The example does not mount below HOME');
+});
+
 test('exact-hash Tavern patch accepts configured public Origin, rejects cross-Origin and preserves capability routing', () => {
   const hash = createHash('sha256').update(routeFixture).digest('hex');
   assert.throws(() => patchRoutes(routeFixture, 'not-the-hash'), /source mismatch/);

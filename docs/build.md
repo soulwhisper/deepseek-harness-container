@@ -149,8 +149,13 @@ and are not protected by the manager.
 ## Pins and locks
 
 The runtime is installed under `/opt/dsh/docker/runtime`, with
-`/opt/dsh/runtime` as the stable alias. Profile locks use absolute
-`link:/opt/dsh/runtime/...` specifiers. The build runs
+`/opt/dsh/runtime` as the stable alias. The runtime manifest declares
+`@soulwhisper/dsh-forward-auth` as `file:../../plugins/forward-auth`; pnpm
+materializes that dependency as a symlink. The `runtime-build` stage removes
+only that generated `node_modules` link, copies the reviewed
+`plugins/forward-auth` bundle into its place, and asserts the expected patch
+rows. The source plugin directory is not removed, and this is build-stage only.
+Profile locks use absolute `link:/opt/dsh/runtime/...` specifiers. The build runs
 `scripts/normalize-locks.mjs` for generated locks and refuses relative link
 versions in committed locks.
 

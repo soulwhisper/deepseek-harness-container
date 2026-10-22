@@ -50,6 +50,7 @@ nav:
   - Deploy:
       - Deployment: deploy.md
       - Operations: operations.md
+      - Marketplace build approvals: market-builds.md
       - State and backup: data-layout.md
   - Reference:
       - Licensing: regulations.md

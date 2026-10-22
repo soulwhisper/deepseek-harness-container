@@ -184,7 +184,9 @@ Distribution-owned DSH, forward-auth, guard patches and bundled baseline package
 change through reviewed source/lock updates and a rebuilt image. User-added Web
 plugins go through the native manager and its explicit script approvals; the
 market is not a privileged installer. Tavern core requires its pinned custom
-workspace recipe; runtime `plugin add` of the core is not supported.
+workspace recipe; runtime `plugin add` of the core is not supported. The
+[marketplace build approval record](market-builds.md) lists the dependency
+packages behind that approval flow; it does not pre-approve any plugin.
 
 Changing an image tag does not approve a state migration, update a community
 plugin or prove compatibility. Startup installs nothing.

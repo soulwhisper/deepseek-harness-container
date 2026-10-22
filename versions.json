@@ -34,7 +34,7 @@
       "indexSha256": "1adf59906ab10e91765d96f3e42268b0b7669f921c4baf4021a3057894cf3000",
       "clientSha256": "f9915fb53d5f156e75291e63be66c80e607a82bfd03c7d583e0a12ebef5a6cb8"
     },
-    "upstreamTag": "v3.1"
+    "upstreamTag": "v3.1.3"
   },
   "ecosystem": {
     "dsh-tavern-wrongbook": "github:XGUIMAX/dsh-tavern-wrongbook#v1.33.0",

@@ -59,8 +59,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-            - name: DSH_PORT
-              value: "3080"
             - name: DSH_PUBLIC_URL
               value: https://dsh.example.net
             - name: DSH_TRUSTED_HOSTS
@@ -79,8 +77,12 @@ spec:
                   key: trusted-proxy-cidrs
             - name: DSH_FORWARD_AUTH_MAX_CONNECTION_SECONDS
               value: "900"
-            - name: DSH_BACKUP_ROOT
-              value: /backups
+            # Native skill roots are discovered automatically:
+            #   /workspace/.dsh/skills, /workspace/.agents/skills,
+            #   $DSH_HOME/skills and $DSH_AGENTS_HOME/skills.
+            # Set DSH_SKILL_DIRS only for extra roots (for example /skills).
+            # - name: DSH_SKILL_DIRS
+            #   value: /skills
           startupProbe:
             exec:
               command: ["node", "/opt/dsh/scripts/readiness.mjs"]

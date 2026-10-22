@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import { lstat, readFile, readlink, stat } from 'node:fs/promises';
+import { lstat, readFile, readlink, stat, cp, mkdtemp, rm } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
+import { join } from 'node:path';
 
 const [mode, json = '{}'] = process.argv.slice(2);
 const config = JSON.parse(json);
@@ -313,6 +314,45 @@ async function runtime() {
   check(logs.isSymbolicLink() && await readlink('/data/dsh/logs') === '/logs', 'DSH logs are on their own volume');
   const profile = process.env.DSH_PROFILE;
   check(['web', 'tavern'].includes(profile), 'Known profile');
+  // `--dump-config` intentionally keeps !!js expressions raw. Evaluate the
+  // installed condition directly for both profiles; the composed dump below
+  // checks the privacy defaults for both profiles.
+  const forwardAuthPatch = await readFile('/opt/dsh/runtime/node_modules/@soulwhisper/dsh-forward-auth/cordis.patch.yml', 'utf8');
+  const disabledExpression = forwardAuthPatch.match(/^  disabled: !!js (.+)$/mu)?.[1]?.trim();
+  check(disabledExpression, 'Optional skill roots expose a condition');
+  const disabledFor = dirs => new Function('process', `return ${disabledExpression}`)({
+    env: { DSH_SKILL_DIRS: dirs },
+  });
+  check(disabledFor(undefined) === true, 'Optional skill roots are disabled when unset');
+  check(disabledFor('') === true, 'Optional skill roots are disabled when empty');
+  check(disabledFor('/skills') === false, 'Optional skill roots are enabled when set');
+  // Tavern's profile is larger than the smoke /tmp tmpfs; /data is the
+  // writable state volume. The temporary home is removed in the finally block.
+  const defaultsHome = await mkdtemp(join('/data', 'dsh-defaults-'));
+  try {
+    await cp(`/opt/dsh/seed/profiles/${profile}`, join(defaultsHome, 'profiles', profile), {
+      recursive: true, verbatimSymlinks: true,
+    });
+    const dump = spawnSync('/opt/dsh/runtime/node_modules/.bin/dsh', ['--profile', profile, '--dump-config'], {
+      env: { ...process.env, DSH_HOME: defaultsHome, DSH_PROFILE: profile },
+      encoding: 'utf8', timeout: 30_000,
+    });
+    check(dump.status === 0, 'Profile composition dump');
+    check(/id: session-log-deepseek\n  name: [^\n]+\n  config:\n    enabled: false/u.test(dump.stdout),
+      'Official-API Session-log upload is opt-in');
+    check(/id: ui-settings-account\n  name: [^\n]+\n  disabled: true/u.test(dump.stdout),
+      'DeepSeek account UI is hidden by default');
+    check(/id: ui-settings-models\n  name: [^\n]+\n  config:\n    credentialOnboarding: false/u.test(dump.stdout),
+      'Automatic credential onboarding is off by default');
+    if (profile === 'web') {
+      // Tavern's own profile patch intentionally disables the optional
+      // skill-filesystem row; the installed condition is evaluated above.
+      check(/id: skill-filesystem\n  name: [^\n]+\n  disabled: !!js[^\n]*DSH_SKILL_DIRS[^\n]*trim/u.test(dump.stdout),
+        'Skill provider stays conditional on DSH_SKILL_DIRS');
+    }
+  } finally {
+    await rm(defaultsHome, { recursive: true, force: true });
+  }
   const manifestPath = `/data/dsh/profiles/${profile}/package.json`;
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const profileRequire = createRequire(manifestPath);

@@ -64,6 +64,20 @@ kubectl -n dsh create secret generic dsh-web-forward-auth \
   --from-literal=trusted-proxy-cidrs='<edge-pod-cidr>'
 ```
 
+The example does not mount skills below `/data/home`. The preset providers
+discover `<workspace>/.dsh/skills` and `<workspace>/.agents/skills`
+automatically; `$DSH_HOME/skills` keeps the bundled recommendations. Register
+`/workspace` as the DSH workspace rather than `/data/home`. If a deployment
+needs an extra root, mount it outside HOME (for example a read-only ConfigMap at
+`/skills`) and set `DSH_SKILL_DIRS`; leave the variable unset to use only the
+native roots. See [State and backup](data-layout.md#workspace-and-home).
+
+The image owns state seeding and its default environment. A deployment supplies
+the listener identity, public URL, trusted hosts, forward-auth, persistence and
+security. Do not add a `state-seed` init container and do not repeat
+`DSH_HOME`, `HOME`, `DSH_PROFILE`, `DSH_BACKUP_ROOT` or `DSH_AGENTS_HOME` in
+the workload. The app entrypoint materializes `/data/dsh` before starting DSH.
+
 Restrict the Pod with the platform's network policy so only the verified edge can
 reach port `3080`; the manifest does not guess your edge namespace. The plugin
 logs `state=waiting-for-edge` at startup and `state=active` after the first

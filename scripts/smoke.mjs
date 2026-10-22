@@ -167,7 +167,11 @@ async function execute(name, mode, config = {}) {
   const result = await docker(['exec', '-i', name, 'node', '--input-type=module', '-', mode,
     JSON.stringify(config)], probe, true);
   if (result.code !== 0 || !result.stdout.trim().endsWith(`PASS ${mode}`)) {
-    throw new Error(`Container probe ${mode} failed; raw output withheld`);
+    // The probe only emits fixed, locally-authored assertion labels. Surface
+    // that label; do not forward container logs, request data or secrets.
+    const failure = result.stderr.split('\n').find(line => line.startsWith(`FAIL ${mode}: `));
+    const detail = failure && failure.length <= 240 ? `; ${failure}` : '';
+    throw new Error(`Container probe ${mode} failed${detail}; raw output withheld`);
   }
 }
 async function awaitReady(app) {

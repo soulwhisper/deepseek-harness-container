@@ -3,3 +3,36 @@
     - id: distribution-forward-auth
       name: '@soulwhisper/dsh-forward-auth'
       inject: [webServer, connection]
+
+# Distribution defaults. This bundle is applied after the base and Web bundles,
+# so these rows exist; the active profile's own patch is applied afterwards and
+# may override them. Keep the official-API Session-log upload opt-in: the
+# dsh_session_log request field is only contributed when enabled. The account
+# UI carries the DeepSeek Platform sign-in, billing and feedback surfaces; the
+# API-key provider remains available without it.
+- id: session-log-deepseek
+  name: '@deepseek-ai/dsh-session-log-deepseek'
+  config:
+    enabled: false
+- id: ui-settings-account
+  name: '@deepseek-ai/dsh-client-ui-settings-account'
+  disabled: true
+- id: ui-settings-models
+  name: '@deepseek-ai/dsh-client-ui-settings-models'
+  config:
+    credentialOnboarding: false
+
+# Optional extra skill roots. With DSH_SKILL_DIRS unset, this host provider
+# stays disabled and the preset providers keep discovering the native
+# <projectRoot>/.dsh/skills, <projectRoot>/.agents/skills, $DSH_HOME/skills and
+# $DSH_AGENTS_HOME/skills roots. Set DSH_SKILL_DIRS to a comma-separated list
+# (for example /skills or /workspace/.agent/skills) to add custom roots. The
+# provider name is distinct from the preset providers so both layers can merge.
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+  disabled: !!js (process.env.DSH_SKILL_DIRS ?? '').trim() === ''
+  config:
+    providerName: filesystem-deployment
+    includeDefaultRoots: false
+    customSkillDirs: !!js (process.env.DSH_SKILL_DIRS ?? '').split(',').map(s => s.trim()).filter(Boolean)
+    watch: true

@@ -39,6 +39,49 @@ version/profile or an unrecognized layout is refused unless you explicitly set
     support RWX. DSH has per-session file locking, not a home-wide leader or
     live session handoff.
 
+## Distribution defaults
+
+The distribution bundle sets privacy and account-menu defaults for both Web and
+Tavern. They are bundle defaults: the active profile's own `cordis.patch.yml`
+is applied afterwards and may override them.
+
+- **Official-model Session-log upload is off by default.** The
+  `session-log-deepseek` plugin remains loaded, but
+  `session-log-deepseek/dsh_session_log` is not contributed to official
+  DeepSeek API requests while `enabled` is `false`. Enable it in **Settings →
+  General → Upload Session Log when using the official model API** if you want
+  the upload; the switch persists an override in the active profile.
+- **The DeepSeek Platform account UI is disabled by default.** This hides the
+  account sign-in, billing and Feedback menu. API-key providers and model
+  settings remain available. This is not the Authentik/forward-auth edge: keep
+  the forward-auth gate enabled; it is the access-control boundary.
+- **Skill roots are native by default.** The preset providers discover
+  `<workspace>/.dsh/skills`, `<workspace>/.agents/skills`, `$DSH_HOME/skills`
+  and `$DSH_AGENTS_HOME/skills`. `DSH_SKILL_DIRS` is optional and adds extra
+  roots only; it is not set by default and does not replace the native roots.
+  Set it to a comma-separated list (for example `/skills` for a read-only
+  ConfigMap, or `/workspace/.agent/skills` for a live root) only when needed.
+  The extra provider stays disabled while the variable is empty. Bundled skills
+  remain under `$DSH_HOME/skills`; do not move or duplicate them.
+
+To override the defaults, add rows to the active profile's
+`cordis.patch.yml`. A patch replaces the targeted row's whole `config`, so
+restate every key the row owns:
+
+```yaml
+- id: session-log-deepseek
+  name: '@deepseek-ai/dsh-session-log-deepseek'
+  config:
+    enabled: true
+- id: ui-settings-account
+  name: '@deepseek-ai/dsh-client-ui-settings-account'
+  disabled: false
+```
+
+Do not add conflicting rows to the launcher `--patch` overlay
+(`/opt/dsh/profiles/distribution.patch.yml`); the launcher has the highest
+precedence and can make the Settings switch read-only.
+
 ## Upgrade and migration
 
 Before migrating:
@@ -57,6 +100,8 @@ The migration creates a local rollback copy under `DSH_BACKUP_ROOT`
 (`/backups/<timestamp>` in the image) and excludes `$DSH_HOME/cache` and
 `$DSH_HOME/logs`. That copy is **not** an independent backup or atomic snapshot.
 It is a convenience for immediate rollback while the migration is supervised.
+Treat it as best-effort: the snapshot from step 2 is the authoritative rollback
+path. Upgrades remain manual and supervised.
 
 If migration fails, do not start DSH or retry blindly. Restore the pre-upgrade
 `/data` and `/workspace` snapshots into separate volumes. Do not attach the old

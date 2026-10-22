@@ -50,6 +50,57 @@ for non-image callers/tests. In the image, `DSH_BACKUP_ROOT=/backups` is
 explicit, and `scripts/materialize-state.mjs` rejects a backup root inside
 `DSH_HOME`.
 
+## Workspace and HOME
+
+`/data/home` is HOME: XDG configuration, pnpm, shell state and agent skill
+data. It is not the project workspace. `/workspace` is the durable user-data
+root and the DSH sandbox `workspace-write` root. Register `/workspace` with
+**Add workspace** in the UI; do not register `/data/home` as a workspace.
+Using HOME as the agent workspace puts command working directories outside the
+sandbox root and mixes project files with credentials and configuration.
+
+### Skill roots
+
+The skill provider scans native roots automatically when the preset provider is
+mounted:
+
+| Root | Discovery |
+| --- | --- |
+| `<workspace>/.dsh/skills` | project-local skills |
+| `<workspace>/.agents/skills` | project-local agent skills |
+| `$DSH_HOME/skills` | user skills, including the bundled recommendations |
+| `$DSH_AGENTS_HOME/skills` | shared agent skills |
+
+The example StatefulSet does not mount anything below `/data/home`; in that
+layout `$DSH_AGENTS_HOME/skills` is a normal directory on the durable `/data`
+PVC. If a deployment adds a nested emptyDir or ConfigMap below HOME to create a
+skill root, the runtime creates the parent directories as `root:<fsGroup> 2755`
+before the app starts; the uid 1000 app cannot repair that from
+`entrypoint.sh`. A new PVC does not avoid this: the runtime-created parent is
+independent of the PVC age. Use `DSH_SKILL_DIRS` for extra roots outside HOME.
+
+`DSH_SKILL_DIRS` is an optional distribution env for **additional** roots. It
+is not set by default and does not replace the native roots. Set it to a
+comma-separated list only when a deployment needs extra roots, for example:
+
+```text
+DSH_SKILL_DIRS=/skills
+```
+
+`/skills` can be a read-only ConfigMap. For a live workspace root, use
+`/workspace/.agent/skills` or the native `/workspace/.dsh/skills`; `.agent` is
+a distribution convention, not a native DSH name. The extra provider is
+enabled only while `DSH_SKILL_DIRS` is non-empty; with the variable unset, the
+native roots continue to work and no extra path is assumed.
+
+The bundled recommendations remain under `$DSH_HOME/skills`. Do not move or
+duplicate them into `DSH_SKILL_DIRS`; the native root already exposes them, and
+moving them would change their seed and backup lifecycle.
+
+The app entrypoint creates HOME on first start. No init container or root
+chown is part of this layout; do not mount a volume below HOME just to create a
+skill root.
+
 ## Why this split
 
 - Cache and logs can grow without warning. Keeping them in `/data` makes backup

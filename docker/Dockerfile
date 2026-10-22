@@ -30,7 +30,8 @@ COPY plugins/forward-auth /plugins/forward-auth
 COPY --chmod=0755 scripts/entrypoint.sh /scripts/entrypoint.sh
 COPY scripts/materialize-state.mjs scripts/normalize-locks.mjs \
      scripts/materialize-profiles.mjs scripts/floating-bundles.mjs \
-     scripts/readiness.mjs scripts/finalize-profile.mjs scripts/link-tavern-core.mjs /scripts/
+     scripts/readiness.mjs scripts/finalize-profile.mjs scripts/link-tavern-core.mjs \
+     scripts/seed-tavern-plugins.mjs /scripts/
 COPY versions.json package.json pnpm-lock.yaml LICENSE NOTICE README.md README.zh-CN.md /
 COPY docs/source-build.md docs/regulations.md /docs/
 
@@ -50,7 +51,7 @@ RUN pnpm install --frozen-lockfile --prod \
 # architecture (a stale multi-arch cache can otherwise hide this until boot).
 RUN node -e "const {createRequire}=require('node:module'); const r=createRequire('/opt/dsh/docker/runtime/package.json'); const name='node-addon-require-builtin-linux-'+(process.arch==='arm64'?'arm64':'x64')+'-gnu'; require(r.resolve(name));"
 COPY versions.json /opt/dsh/versions.json
-COPY scripts/entrypoint.sh scripts/materialize-state.mjs scripts/normalize-locks.mjs scripts/materialize-profiles.mjs scripts/floating-bundles.mjs scripts/readiness.mjs scripts/finalize-profile.mjs scripts/link-tavern-core.mjs /opt/dsh/scripts/
+COPY scripts/entrypoint.sh scripts/materialize-state.mjs scripts/normalize-locks.mjs scripts/materialize-profiles.mjs scripts/floating-bundles.mjs scripts/readiness.mjs scripts/finalize-profile.mjs scripts/link-tavern-core.mjs scripts/seed-tavern-plugins.mjs /opt/dsh/scripts/
 RUN chmod 0755 /opt/dsh/scripts/entrypoint.sh
 COPY docker/profiles/web/pnpm-workspace.yaml /opt/dsh/profiles/web/pnpm-workspace.yaml
 COPY docker/profiles/tavern/pnpm-workspace.yaml /opt/dsh/profiles/tavern/pnpm-workspace.yaml
@@ -60,9 +61,9 @@ COPY patches/tavern /opt/dsh/patches/tavern
 WORKDIR /opt/apps/dsh-tavern
 RUN git init . \
     && git remote add origin https://github.com/flizzywine/dsh-tavern.git \
-    && git fetch --depth=1 origin 7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d \
+    && git fetch --depth=1 origin 9ddac3b55883ac7334c5b349368a56f2d6654c59 \
     && git checkout --detach FETCH_HEAD \
-    && test "$(git rev-parse HEAD)" = 7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d \
+    && test "$(git rev-parse HEAD)" = 9ddac3b55883ac7334c5b349368a56f2d6654c59 \
     && rm -rf .git \
     && node /opt/dsh/patches/tavern/patch-tavern.mjs
 
@@ -204,7 +205,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 CMD ["nod
 ENTRYPOINT ["/usr/bin/tini", "--", "/opt/dsh/scripts/entrypoint.sh"]
 LABEL org.opencontainers.image.source="https://github.com/soulwhisper/deepseek-harness-container" \
       org.opencontainers.image.vendor="soulwhisper" \
-      io.github.soulwhisper.distribution.version="0.2.1-rc.2-r1"
+      io.github.soulwhisper.distribution.version="0.2.1-rc.2-r2"
 
 FROM application AS web
 ENV DSH_PROFILE=web
@@ -230,6 +231,6 @@ COPY --from=tavern-build /opt/dsh /opt/dsh
 COPY --from=tavern-build /opt/apps/dsh-tavern /opt/apps/dsh-tavern
 RUN test "${#IMAGE_REVISION}" -eq 40 && test -z "$(printf '%s' "$IMAGE_REVISION" | tr -d '0-9a-f')"
 LABEL org.opencontainers.image.title="DeepSeek Harness Tavern with forward-auth" \
-      org.opencontainers.image.version="3.0" \
+      org.opencontainers.image.version="3.1" \
       org.opencontainers.image.licenses="Apache-2.0 AND MIT AND AGPL-3.0-only" \
-      io.github.soulwhisper.dsh-tavern.commit="7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d"
+      io.github.soulwhisper.dsh-tavern.commit="9ddac3b55883ac7334c5b349368a56f2d6654c59"

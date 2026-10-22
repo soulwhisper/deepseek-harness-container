@@ -11,7 +11,7 @@ An independent, self-packaged [DeepSeek Harness](https://github.com/deepseek-ai/
 | Image | Release tag | Profile |
 | --- | --- | --- |
 | `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web + `dshmarket` + `dsh-context` + required forward-auth |
-| `ghcr.io/soulwhisper/dsh-tavern:3.0` | `tavern-3.0` | Custom Tavern workspace + forward-auth + pinned manager-protected ecosystem |
+| `ghcr.io/soulwhisper/dsh-tavern:3.1` | `tavern-3.1` | Custom Tavern workspace + forward-auth + pinned manager-protected ecosystem |
 
 Web follows the DSH upstream version; Tavern follows dsh-tavern. They are
 released independently, use Node 24/glibc, run as UID/GID `1000:1000`, bind

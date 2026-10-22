@@ -11,7 +11,7 @@
 | 镜像 | Release 标签 | Profile |
 | --- | --- | --- |
 | `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web + `dshmarket` + `dsh-context` + 必需 forward-auth |
-| `ghcr.io/soulwhisper/dsh-tavern:3.0` | `tavern-3.0` | 自定义 Tavern workspace + forward-auth + 固定且受 manager 保护的配套插件 |
+| `ghcr.io/soulwhisper/dsh-tavern:3.1` | `tavern-3.1` | 自定义 Tavern workspace + forward-auth + 固定且受 manager 保护的配套插件 |
 
 Web 跟随 DSH 上游版本，Tavern 跟随 dsh-tavern；两者独立发版。镜像使用 Node 24/glibc、UID/GID `1000:1000`、单一具体 IP 的 `3080` 监听和只读根文件系统。Web 镜像会 seed 可选的 Caveman、RTK skill，安装 RTK OSS binary，并在可移除的 Web profile 中 seed `dsh-context`；forward-auth bundle 与 Tavern 固定管理的 bundle 受 manager 保护，Web 浮动插件仍可移除。Tavern 镜像刻意不包含这些浮动资产。这三项上游资产在 Web 镜像构建时取各自最新状态，不在仓库中锁定版本，也不由 Renovate 跟踪；因此部署应使用发布 digest，不能假设从 `latest` 重建完全可复现。详见 [build](docs/build.md#floating-optional-assets)。CI 在原生 `linux/amd64` 与 `linux/arm64` runner 上构建，不使用 QEMU。镜像不包含 Chromium、GUI、X11、VNC、本地密码库、OIDC 客户端或替代 mux 服务。
 

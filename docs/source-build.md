@@ -10,7 +10,7 @@ rebuild the Tavern image. It is included in the source archive at
 tavern.tar.gz
   dsh-tavern/
     complete flizzywine/dsh-tavern source at
-    7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d
+    9ddac3b55883ac7334c5b349368a56f2d6654c59
     (AGPL license, upstream lock, checked-in client output and the modified
     tavern-plugin/lib/http/routes.js public-Origin guard)
   distribution/

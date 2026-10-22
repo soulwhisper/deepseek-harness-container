@@ -48,12 +48,12 @@ jobs:
             exit 0
           fi
           git fetch --no-tags origin "${BASE_SHA}"
-          files="$(git diff --name-only "${BASE_SHA}...HEAD")"
+          files="$(git diff --no-renames --name-only "${BASE_SHA}...HEAD")"
           # Only source/build inputs require the image matrix. Docs, tests,
           # deploy examples, scaffold scripts and non-critical dotfiles are
           # deliberately excluded; .dockerignore is the one dotfile exception
           # because it changes the build context itself.
-          if printf '%s\n' "$files" | grep -Eq '^(docker/|patches/|plugins/|versions\.json$|LICENSE$|NOTICE$|\.dockerignore$|scripts/(entrypoint\.sh|materialize-state\.mjs|materialize-profiles\.mjs|floating-bundles\.mjs|normalize-locks\.mjs|finalize-profile\.mjs|readiness\.mjs|link-tavern-core\.mjs)$)'; then
+          if printf '%s\n' "$files" | grep -Eq '^(docker/|patches/|plugins/|versions\.json$|package\.json$|pnpm-lock\.yaml$|LICENSE$|NOTICE$|README\.md$|README\.zh-CN\.md$|docs/(source-build|regulations)\.md$|\.dockerignore$|scripts/(entrypoint\.sh|materialize-state\.mjs|materialize-profiles\.mjs|floating-bundles\.mjs|normalize-locks\.mjs|finalize-profile\.mjs|readiness\.mjs|link-tavern-core\.mjs|seed-tavern-plugins\.mjs)$)'; then
             echo 'images=true' >> "$GITHUB_OUTPUT"
           else
             echo 'images=false' >> "$GITHUB_OUTPUT"

@@ -38,7 +38,8 @@ function isTopLevelNavigation(request) {
   const method = typeof request?.method === 'string' ? request.method.toUpperCase() : '';
   const headers = request?.headers ?? {};
   return (method === 'GET' || method === 'HEAD')
-    && (headers['sec-fetch-mode'] === 'navigate' || headers['sec-fetch-dest'] === 'document');
+    && headers['sec-fetch-mode'] === 'navigate'
+    && headers['sec-fetch-dest'] === 'document';
 }
 // A link from another origin is a top-level GET/HEAD navigation, not an API
 // call. The edge has already authenticated it; keep the Host/Origin and
@@ -176,6 +177,10 @@ export function createAdmission(connection, config, { setTimer = setTimeout, cle
     try {
       // Only synthesize an internal root GET after the native Host/Origin fence accepted.
       cookie = rejection === 401 ? nativeCookie(connection, trustRequest) : undefined;
+      // The WebServer dispatches the original request, not the navigation copy.
+      // Keep its sec-fetch-site for downstream API checks, but carry the admitted
+      // cookie so the pinned frontend sees the same session.
+      if (cookie && trustRequest !== request) request.headers.cookie = trustRequest.headers.cookie;
       if (kind === 'http' && cookie) appendCookie(target, cookie);
       if (kind === 'upgrade' && !sockets.has(target)) {
         // The handshake owner retains all framing/Set-Cookie behavior. The internally

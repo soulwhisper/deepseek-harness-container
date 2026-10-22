@@ -46,6 +46,10 @@ for (const [name, spec] of Object.entries(versions.ecosystem)) {
   assert.match(name, /^[a-z][a-z0-9-]*$/u);
   assert.match(spec, /^github:[^/]+\/[^#]+#[^#]+$/u);
 }
+assert.equal(Object.hasOwn(versions.ecosystem, 'dsh-tavern-comfy'), false,
+  'Tavern image plugin is bundled with Tavern, not a profile dependency');
+assert.match(await text('docker/Dockerfile'), /scripts\/seed-tavern-plugins\.mjs/u,
+  'Tavern bundled plugin seed script is shipped in the image');
 for (const profile of ['web', 'tavern']) {
   const lockText = await text(`docker/profiles/${profile}/pnpm-lock.yaml`);
   const lock = parse(lockText);
@@ -66,7 +70,7 @@ for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/
   'docker/skills/README', 'docker/skills/rtk/SKILL.md',
   'patches/dsh/patch-host.mjs', 'patches/market/patch-market.mjs', 'patches/tavern/patch-tavern.mjs',
   'plugins/forward-auth/index.mjs', 'scripts/normalize-locks.mjs', 'scripts/floating-bundles.mjs',
-  'scripts/field-test.mjs', 'test/packaging.test.mjs',
+  'scripts/seed-tavern-plugins.mjs', 'scripts/field-test.mjs', 'test/packaging.test.mjs',
   'deploy/docker/compose.yaml', 'deploy/kubernetes/dsh-web.yaml',
   'docs/index.md', 'docs/architecture.md', 'docs/constraints.md', 'docs/build.md', 'docs/deploy.md',
   'docs/operations.md', 'docs/data-layout.md', 'docs/patches.md', 'docs/source-build.md',

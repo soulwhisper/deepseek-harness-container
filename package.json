@@ -1,6 +1,6 @@
 {
   "name": "@soulwhisper/deepseek-harness-container",
-  "version": "0.2.1-rc.2-r1",
+  "version": "0.2.1-rc.2-r2",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",

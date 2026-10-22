@@ -12,7 +12,7 @@ async function normalizeLockFile(path) {
   const normalized = normalizeLockText(text);
   if (normalized !== text) await writeFile(path, normalized);
 }
-const obsolete = name => name === 'dsh-ui-auth' || name.startsWith('dsh-ui-auth/');
+const obsolete = name => name === 'dsh-ui-auth' || name.startsWith('dsh-ui-auth/') || name === 'dsh-tavern-comfy';
 // Deployment-injected configuration may exist before the first boot. It is
 // not durable DSH state and must not make an empty home look migrated.
 const INJECTED_HOME_ENTRIES = new Set(['cordis.patch.yml', 'skills']);
@@ -53,13 +53,42 @@ function immutableEntries(seed, source, workspace = {}) {
     if (typeof spec !== 'string' || !spec.startsWith('link:/opt/dsh/runtime/node_modules/')) throw new Error(`Invalid immutable override: ${name}`);
     entries.set(name, spec.slice('link:'.length));
   }
-  // Tavern's pinned ecosystem is part of the immutable seed, unlike Web's
-  // floating plugins. Link every managed dependency from the seed and restore
-  // it if a manager or manual edit removes the active profile entry.
-  for (const name of seed.dshTavern?.managedDependencies ?? []) {
-    if (!entries.has(name)) entries.set(name, join(source, 'node_modules', name));
-  }
   return entries;
+}
+
+// Registry and git dependencies stay as real writable copies: their own
+// dependency lookup must reach the profile's override links. Only absolute
+// link dependencies belong to the immutable image tree.
+function managedCopyNames(seed, source, workspace = {}) {
+  const immutable = immutableEntries(seed, source, workspace);
+  return (seed.dshTavern?.managedDependencies ?? []).filter(name => !immutable.has(name));
+}
+
+async function restoreManagedCopies(target, source, seed, workspace = {}) {
+  const modules = join(target, 'node_modules');
+  await mkdir(modules, { recursive: true });
+  for (const name of managedCopyNames(seed, source, workspace)) {
+    const destination = join(modules, name);
+    let info;
+    try {
+      info = await lstat(destination);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+    // A real directory keeps its own dependency lookup. A missing entry, a
+    // file, or a symlink (including the old broken seed-link layout) is
+    // restored from the immutable seed.
+    if (info?.isDirectory() && !info.isSymbolicLink()) continue;
+    const expected = join(source, 'node_modules', name);
+    await mkdir(dirname(destination), { recursive: true });
+    if (!(await lstat(dirname(destination))).isDirectory()) throw new Error(`Managed scope is not a real directory: ${name}`);
+    if (info) await rm(destination, { recursive: true, force: true });
+    await cp(expected, destination, { recursive: true, verbatimSymlinks: true });
+  }
+}
+
+async function removeSuperseded(target) {
+  await rm(join(target, 'node_modules', 'dsh-tavern-comfy'), { recursive: true, force: true });
 }
 
 async function managedLinks(target, source, seed, install, workspace = {}) {
@@ -137,7 +166,7 @@ export function mergeLock(previous, seed, workspace = {}) {
     Object.assign(importer[kind], newImporter[kind]);
   }
   merged.importers = { ...previous.importers, '.': importer };
-  for (const section of ['packages', 'snapshots']) for (const name of Object.keys(merged[section])) if (/^dsh-ui-auth(?:@|\/)/.test(name)) delete merged[section][name];
+  for (const section of ['packages', 'snapshots']) for (const name of Object.keys(merged[section])) if (/^(?:dsh-ui-auth|dsh-tavern-comfy)(?:@|\/)/.test(name)) delete merged[section][name];
   return merged;
 }
 
@@ -177,6 +206,8 @@ export async function materializeState(options = {}) {
     const seedManifest = await json(join(source, 'package.json'));
     const seedWorkspace = YAML.parse(await readFile(join(source, 'pnpm-workspace.yaml'), 'utf8'));
     await managedLinks(join(home, 'profiles', profile), source, seedManifest, true, seedWorkspace);
+    await restoreManagedCopies(join(home, 'profiles', profile), source, seedManifest, seedWorkspace);
+    await removeSuperseded(join(home, 'profiles', profile));
     await writeFile(markerPath, JSON.stringify({ schema: 1, distribution: identity, profile }, null, 2) + '\n', { mode: 0o600 });
     return { action: 'seeded' };
   }
@@ -200,6 +231,8 @@ export async function materializeState(options = {}) {
         }
       }
       await managedLinks(target, source, seedManifest, false, seedWorkspace);
+      await restoreManagedCopies(target, source, seedManifest, seedWorkspace);
+      await removeSuperseded(target);
       // The image-owned version file is not user state. Restore it without
       // re-seeding the profiles, credentials, sessions or workspace.
       if (!await exists(join(home, 'BUNDLED_VERSIONS'))) await cp(join(seed, 'BUNDLED_VERSIONS'), join(home, 'BUNDLED_VERSIONS'));
@@ -260,6 +293,8 @@ export async function materializeState(options = {}) {
     }));
     if (await exists(join(source, 'patches'))) await cp(join(source, 'patches'), join(target, 'patches'), { recursive: true });
     await managedLinks(target, source, seedManifest, true, seedWorkspace);
+    await restoreManagedCopies(target, source, seedManifest, seedWorkspace);
+    await removeSuperseded(target);
     await rm(join(target, 'node_modules/dsh-ui-auth'), { recursive: true, force: true });
     // A global overlay can also retain the obsolete auth plugin. Leave all
     // other rows/configuration and credential/account data in place.

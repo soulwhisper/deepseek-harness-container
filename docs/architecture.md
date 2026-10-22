@@ -8,7 +8,7 @@ boundary, and which repository changes are allowed to affect which upstream.
 | Image | Release tag | Profile | Purpose |
 | --- | --- | --- | --- |
 | `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web, `dshmarket`, `dsh-context`, required forward-auth | General DSH Web with owner-approved community plugins |
-| `ghcr.io/soulwhisper/dsh-tavern:3.0` | `tavern-3.0` | Custom Tavern workspace, forward-auth, ecosystem | Dedicated Tavern instance |
+| `ghcr.io/soulwhisper/dsh-tavern:3.1` | `tavern-3.1` | Custom Tavern workspace, forward-auth, ecosystem | Dedicated Tavern instance |
 
 Both images use Node 24/glibc, UID/GID `1000:1000`, `tini`, a read-only root
 filesystem, and a native DSH listener on port `3080`. They are built natively for

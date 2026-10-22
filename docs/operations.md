@@ -62,6 +62,26 @@ If migration fails, do not start DSH or retry blindly. Restore the pre-upgrade
 `/data` and `/workspace` snapshots into separate volumes. Do not attach the old
 image to already migrated data.
 
+## Recovering from profile or mount damage
+
+The image is immutable; durable state is not. Restarting or re-pulling the same
+image with the same `/data` volume does **not** reset profiles, locks or
+overrides. Choose the narrowest recovery that keeps the data you need.
+
+| Symptom | Recovery | Data impact |
+| --- | --- | --- |
+| `/opt/dsh` runtime, seed or `distribution.patch.yml` is shadowed by a volume | Inspect the container/Pod mounts; remove the incorrect mount and recreate. Never mount over `/opt/dsh`. | None |
+| Wrong `/data` volume is mounted | Mount the correct volume; if it is empty, the image seeds fresh state. | Correct volume: none; empty volume: all durable state lost |
+| Profile or `pnpm-workspace.yaml` was edited, or forward-auth was removed with `dsh plugin` | Restore `/data` and `/workspace` from a pre-change snapshot. Tavern may restore its managed manifest on restart; Web does not, so do not rely on a same-image restart. | None with snapshot; deleting `/data/dsh` loses sessions, credentials and Tavern data |
+| Only the profile directory is deleted | Do not assume it re-seeds: Web unchanged state does not rebuild a missing profile. Restore the snapshot or use a fresh `/data` volume. | Snapshot: none; fresh volume: all durable state lost |
+| A new image requires a state migration | Start the new digest once with `DSH_STATE_MIGRATION=apply` after stopping the old instance and snapshotting `/data` and `/workspace`. | None with snapshot; migration makes a local rollback copy under `/backups` |
+| Readiness fails or all routes return 503 after plugin changes | Check the active profile for `@soulwhisper/dsh-forward-auth`; the gate fails closed when it is absent. Restore state as above. | Depends on recovery |
+
+`/backups` is a local migration rollback copy, not an independent backup.
+`docker compose down` keeps named volumes; `down -v` deletes them and forces a
+fresh seed. A Kubernetes PVC behaves the same way: recreating the Pod with the
+same claim preserves state; deleting or replacing the claim does not.
+
 ## Rollback
 
 1. Stop the failed/new instance.

@@ -183,7 +183,7 @@ async function manager() {
       && context.availability === 'profile' && context.removable === true
       && context.readOnlyReason === undefined, 'dsh-context is profile-owned and removable');
   } else {
-    for (const name of ['dsh-better-sidebar', 'dsh-tavern-wrongbook', 'dsh-tavern-comfy', 'narrative-anchor']) {
+    for (const name of ['dsh-better-sidebar', 'dsh-tavern-wrongbook', 'narrative-anchor']) {
       const bundle = before.find(item => item.name === name);
       check(bundle?.enabled === true && bundle.installed === true
         && (bundle.removable === false || bundle.readOnlyReason === 'management-required'),
@@ -194,7 +194,7 @@ async function manager() {
   const authRow = rows.find(row => row.moduleName === protectedName);
   check(typeof authRow?.entryId === 'string', 'Native forward-auth inventory entry');
   if (process.env.DSH_PROFILE === 'tavern') {
-    for (const name of ['dsh-better-sidebar', 'dsh-tavern-wrongbook', 'dsh-tavern-comfy', 'narrative-anchor']) {
+    for (const name of ['dsh-better-sidebar', 'dsh-tavern-wrongbook', 'narrative-anchor']) {
       const row = rows.find(item => item.moduleName === name);
       check(row?.readOnlyReason === 'management-required', `Pinned Tavern plugin row is read-only: ${name}`);
     }
@@ -317,8 +317,11 @@ async function runtime() {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const profileRequire = createRequire(manifestPath);
   const expected = profile === 'web' ? ['@soulwhisper/dsh-forward-auth', 'dshmarket', 'dsh-context']
-    : ['@soulwhisper/dsh-forward-auth', 'dsh-tavern-wrongbook', 'dsh-tavern-comfy', 'dsh-tavern-knock-knock', 'narrative-anchor'];
+    : ['@soulwhisper/dsh-forward-auth', 'dsh-tavern-wrongbook', 'dsh-tavern-knock-knock', 'narrative-anchor'];
   for (const name of expected) check(Object.hasOwn(manifest.dependencies, name), 'Required profile package');
+  if (profile === 'tavern') {
+    check(!Object.hasOwn(manifest.dependencies, 'dsh-tavern-comfy'), 'Legacy Tavern image package removed');
+  }
   if (profile === 'web') {
     check(await absent('/opt/dsh/runtime/node_modules/dsh-context'), 'dsh-context is not immutable runtime content');
     check((await stat('/opt/dsh/seed/skills/rtk/SKILL.md')).isFile(), 'RTK skill seed');
@@ -343,6 +346,10 @@ async function runtime() {
   if (profile === 'tavern') {
     check((await stat('/opt/apps/dsh-tavern/node_modules/jsdom')).isDirectory(), 'Tavern workspace dependency');
     check((await stat('/opt/apps/dsh-tavern/LICENSE')).isFile(), 'Tavern original license');
+    const bundled = JSON.parse(await readFile('/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-tavern-image-bundled/BUNDLED-VERSION.json', 'utf8'));
+    check(bundled.name === 'dsh-tavern-image' && bundled.version === '3.0.2', 'Tavern bundled scene-image version');
+    const installed = JSON.parse(await readFile('/data/dsh/profile-data/tavern/data/plugins/dsh-tavern-image/package.json', 'utf8'));
+    check(installed.name === 'dsh-tavern-image' && installed.version === '3.0.2', 'Tavern bundled scene-image install');
     const archive = spawnSync('tar', ['-tzf', process.env.DSH_SOURCE_ARCHIVE], { encoding: 'utf8' });
     check(archive.status === 0 && archive.stdout.includes('dsh-tavern/LICENSE')
       && archive.stdout.includes('dsh-tavern/tavern-plugin/src/')

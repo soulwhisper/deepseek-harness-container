@@ -184,6 +184,53 @@ test('registry dependencies stay in the writable profile and resolve override li
   assert.equal(JSON.parse(await readFile(join(installed, 'package.json'), 'utf8')).version, '1.0.0');
 });
 
+test('managed Tavern ecosystem copies stay writable and are restored when missing', async t => {
+  const options = await fixture(t);
+  const seedManifestPath = join(options.seed, 'profiles/web/package.json');
+  const manifest = JSON.parse(await readFile(seedManifestPath, 'utf8'));
+  manifest.dependencies['external-plugin'] = '1.0.0';
+  manifest.dshTavern = { managedDependencies: ['external-plugin'] };
+  await writeFile(seedManifestPath, JSON.stringify(manifest));
+  const seedPackage = join(options.seed, 'profiles/web/node_modules/external-plugin');
+  await mkdir(seedPackage, { recursive: true });
+  await writeFile(join(seedPackage, 'package.json'), JSON.stringify({ name: 'external-plugin', version: '1.0.0' }));
+  assert.equal((await materializeState(options)).action, 'seeded');
+  const installed = join(options.home, 'profiles/web/node_modules/external-plugin');
+  assert.equal((await lstat(installed)).isSymbolicLink(), false);
+  assert.equal(JSON.parse(await readFile(join(installed, 'package.json'), 'utf8')).version, '1.0.0');
+  await rm(installed, { recursive: true });
+  assert.equal((await materializeState(options)).action, 'unchanged');
+  assert.equal((await lstat(installed)).isSymbolicLink(), false);
+  assert.equal(JSON.parse(await readFile(join(installed, 'package.json'), 'utf8')).version, '1.0.0');
+  await rm(installed, { recursive: true });
+  await symlink(seedPackage, installed);
+  assert.equal((await materializeState(options)).action, 'unchanged');
+  assert.equal((await lstat(installed)).isSymbolicLink(), false);
+});
+
+test('obsolete Tavern image package is removed from migrated manifests and bundles', () => {
+  const seed = makeManifest();
+  seed.dshTavern = { managedBundles: base, managedDependencies: base };
+  const result = mergeManifest({
+    name: 'dsh-profile-tavern',
+    dependencies: { 'dsh-tavern-comfy': 'github:weixinlll/dsh-tavern-image#v2.9.0', 'user-plugin': '1.0.0' },
+    dsh: { profile: { bundles: ['dsh-tavern-comfy', 'user-plugin'] } },
+  }, seed, '/data/dsh', 'tavern');
+  assert.equal(result.dependencies['dsh-tavern-comfy'], undefined);
+  assert.equal(result.dependencies['user-plugin'], '1.0.0');
+  assert.deepEqual(result.dsh.profile.bundles, [...makeManifest().dsh.profile.bundles, 'user-plugin']);
+  const mergedLock = mergeLock({
+    lockfileVersion: '9.0',
+    importers: { '.': { dependencies: { 'dsh-tavern-comfy': { specifier: 'x', version: 'x' }, 'user-plugin': { specifier: '1.0.0', version: '1.0.0' } } } },
+    packages: { 'dsh-tavern-comfy@https://example.test/image.tgz': {}, 'user-plugin@1.0.0': {} },
+    snapshots: { 'dsh-tavern-comfy@https://example.test/image.tgz': {}, 'user-plugin@1.0.0': {} },
+  }, makeLock());
+  assert.equal(mergedLock.importers['.'].dependencies['dsh-tavern-comfy'], undefined);
+  assert.equal(mergedLock.packages['dsh-tavern-comfy@https://example.test/image.tgz'], undefined);
+  assert.equal(mergedLock.snapshots['dsh-tavern-comfy@https://example.test/image.tgz'], undefined);
+  assert.equal(mergedLock.importers['.'].dependencies['user-plugin'].version, '1.0.0');
+});
+
 test('existing home refuses implicit migration without altering data', async t => {
   const options = await fixture(t);
   await mkdir(options.home);

@@ -80,10 +80,14 @@ profile:
 | Package | Bundle ID | Note |
 | --- | --- | --- |
 | `dsh-tavern-wrongbook` | `dsh-tavern-wrongbook` | Bundle |
-| `dsh-tavern-comfy` | `dsh-tavern-image` | Bundle |
 | `narrative-anchor` | `narrative-anchor` | Bundle |
 | `dsh-better-sidebar` | `better-sidebar` | Bundle; has its own duplicate-mount guard |
 | `dsh-tavern-knock-knock` | none | Dependency-only; no `dsh.bundle` |
+
+`dsh-tavern-image` 3.0.2 is bundled inside the Tavern source and installed by
+`scripts/seed-tavern-plugins.mjs` into Tavern `data/plugins`; it is not a
+profile package. Do not add `dsh-tavern-comfy` or `dsh-tavern-image` back to
+`versions.ecosystem`.
 
 Bundle IDs are unique. Keep the bundle order stable, especially around
 `dsh-better-sidebar` and aggregate bundles. Do not move these packages to the

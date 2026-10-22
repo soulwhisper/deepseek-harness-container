@@ -31,7 +31,7 @@ availability. -->
 ## Release impact
 
 - [ ] No image or release-tag change
-- [ ] Web image/tag updated: `web-<dsh-version>` / `dsh-web:<dsh-version>`
+- [ ] Web image/tag updated: `web-<distribution>` / `dsh-web:<distribution>`
 - [ ] Tavern image/tag updated: `tavern-<tavern-version>` / `dsh-tavern:<tavern-version>`
 - [ ] `versions.json` version, commit, hashes, release tag and docs move together
 

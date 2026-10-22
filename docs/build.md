@@ -194,7 +194,7 @@ arguments or labels. The optional-asset dist-tags never become image tags.
 
 ## Release route
 
-Only `web-<dsh-version>` and `tavern-<version>` tags publish. Each tag must match
+Only `web-<distribution>` and `tavern-<version>` tags publish. Each tag must match
 `versions.json`, point into `main`, and pass a native amd64 and arm64 build plus
 final-image smoke. Each build records the tested per-architecture manifest
 digest; the combine job creates one multi-arch index from those digest-qualified

@@ -7,7 +7,7 @@ boundary, and which repository changes are allowed to affect which upstream.
 
 | Image | Release tag | Profile | Purpose |
 | --- | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web, `dshmarket`, `dsh-context`, required forward-auth | General DSH Web with owner-approved community plugins |
+| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2-r2` | `web-0.2.1-rc.2-r2` | DSH Web, `dshmarket`, `dsh-context`, required forward-auth | General DSH Web with owner-approved community plugins |
 | `ghcr.io/soulwhisper/dsh-tavern:3.1` | `tavern-3.1` | Custom Tavern workspace, forward-auth, ecosystem | Dedicated Tavern instance |
 
 Both images use Node 24/glibc, UID/GID `1000:1000`, `tini`, a read-only root
@@ -94,7 +94,7 @@ Browsers are CI test dependencies only.
 
 ## Release identity
 
-Only `web-<dsh-version>` and `tavern-<version>` tags publish. The tag must match
+Only `web-<distribution>` and `tavern-<version>` tags publish. The tag must match
 `versions.json`, point into `main`, and pass native amd64 and arm64 builds plus
 final-image smoke. The combine job creates one multi-arch index. There is no
 floating `latest` image tag and no branch candidate image; the three optional

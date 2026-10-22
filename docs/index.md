@@ -14,10 +14,11 @@ state and backup boundaries, and no desktop stack.
 
 | Image | Release tag | Profile |
 | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web + `dshmarket` + `dsh-context` + required forward-auth |
+| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2-r2` | `web-0.2.1-rc.2-r2` | DSH Web + `dshmarket` + `dsh-context` + required forward-auth |
 | `ghcr.io/soulwhisper/dsh-tavern:3.1` | `tavern-3.1` | Custom Tavern workspace + forward-auth + bundled ecosystem |
 
-Web follows the DSH upstream version. Tavern follows dsh-tavern. They release
+Web images use the distribution revision (`<dsh-version>-rN` when the image
+changes without a DSH bump). Tavern follows dsh-tavern. They release
 independently, use Node 24/glibc, run as UID/GID `1000:1000`, bind one concrete
 IP on port `3080`, and use a read-only root filesystem. Both are built natively
 for `linux/amd64` and `linux/arm64`; there is no QEMU fallback.

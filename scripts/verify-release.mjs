@@ -12,7 +12,7 @@ const repository = 'soulwhisper/deepseek-harness-container';
 const sha = process.env.GITHUB_SHA;
 const versions = JSON.parse(await readFile(new URL('../versions.json', import.meta.url), 'utf8'));
 const releases = {
-  web: { tag: versions.release.web.tag, version: versions.dsh.version },
+  web: { tag: versions.release.web.tag, version: versions.distribution },
   tavern: { tag: versions.release.tavern.tag, version: versions.tavern.version },
 };
 if (process.env.GITHUB_REPOSITORY !== repository || !/^[a-f0-9]{40}$/u.test(sha ?? '')

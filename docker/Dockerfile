@@ -218,7 +218,7 @@ COPY docker/skills/ /opt/dsh/distribution-source/docker/skills/
 COPY --from=web-build /usr/local/bin/rtk /usr/local/bin/rtk
 COPY --from=web-build /usr/local/share/rtk /usr/local/share/rtk
 LABEL org.opencontainers.image.title="DeepSeek Harness Web with dshmarket, dsh-context and forward-auth" \
-      org.opencontainers.image.version="0.2.1-rc.2" \
+      org.opencontainers.image.version="0.2.1-rc.2-r2" \
       org.opencontainers.image.licenses="Apache-2.0 AND MIT"
 
 FROM application AS tavern

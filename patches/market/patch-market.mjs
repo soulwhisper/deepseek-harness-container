@@ -4,8 +4,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const originalHash = '42b100c26f0d1cec96232304d65bc8eabaf07a90f4ec2d10c7771f3d013f9258';
-const patchedHash = '820abe8f053c23bb0aa4d532903bff4a7e46141463588df17beb4784fef05d51';
+const originalHash = 'b164e0683615061641bcf4a37f81b5bfbec563bd5a79723ee67c133add4ebccc';
+const patchedHash = '223e7eddf9f2e9543fa214c460757fd78e6f3940a3747f0687fff0c974b466ce';
 const original = `            host.effect(() => {
                 const restoreTrustedHosts = useTrustedHosts(ctx);
                 const disposeRoutes = mountMarketRoutes(host, resolved, undefined, agentsLookupOf(ctx));
@@ -29,8 +29,8 @@ const digest = source => createHash('sha256').update(source).digest('hex');
 
 export async function patchMarket(directory) {
   const manifest = JSON.parse(await readFile(join(directory, 'package.json'), 'utf8'));
-  if (manifest.name !== 'dshmarket' || manifest.version !== '1.66.44') {
-    throw new Error('Unsupported market release: the managed runtime requires dshmarket 1.66.44');
+  if (manifest.name !== 'dshmarket' || manifest.version !== '1.66.47') {
+    throw new Error('Unsupported market release: the managed runtime requires dshmarket 1.66.47');
   }
   const path = join(directory, 'lib/index.js');
   const source = await readFile(path, 'utf8');

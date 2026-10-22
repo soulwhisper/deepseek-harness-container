@@ -212,7 +212,7 @@ async function manager() {
   if (process.env.DSH_PROFILE === 'web') {
     const status = await request('/dsh-market/status', headers, 'GET', undefined, 30_000);
     const state = JSON.parse(status.text);
-    check(status.status === 200 && state.version === '1.66.44' && state.pnpm === true
+    check(status.status === 200 && state.version === '1.66.47' && state.pnpm === true
       && state.agentGuardAvailable === true, 'Real market/native-manager availability');
     const forbidden = await request('/dsh-market/uninstall', headers, 'POST', JSON.stringify({ name: protectedName }), 180_000);
     const refusal = JSON.parse(forbidden.text);

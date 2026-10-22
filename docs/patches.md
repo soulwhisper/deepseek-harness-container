@@ -9,7 +9,7 @@ anchor mismatch is a build failure.
 | Patch | Upstream pin | What it does |
 | --- | --- | --- |
 | `patches/dsh/patch-host.mjs` | DSH `0.2.1-rc.2` | Adds the mandatory pre-dispatch gate, startup-readiness marker and manager protection. Hashes four upstream files: host, types, manager and boot. |
-| `patches/market/patch-market.mjs` | dshmarket `1.66.44` | Gives the Web market an `OfficialDesktopRuntime` backed by `pluginManager`, so package operations use manager admission instead of the CLI path. |
+| `patches/market/patch-market.mjs` | dshmarket `1.66.47` | Gives the Web market an `OfficialDesktopRuntime` backed by `pluginManager`, so package operations use manager admission instead of the CLI path. |
 | `patches/tavern/patch-tavern.mjs` | Tavern commit `9ddac3b55883ac7334c5b349368a56f2d6654c59` | Adds the exact public-Origin exception and applies the theme font-limit change. Verifies route and theme hashes. |
 | Tavern profile patch | `dsh-better-sidebar@0.28.0` | Fixes the thread seed boundary so a resume does not drop pre-resume history. Applied by pnpm from the Tavern recipe and pinned by the lock's `patch_hash`. |
 

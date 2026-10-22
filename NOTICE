@@ -17,8 +17,8 @@ The distribution applies an exact-hash host-webserver pre-dispatch gate and
 plugin-manager policy patch; these changes are not upstream endorsements.
 patches/dsh/upstream-MIT-LICENSE preserves the upstream license text.
 
-DSH Market 1.66.44
-Source: https://github.com/dsh-market/dsh-market/tree/29dcbd78290be89d83771e3734b128be110645c5
+DSH Market 1.66.47
+Source: https://github.com/dsh-market/dsh-market/tree/f2667a0992578a50cf19c34b24acd199ac7cefe2
 MIT License
 Copyright (c) 2026 fkysly and dsh-market contributors
 

@@ -18,8 +18,8 @@ importers:
         specifier: file:../../plugins/forward-auth
         version: file:../../plugins/forward-auth(@deepseek-ai/cordis@4.0.5)(@deepseek-ai/dsh-client-connection@0.2.1-rc.2(@deepseek-ai/cordis@4.0.5)(@deepseek-ai/dsh-scope@0.2.1-rc.2(@deepseek-ai/cordis@4.0.5)))(@deepseek-ai/dsh-host-webserver@0.2.1-rc.2(@deepseek-ai/cordis@4.0.5))
       dshmarket:
-        specifier: 1.66.44
-        version: 1.66.44(@deepseek-ai/cordis@4.0.5)(@deepseek-ai/dsh-settings@0.2.1-rc.2(f19463d923a7a6aadc4d6ed675af1c31))(@deepseek-ai/schemastery@3.18.5)
+        specifier: 1.66.47
+        version: 1.66.47(@deepseek-ai/cordis@4.0.5)(@deepseek-ai/dsh-settings@0.2.1-rc.2(f19463d923a7a6aadc4d6ed675af1c31))(@deepseek-ai/schemastery@3.18.5)
       yaml:
         specifier: 2.9.1
         version: 2.9.1
@@ -3263,8 +3263,8 @@ packages:
     resolution: {integrity: sha512-svtcdpS8CgJyqAjEQIXdb3OjhFVVYjzGAPO8WGCmRbrml64SPw/jJD4GoE98aR7r25A0XcgrK3F02yw9R/vhQw==}
     engines: {node: '>=0.3.1'}
 
-  dshmarket@1.66.44:
-    resolution: {integrity: sha512-NtkqdxnGrSiOORBPAlkHn0gckVu+iGzulI+ryRuAOgfd9giTpACUQQtgMAFBfQGXKX5VIV9xVGHW8tdNpoFizQ==}
+  dshmarket@1.66.47:
+    resolution: {integrity: sha512-ffQjjjrinYesc5x8LeUYv3zBDNMtNmrLoC5hGAWInsxtvNf1XhLFzByamW/dGy7pkvHs8Tm/BSLKJc9jslk3/A==}
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.1
       '@deepseek-ai/dsh-settings': ^0.1.0-rc.7 || ^0.1.1-rc.2 || ^0.1.2-alpha.2 || ^0.2.0-rc.1 || ^0.2.1-alpha.3 || ^0.2.1-rc.1
@@ -8015,7 +8015,7 @@ snapshots:
 
   diff@9.0.0: {}
 
-  dshmarket@1.66.44(@deepseek-ai/cordis@4.0.5)(@deepseek-ai/dsh-settings@0.2.1-rc.2(f19463d923a7a6aadc4d6ed675af1c31))(@deepseek-ai/schemastery@3.18.5):
+  dshmarket@1.66.47(@deepseek-ai/cordis@4.0.5)(@deepseek-ai/dsh-settings@0.2.1-rc.2(f19463d923a7a6aadc4d6ed675af1c31))(@deepseek-ai/schemastery@3.18.5):
     dependencies:
       '@deepseek-ai/cordis': 4.0.5(@deepseek-ai/cordis-plugin-include@1.0.10)(@deepseek-ai/cordis-plugin-loader@1.0.6)
       js-yaml: 4.3.2

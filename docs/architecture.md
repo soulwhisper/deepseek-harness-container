@@ -7,16 +7,16 @@ boundary, and which repository changes are allowed to affect which upstream.
 
 | Image | Release tag | Profile | Purpose |
 | --- | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web, `dshmarket`, required forward-auth | General DSH Web with owner-approved community plugins |
-| `ghcr.io/soulwhisper/dsh-tavern:3.0` | `tavern-3.0` | Custom Tavern workspace, forward-auth, ecosystem | Dedicated Tavern instance |
+| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web, `dshmarket`, `dsh-context`, required forward-auth | General DSH Web with owner-approved community plugins |
+| `ghcr.io/soulwhisper/dsh-tavern:3.1` | `tavern-3.1` | Custom Tavern workspace, forward-auth, ecosystem | Dedicated Tavern instance |
 
 Both images use Node 24/glibc, UID/GID `1000:1000`, `tini`, a read-only root
 filesystem, and a native DSH listener on port `3080`. They are built natively for
 `linux/amd64` and `linux/arm64`; there is no QEMU path.
 
 The Tavern image additionally retains the complete modified Tavern source at
-`/opt/dsh-tavern` and an authenticated corresponding-source archive at
-`/opt/dsh-source/tavern.tar.gz`. The archive contains Tavern source plus the
+`/opt/apps/dsh-tavern` and an authenticated corresponding-source archive at
+`/opt/dsh/source/tavern.tar.gz`. The archive contains Tavern source plus the
 distribution build inputs, not installed dependencies or user data. See
 [Corresponding source](source-build.md).
 
@@ -72,7 +72,7 @@ documentation trees are not copied into either image.
 
 | Area | Examples | Nature |
 | --- | --- | --- |
-| Immutable image | `/opt/dsh/runtime`, `/opt/dsh-seed`, `/opt/dsh/profiles`, `/opt/dsh-tavern`, `/opt/dsh-source` | Read-only, replaced by image |
+| Immutable image | `/opt/dsh/runtime`, `/opt/dsh/seed`, `/opt/dsh/profiles`, `/opt/apps/dsh-tavern`, `/opt/dsh/source` | Read-only, replaced by image |
 | Durable DSH state | `/data/dsh` profiles, sessions, storages, attachments, credentials | Back up encrypted |
 | Durable home | `/data/home` HOME, XDG config/data, pnpm home | Back up |
 | Durable projects | `/workspace` | Back up consistently with DSH state |
@@ -97,5 +97,6 @@ Browsers are CI test dependencies only.
 Only `web-<dsh-version>` and `tavern-<version>` tags publish. The tag must match
 `versions.json`, point into `main`, and pass native amd64 and arm64 builds plus
 final-image smoke. The combine job creates one multi-arch index. There is no
-floating `latest` and no branch candidate image. Deploy the resulting digest, not
-a mutable tag. See [Build and release](build.md).
+floating `latest` image tag and no branch candidate image; the three optional
+upstream assets are build-time floats, not image tags. Deploy the resulting
+digest, not a mutable tag. See [Build and release](build.md).

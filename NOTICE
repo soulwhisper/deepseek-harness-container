@@ -22,22 +22,39 @@ Source: https://github.com/dsh-market/dsh-market/tree/f2667a0992578a50cf19c34b24
 MIT License
 Copyright (c) 2026 fkysly and dsh-market contributors
 
+Optional floating components (resolved from upstream at image-build time;
+their version is not pinned in this repository)
+dsh-context — Apache License 2.0
+Source: https://github.com/bowenliang123/dsh-context
+Web image only. The installed package retains its LICENSE.
+
+Caveman skill — Apache License 2.0
+Source: https://github.com/JuliusBrussee/caveman
+Web image only. The skill seed retains the upstream LICENSE and NOTICE.
+
+RTK OSS — Apache License 2.0
+Source: https://github.com/rtk-ai/rtk
+Web image only. The image uses the rtk-oss release asset and retains its
+LICENSE at /usr/local/share/rtk/LICENSE. The BUSL-1.1 rtk release is not
+bundled.
+
 Tavern ecosystem (tavern image only)
 dsh-tavern-wrongbook v1.33.0 — MIT License
 Copyright (c) 2026 XGUIMAX
 https://github.com/XGUIMAX/dsh-tavern-wrongbook/tree/v1.33.0
 
-dsh-tavern-image v2.9.0 (package dsh-tavern-comfy) — MIT License
-Copyright (c) 2026 dsh-tavern-image contributors
-https://github.com/weixinlll/dsh-tavern-image/tree/v2.9.0
-
 dsh-tavern-knock-knock v0.7.1 — MIT License
 Copyright (c) 2026 Knock Knock contributors
 https://github.com/dearacknowl/dsh-tavern-knock-knock/tree/v0.7.1
 
-narrative-anchor — MIT License
+narrative-anchor v1.0.1 — MIT License
 Copyright (c) 2026 narrative-anchor contributors
-https://github.com/ActivityTime/narrative-anchor/tree/2ee3da047e5fd6056aef361744655be99b4f7713
+https://github.com/ActivityTime/narrative-anchor/tree/v1.0.1
+
+dsh-tavern-image v3.0.2 — MIT License (bundled with the Tavern source; not a
+separate profile dependency)
+Copyright (c) 2026 dsh-tavern-image contributors
+https://github.com/weixinlll/dsh-tavern-image
 
 MIT permission and warranty notice applicable to the MIT components above:
 
@@ -59,17 +76,17 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-DSH Tavern v3.0 is AGPL-3.0-only, NOT Apache-2.0 or MIT.
-Source: https://github.com/flizzywine/dsh-tavern/tree/7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d
+DSH Tavern v3.1 is AGPL-3.0-only, NOT Apache-2.0 or MIT.
+Source: https://github.com/flizzywine/dsh-tavern/tree/9ddac3b55883ac7334c5b349368a56f2d6654c59
 Its original complete LICENSE and source remain at
-/opt/dsh-tavern/apps/dsh-tavern in the tavern image.
+/opt/apps/dsh-tavern in the tavern image.
 Container-specific modifications: pinned-source custom workspace build,
 pruned profile installation, stable absolute links and the recorded Tavern
 patches. The modifications and build recipe are present in this repository
 and in /opt/dsh/distribution-source. See docs/source-build.md (also retained
 at /opt/dsh/distribution-source/docs/source-build.md).
 The complete modified Tavern source plus distribution build inputs, excluding
-.git and installed node_modules, is /opt/dsh-source/tavern.tar.gz. Authenticated
+.git and installed node_modules, is /opt/dsh/source/tavern.tar.gz. Authenticated
 users can download it at /distribution/source.tar.gz from the Tavern UI source
 link. Keep this source offer accessible to the users of your deployed Tavern;
 redistributors and operators must satisfy the applicable AGPL obligations.

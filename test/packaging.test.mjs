@@ -9,6 +9,7 @@ import YAML from 'yaml';
 import { materializeState, mergeManifest, mergeLock, migrateOverlay } from '../scripts/materialize-state.mjs';
 import { normalizeLockText, relativeLinkCount } from '../scripts/normalize-locks.mjs';
 import { stableImmutableTarget } from '../scripts/finalize-profile.mjs';
+import { addFloatingBundles, verifyFloatingBundles } from '../scripts/floating-bundles.mjs';
 import { patchRoutes, verifyTheme } from '../patches/tavern/patch-tavern.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -44,6 +45,31 @@ async function fixture(t) {
   return { dir, home, seed, profile: 'web', legacy: join(dir, 'absent-legacy'), runtimeManifest };
 }
 
+test('floating bundles stay profile-owned and verified before image publication', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'dsh-floating-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  await writeFile(join(dir, 'package.json'), JSON.stringify({
+    dependencies: {}, dsh: { profile: { bundles: [] } },
+  }));
+  await addFloatingBundles(dir, 'web');
+  const manifest = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8'));
+  assert.equal(manifest.dependencies['dsh-context'], 'latest');
+  assert.equal(manifest.dependencies['@deepseek-ai/dsh-session'], 'link:/opt/dsh/runtime/node_modules/@deepseek-ai/dsh-session');
+  assert.equal(manifest.dependencies['@deepseek-ai/schemastery'], 'link:/opt/dsh/runtime/node_modules/@deepseek-ai/schemastery');
+  assert.deepEqual(manifest.dsh.profile.bundles, ['dsh-context']);
+  await mkdir(join(dir, 'node_modules/dsh-context'), { recursive: true });
+  await writeFile(join(dir, 'node_modules/dsh-context/package.json'), JSON.stringify({
+    name: 'dsh-context', version: 'test',
+    dsh: { bundle: { patch: './cordis.patch.yml' }, compatibility: { dshReleases: { '0.2.1-rc.2': 'compatible' } } },
+  }));
+  await verifyFloatingBundles(dir, 'web', '0.2.1-rc.2');
+  await assert.rejects(verifyFloatingBundles(dir, 'web', '9.9.9'), /no compatibility declaration/u);
+  await writeFile(join(dir, 'node_modules/dsh-context/package.json'), JSON.stringify({
+    name: 'dsh-context', version: 'test',
+  }));
+  await assert.rejects(verifyFloatingBundles(dir, 'web'), /no longer declares dsh\.bundle/u);
+});
+
 test('new state is seeded once, then user mutations remain untouched', async t => {
   const options = await fixture(t);
   assert.equal((await materializeState(options)).action, 'seeded');
@@ -52,6 +78,70 @@ test('new state is seeded once, then user mutations remain untouched', async t =
   const before = await readFile(patch, 'utf8');
   assert.equal((await materializeState(options)).action, 'unchanged');
   assert.equal(await readFile(patch, 'utf8'), before);
+});
+
+test('injected config mounts do not block the initial seed', async t => {
+  const options = await fixture(t);
+  const skill = join(options.home, 'skills', 'demo', 'SKILL.md');
+  const patch = join(options.home, 'cordis.patch.yml');
+  await mkdir(join(options.home, 'skills', 'demo'), { recursive: true });
+  await writeFile(skill, '---\nname: demo\ndescription: fixture\n---\n');
+  await writeFile(patch, '- id: injected\n  config: {keep: true}\n');
+  assert.equal((await materializeState(options)).action, 'seeded');
+  assert.equal(await readFile(skill, 'utf8'), '---\nname: demo\ndescription: fixture\n---\n');
+  assert.equal(await readFile(patch, 'utf8'), '- id: injected\n  config: {keep: true}\n');
+  assert.equal(await readFile(join(options.home, 'BUNDLED_VERSIONS'), 'utf8'),
+    await readFile(join(options.seed, 'BUNDLED_VERSIONS'), 'utf8'));
+  assert.equal((await lstat(join(options.home, '.distribution-state.json'))).isFile(), true);
+});
+
+test('bundled skills seed as recommendations and deleted skills stay deleted', async t => {
+  const options = await fixture(t);
+  const bundled = join(options.seed, 'skills', 'bundled');
+  await mkdir(bundled, { recursive: true });
+  await writeFile(join(bundled, 'SKILL.md'), '---\nname: bundled\ndescription: fixture\n---\n');
+  assert.equal((await materializeState(options)).action, 'seeded');
+  const installed = join(options.home, 'skills', 'bundled', 'SKILL.md');
+  assert.equal(await readFile(installed, 'utf8'), '---\nname: bundled\ndescription: fixture\n---\n');
+  await rm(join(options.home, 'skills', 'bundled'), { recursive: true });
+  assert.equal((await materializeState(options)).action, 'unchanged');
+  await assert.rejects(lstat(join(options.home, 'skills', 'bundled')), { code: 'ENOENT' });
+  await writeFile(join(options.home, '.distribution-state.json'), JSON.stringify({ schema: 1, distribution: 'old', profile: 'web' }));
+  assert.equal((await materializeState({ ...options, action: 'apply' })).action, 'migrated');
+  assert.equal(await readFile(installed, 'utf8'), '---\nname: bundled\ndescription: fixture\n---\n');
+});
+
+test('durable state without a marker still refuses even with injected mounts', async t => {
+  const options = await fixture(t);
+  await mkdir(join(options.home, 'profiles/web'), { recursive: true });
+  await writeFile(join(options.home, 'profiles/web/package.json'), '{"private":true}\n');
+  await mkdir(join(options.home, 'skills', 'demo'), { recursive: true });
+  await writeFile(join(options.home, 'skills', 'demo', 'SKILL.md'), 'fixture\n');
+  await assert.rejects(materializeState(options), /explicit migration/);
+  assert.equal(await readFile(join(options.home, 'profiles/web/package.json'), 'utf8'), '{"private":true}\n');
+});
+
+test('a version file alone is not proof of seeded state', async t => {
+  const options = await fixture(t);
+  await mkdir(options.home, { recursive: true });
+  await writeFile(join(options.home, 'BUNDLED_VERSIONS'), await readFile(join(options.seed, 'BUNDLED_VERSIONS'), 'utf8'));
+  await assert.rejects(materializeState(options), /explicit migration/);
+});
+
+test('a matching marker restores a missing image-owned version file', async t => {
+  const options = await fixture(t);
+  await materializeState(options);
+  await rm(join(options.home, 'BUNDLED_VERSIONS'));
+  assert.equal((await materializeState(options)).action, 'unchanged');
+  assert.equal(await readFile(join(options.home, 'BUNDLED_VERSIONS'), 'utf8'),
+    await readFile(join(options.seed, 'BUNDLED_VERSIONS'), 'utf8'));
+});
+
+test('a missing seed version file fails closed', async t => {
+  const options = await fixture(t);
+  await rm(join(options.seed, 'BUNDLED_VERSIONS'));
+  await assert.rejects(materializeState(options));
+  await assert.rejects(lstat(join(options.home, '.distribution-state.json')), { code: 'ENOENT' });
 });
 
 test('seed lock relative link versions are anchored to the immutable runtime', async t => {
@@ -92,6 +182,56 @@ test('registry dependencies stay in the writable profile and resolve override li
   const installed = join(options.home, 'profiles/web/node_modules/external-plugin');
   assert.equal((await lstat(installed)).isSymbolicLink(), false);
   assert.equal(JSON.parse(await readFile(join(installed, 'package.json'), 'utf8')).version, '1.0.0');
+});
+
+test('managed Tavern ecosystem copies stay writable and are restored when missing', async t => {
+  const options = await fixture(t);
+  const seedManifestPath = join(options.seed, 'profiles/web/package.json');
+  const manifest = JSON.parse(await readFile(seedManifestPath, 'utf8'));
+  manifest.dependencies['external-plugin'] = '1.0.0';
+  manifest.dshTavern = { managedDependencies: ['external-plugin'] };
+  await writeFile(seedManifestPath, JSON.stringify(manifest));
+  const seedPackage = join(options.seed, 'profiles/web/node_modules/external-plugin');
+  await mkdir(seedPackage, { recursive: true });
+  await writeFile(join(seedPackage, 'package.json'), JSON.stringify({ name: 'external-plugin', version: '1.0.0' }));
+  assert.equal((await materializeState(options)).action, 'seeded');
+  const installed = join(options.home, 'profiles/web/node_modules/external-plugin');
+  assert.equal((await lstat(installed)).isSymbolicLink(), false);
+  assert.equal(JSON.parse(await readFile(join(installed, 'package.json'), 'utf8')).version, '1.0.0');
+  await writeFile(join(installed, 'package.json'), JSON.stringify({ name: 'external-plugin', version: '0.9.0' }));
+  assert.equal((await materializeState(options)).action, 'unchanged');
+  assert.equal(JSON.parse(await readFile(join(installed, 'package.json'), 'utf8')).version, '1.0.0');
+  await rm(installed, { recursive: true });
+  assert.equal((await materializeState(options)).action, 'unchanged');
+  assert.equal((await lstat(installed)).isSymbolicLink(), false);
+  assert.equal(JSON.parse(await readFile(join(installed, 'package.json'), 'utf8')).version, '1.0.0');
+  await rm(installed, { recursive: true });
+  await symlink(seedPackage, installed);
+  assert.equal((await materializeState(options)).action, 'unchanged');
+  assert.equal((await lstat(installed)).isSymbolicLink(), false);
+});
+
+test('obsolete Tavern image package is removed from migrated manifests and bundles', () => {
+  const seed = makeManifest();
+  seed.dshTavern = { managedBundles: base, managedDependencies: base };
+  const result = mergeManifest({
+    name: 'dsh-profile-tavern',
+    dependencies: { 'dsh-tavern-comfy': 'github:weixinlll/dsh-tavern-image#v2.9.0', 'user-plugin': '1.0.0' },
+    dsh: { profile: { bundles: ['dsh-tavern-comfy', 'user-plugin'] } },
+  }, seed, '/data/dsh', 'tavern');
+  assert.equal(result.dependencies['dsh-tavern-comfy'], undefined);
+  assert.equal(result.dependencies['user-plugin'], '1.0.0');
+  assert.deepEqual(result.dsh.profile.bundles, [...makeManifest().dsh.profile.bundles, 'user-plugin']);
+  const mergedLock = mergeLock({
+    lockfileVersion: '9.0',
+    importers: { '.': { dependencies: { 'dsh-tavern-comfy': { specifier: 'x', version: 'x' }, 'user-plugin': { specifier: '1.0.0', version: '1.0.0' } } } },
+    packages: { 'dsh-tavern-comfy@https://example.test/image.tgz': {}, 'user-plugin@1.0.0': {} },
+    snapshots: { 'dsh-tavern-comfy@https://example.test/image.tgz': {}, 'user-plugin@1.0.0': {} },
+  }, makeLock());
+  assert.equal(mergedLock.importers['.'].dependencies['dsh-tavern-comfy'], undefined);
+  assert.equal(mergedLock.packages['dsh-tavern-comfy@https://example.test/image.tgz'], undefined);
+  assert.equal(mergedLock.snapshots['dsh-tavern-comfy@https://example.test/image.tgz'], undefined);
+  assert.equal(mergedLock.importers['.'].dependencies['user-plugin'].version, '1.0.0');
 });
 
 test('existing home refuses implicit migration without altering data', async t => {
@@ -219,11 +359,11 @@ test('rollback and future schemas never silently overwrite newer state', async t
 });
 
 test('seed links keep the stable runtime alias and reject escapes', () => {
-  assert.equal(stableImmutableTarget('/opt/dsh-seed/profiles/web/node_modules/pkg',
+  assert.equal(stableImmutableTarget('/opt/dsh/seed/profiles/web/node_modules/pkg',
     '/opt/dsh/docker/runtime/node_modules/pkg'), '/opt/dsh/runtime/node_modules/pkg');
-  assert.equal(stableImmutableTarget('/opt/dsh-seed/profiles/web/node_modules/pkg',
+  assert.equal(stableImmutableTarget('/opt/dsh/seed/profiles/web/node_modules/pkg',
     '/opt/dsh/runtime/node_modules/pkg'), '/opt/dsh/runtime/node_modules/pkg');
-  assert.throws(() => stableImmutableTarget('/opt/dsh-seed/profiles/web/node_modules/pkg', '/etc/passwd'),
+  assert.throws(() => stableImmutableTarget('/opt/dsh/seed/profiles/web/node_modules/pkg', '/etc/passwd'),
     /escapes immutable source tree/);
 });
 
@@ -245,7 +385,7 @@ test('theme patch verifies exact package and file hashes', async t => {
 
 test('migration retains Tavern user metadata but updates managed absolute data root', () => {
   const seed = makeManifest();
-  seed.dshTavern = { source: '/opt/dsh-tavern/apps/dsh-tavern', dataRoot: '/data/dsh/profile-data/tavern/data', managedBundles: base };
+  seed.dshTavern = { source: '/opt/apps/dsh-tavern', dataRoot: '/data/dsh/profile-data/tavern/data', managedBundles: base };
   const result = mergeManifest({ dshTavern: { userPreference: 42, dataRoot: '/home/node/.dsh/profile-data/tavern/data' }, dependencies: { 'some-user-package': '3.0.0', '@deepseek-ai/user-added-optional-bundle': '0.2.1-rc.2' } }, seed, '/custom/dsh', 'tavern');
   assert.equal(result.dshTavern.userPreference, 42);
   assert.equal(result.dshTavern.dataRoot, '/custom/dsh/profile-data/tavern/data');

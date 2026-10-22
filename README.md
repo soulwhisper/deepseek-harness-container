@@ -10,8 +10,8 @@ An independent, self-packaged [DeepSeek Harness](https://github.com/deepseek-ai/
 
 | Image | Release tag | Profile |
 | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web + `dshmarket` + required forward-auth |
-| `ghcr.io/soulwhisper/dsh-tavern:3.0` | `tavern-3.0` | Custom Tavern workspace + forward-auth + bundled ecosystem |
+| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2` | `web-0.2.1-rc.2` | DSH Web + `dshmarket` + `dsh-context` + required forward-auth |
+| `ghcr.io/soulwhisper/dsh-tavern:3.1` | `tavern-3.1` | Custom Tavern workspace + forward-auth + pinned manager-protected ecosystem |
 
 Web follows the DSH upstream version; Tavern follows dsh-tavern. They are
 released independently, use Node 24/glibc, run as UID/GID `1000:1000`, bind
@@ -19,6 +19,16 @@ exactly one concrete IP on port `3080`, and use a read-only root filesystem.
 Both are built natively for `linux/amd64` and `linux/arm64` (no QEMU). The
 images contain no Chromium, GUI, X11, VNC, local password database, OIDC client
 or replacement mux server.
+
+The Web image seeds the optional Caveman and RTK skills, installs the RTK OSS
+binary and seeds `dsh-context` in the removable Web profile. Tavern
+intentionally includes none of these floating assets. The forward-auth bundle
+and Tavern's pinned managed bundles are manager-protected; the Web floating
+plugins remain removable. The three upstream inputs are resolved at Web
+image-build time from their latest upstream state; they are not pinned or
+tracked by Renovate, so deploy the published digest rather than expecting a
+reproducible rebuild from `latest`. See
+[build](docs/build.md#floating-optional-assets).
 
 ## Documentation
 
@@ -107,7 +117,7 @@ Tavern. Compose and Kubernetes examples are in
 | `/logs` | DSH startup diagnostics; `$DSH_HOME/logs` is a symlink here. Sensitive, non-authoritative. |
 | `/backups` | Local migration rollback copy under `DSH_BACKUP_ROOT`; not an independent backup. |
 | `/tmp` | Per-container tmpfs scratch; may be `noexec`. |
-| `/opt/dsh`, `/opt/dsh-seed`, `/opt/dsh-tavern`, `/opt/dsh-source` | Immutable image content. |
+| `/opt/dsh`, `/opt/apps/dsh-tavern` | Immutable image content. |
 
 Do not place cache, logs, rollback copies or scratch inside `/data`; the
 entrypoint moves legacy `cache`/`logs` directories once and excludes them from
@@ -140,9 +150,12 @@ that token; treat logs as sensitive. Status logs report `waiting-for-edge`,
 
 Only `web-<dsh-version>` and `tavern-<version>` tags publish. Each tag must match
 `versions.json`, point into `main`, is built and smoked on native amd64/arm64
-runners, and is combined into one multi-arch index. There is no `latest`, no
-branch publication and no candidate `sha-` image. PRs run static checks, tests
-and native image smoke; they receive no repository secrets. The same-repo PR
+runners, and is combined into one multi-arch index. There is no `latest` image
+tag, no branch publication and no candidate `sha-` image; the optional
+`dsh-context`, Caveman and RTK inputs are floating build-time upstream assets,
+not release tags. PRs always run the required static checks and tests; native
+image smoke runs when image/build inputs change. Pull requests receive no
+repository secrets. The same-repo PR
 labeler and scheduled label sync use job-scoped default tokens with only
 `pull-requests: write` or `issues: write`. Registry pushes use the job-scoped
 `GITHUB_TOKEN` with `packages: write`; release notes and cleanup use the GitHub

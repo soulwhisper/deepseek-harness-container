@@ -10,7 +10,7 @@ rebuild the Tavern image. It is included in the source archive at
 tavern.tar.gz
   dsh-tavern/
     complete flizzywine/dsh-tavern source at
-    7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d
+    9ddac3b55883ac7334c5b349368a56f2d6654c59
     (AGPL license, upstream lock, checked-in client output and the modified
     tavern-plugin/lib/http/routes.js public-Origin guard)
   distribution/
@@ -21,8 +21,8 @@ tavern.tar.gz
     patches/dsh/ patches/market/ patches/tavern/
     plugins/forward-auth/ (source, notices, licenses)
     scripts/entrypoint.sh, materialize-state.mjs, normalize-locks.mjs,
-            materialize-profiles.mjs, readiness.mjs, finalize-profile.mjs,
-            link-tavern-core.mjs
+            materialize-profiles.mjs, floating-bundles.mjs, readiness.mjs,
+            finalize-profile.mjs, link-tavern-core.mjs
     versions.json, package.json, pnpm-lock.yaml
     LICENSE, NOTICE, README.md, README.zh-CN.md
     docs/source-build.md, docs/regulations.md
@@ -30,16 +30,27 @@ tavern.tar.gz
 
 The archive does **not** contain user state, credentials, `/workspace`, installed
 `node_modules`, Git object databases, test/smoke harnesses, deploy examples, CI
-workflows or general documentation. The image retains the Tavern checkout at
-`/opt/dsh-tavern/apps/dsh-tavern` and the distribution inputs at
+workflows, general documentation, the repository `.agents/` maintainer skill or
+the Web-only `docker/skills/` source payload. The image retains the Tavern
+checkout at `/opt/apps/dsh-tavern` and the distribution inputs at
 `/opt/dsh/distribution-source`; the authenticated route is
 `/distribution/source.tar.gz` and `DSH_SOURCE_URL` identifies the distribution
 commit.
 
+The optional `dsh-context`, Caveman skill and RTK OSS binary are deliberately
+floating upstream assets resolved only when building the **Web** image. Their
+exact bytes are not pinned in this archive; the build recipe, upstream URLs and
+the licenses retained in the Web image are included. Reproducing those exact
+bytes requires the same upstream state or the published image digest. Tavern
+does not activate or seed these optional assets; its archive keeps the shared
+distribution build recipe only. See
+[Build](build.md#floating-optional-assets).
+
 ## Rebuild from the archive
 
-The original build is reproducible from the distribution commit identified by
-`DSH_SOURCE_URL`:
+The pinned DSH/Tavern source graph is reproducible from the distribution commit
+identified by `DSH_SOURCE_URL`; the three floating optional assets additionally
+require their upstream state to be unchanged, or use the published digest:
 
 ```bash
 docker buildx build -f docker/Dockerfile --target tavern \
@@ -57,7 +68,7 @@ redownloading the Tavern Git tree:
 2. Copy `dsh-tavern/` into `distribution/local-tavern-source/`.
 3. In the `tavern-source` stage, replace the Git init/fetch/checkout and
    `patch-tavern.mjs` invocation with a `COPY local-tavern-source/
-   /opt/dsh-tavern/apps/dsh-tavern/` step. The route file is already patched, so
+   /opt/apps/dsh-tavern/` step. The route file is already patched, so
    do not apply the route patch twice.
 4. Apply the theme-font-limit helper exactly as invoked at the bottom of
    `distribution/patches/tavern/patch-tavern.mjs`; the route file is already

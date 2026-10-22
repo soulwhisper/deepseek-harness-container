@@ -20,7 +20,7 @@ Use the native architecture matching the runner or host. CI builds
 
 | Target | Result |
 | --- | --- |
-| `web` | Final Web image: DSH Web + dshmarket + required forward-auth |
+| `web` | Final Web image: DSH Web + dshmarket + dsh-context + required forward-auth |
 | `tavern` | Final Tavern image: pinned source workspace + pruned profile + ecosystem |
 | `application` | Shared final-stage base before a profile is selected |
 | `profile-locks` | Maintainer-only export of `docker/profiles/{web,tavern}/pnpm-lock.yaml` |
@@ -66,10 +66,85 @@ The final images do **not** copy the repository root. The
 - `LICENSE`, `NOTICE`, both READMEs;
 - `docs/source-build.md` and `docs/regulations.md`.
 
-`test/`, `deploy/`, `.github/`, `.renovate/`, handoff notes and smoke/verify
-scripts are excluded. The Tavern source archive is built from that same
-whitelisted tree plus the complete Tavern checkout, so test and deployment
-harnesses do not ship with the release image.
+`test/`, `deploy/`, `.github/`, `.renovate/`, `.agents/`, handoff notes and
+smoke/verify scripts are excluded. The Tavern source archive is built from that
+same whitelisted tree plus the complete Tavern checkout, so test and deployment
+harnesses do not ship with the release image. The base source payload excludes
+`docker/skills/`; the Web final stage adds those sources back only to the Web
+payload, while Tavern has neither active skills nor skill source files.
+
+## Bundled skills and plugins
+
+Skill recommendations live under `docker/skills/` and are copied into the
+**Web** image seed at `/opt/dsh/seed/skills`. Tavern does not copy that
+directory and has no bundled Caveman, RTK or `dsh-context` assets. On first seed
+or explicit state migration, missing bundles are copied into
+`$DSH_HOME/skills`; users may edit or delete them. They are not immutable
+runtime content. The final images export:
+
+```text
+DSH_AGENTS_HOME=/data/home/.agents
+```
+
+Add a skill as `<name>/SKILL.md` (or a flat `<name>.md`) with valid frontmatter,
+rebuild the image, and restart. A new recommendation reaches existing state on
+the next explicit distribution migration. Do not use `README.md` in that
+directory because the provider treats top-level `.md` files as skill
+candidates.
+
+Bundled plugins that are part of the pinned distribution graph are not copied
+by the entrypoint. Add them to the profile recipe in
+`scripts/materialize-profiles.mjs` and the relevant `versions.json` pin,
+regenerate both committed profile locks through the documented bootstrap
+workflow, and bump the distribution identity. Existing state then adopts the
+new distribution through the explicit `DSH_STATE_MIGRATION=apply` migration,
+which merges managed bundles and dependencies while preserving user plugins.
+Automatic plugin migration is intentionally unsupported.
+
+### Floating optional assets
+
+Three optional upstream assets are intentionally **not version-pinned** in
+`versions.json`, the committed profile locks or Renovate. They are resolved at
+image-build time and are tracked only by the published image digest:
+
+| Asset | Source | Build behavior |
+| --- | --- | --- |
+| `dsh-context` | npm `latest` dist-tag | **Web only.** Installed as a normal package in the Web seed profile, so the manager owns it and users may remove it; its `dsh.bundle` and current-DSH compatibility declaration are verified before the image is published |
+| Caveman skill | `JuliusBrussee/caveman` latest GitHub release tag, `skills/caveman/SKILL.md` | **Web only.** The tag is resolved at build time, then fetched into `/opt/dsh/seed/skills/caveman`; the upstream `LICENSE` and a `SOURCE` record are included. The moving `main` branch is not used |
+| RTK binary | `rtk-ai/rtk` latest release, **`rtk-oss-*` Apache-2.0 edition** | **Web only.** Checksum-verified and installed at `/usr/local/bin/rtk`; the normal BUSL-1.1 asset is never used |
+
+The Web build installs `dsh-context` from npm `latest` as a normal dependency
+in the generated Web profile (`/opt/dsh/seed/profiles/web`), with immutable
+runtime peer links for `@deepseek-ai/dsh-session` and
+`@deepseek-ai/schemastery`. It leaves the committed profile lock unchanged and
+regenerates the in-image lock with `--no-frozen-lockfile`. The package is never
+installed into `/opt/dsh/runtime`, so host/manager patches are not rewritten and
+no repair step is needed. On first seed it is copied to
+`/data/dsh/profiles/web`, where the plugin manager owns it; users may remove it
+like any market-installed package. Only `@soulwhisper/dsh-forward-auth` remains
+manager-protected. A moved skill path, changed package identity, missing
+release asset, absent `dsh.bundle` or unsupported current-DSH declaration fails
+the build; it does not silently ship stale content. This is a deliberate
+upstream-tracking tradeoff: reproducing the *exact* optional bytes requires the
+same upstream state or the published digest, not just the repository commit.
+
+The RTK skill is maintained under `docker/skills/rtk/SKILL.md`. It tells the
+model when the proxy is appropriate and when to run the raw command. Neither
+RTK nor Caveman is installed as an automatic hook or shell replacement.
+
+Because the fetch and `latest` install are Docker layers, an ordinary repeated
+build may reuse a cached layer and keep older optional bytes. Use a clean
+builder or disable the cache for the `runtime-build` and `web-build` stages when
+you explicitly want to refresh these upstream assets. Release CI builds on
+clean runners, so the published digest reflects the resolutions of that run.
+
+The only required startup entry is `distribution-forward-auth`. On Tavern, the
+pinned ecosystem listed in `dshTavern.managedBundles` is immutable in the same
+sense as forward-auth: the manager refuses disable/remove operations and the
+startup materializer restores missing manifest entries and seed links. The
+pinned `dsh-tavern-knock-knock` package has no `dsh.bundle`; it remains an
+immutable dependency only. Web-only floating plugins and skills are removable
+and are not protected by the manager.
 
 ## Pins and locks
 
@@ -97,6 +172,7 @@ The final image sets:
 ```text
 DSH_HOME=/data/dsh
 HOME=/data/home
+DSH_AGENTS_HOME=/data/home/.agents
 DSH_BACKUP_ROOT=/backups
 XDG_CACHE_HOME=/cache
 XDG_CONFIG_HOME=/data/home/.config
@@ -111,8 +187,10 @@ The entrypoint creates `/cache/dsh` and symlinks `$DSH_HOME/cache` and
 `/data`, `/workspace`, `/cache`, `/logs` and `/backups` as described in
 [State and backup](data-layout.md); never mount test or source trees over `/opt`.
 
-Do not add `latest`, publish host ports, or bake credentials, subject values,
-edge keys or proxy private keys into build arguments or labels.
+Except for the three build-time optional assets documented above, do not add
+`latest` to pinned distribution dependencies, publish host ports, or bake
+credentials, subject values, edge keys or proxy private keys into build
+arguments or labels. The optional-asset dist-tags never become image tags.
 
 ## Release route
 

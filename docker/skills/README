@@ -1,0 +1,28 @@
+Bundled skill recommendations
+============================
+
+Add recommended skills here as either:
+
+  <name>/SKILL.md
+
+or a flat:
+
+  <name>.md
+
+Each file needs YAML frontmatter with `name` and `description`. The **Web**
+image copies this directory to `/opt/dsh/seed/skills`; Tavern does not copy it
+and has no seed skills. On first seed or explicit state migration, missing
+bundles are copied into `$DSH_HOME/skills`; users may edit or delete them. They
+are not scanned from `/opt`, are not part of the mandatory auth boundary, and
+are not restored on every restart.
+
+`rtk/SKILL.md` is maintained in this repository. The `caveman` skill is fetched
+at image-build time from the latest `JuliusBrussee/caveman` GitHub release tag
+(not the moving `main` branch); its `SOURCE`, `LICENSE` and `NOTICE` files are
+included in the seed. These optional assets are
+not version-pinned or tracked by Renovate. The image digest is the
+reproducibility boundary.
+
+Do not put README.md here: the provider treats top-level `.md` files as flat
+skill candidates and rejects them for missing frontmatter. This README has no
+`.md` extension for that reason.

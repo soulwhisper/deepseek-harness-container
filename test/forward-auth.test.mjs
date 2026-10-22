@@ -215,6 +215,73 @@ test('admission reports fixed status reasons without exposing identity', () => {
   assert.deepEqual(broken, [{ type: 'broken', reason: 'native-rejection' }]);
 });
 
+test('top-level cross-site navigation is admitted; cross-site API and POST are not', () => {
+  const config = configuration(baseEnvironment);
+  const seen = [];
+  const connection = {
+    requestRejection(request) {
+      const site = request.headers['sec-fetch-site'];
+      seen.push(site);
+      return site === 'cross-site' ? 403 : undefined;
+    },
+    authorizeIndex() {},
+    authenticatedUrl() {},
+  };
+  const gate = createAdmission(connection, config);
+  const response = () => ({ writeHead() {}, end() {} });
+  const base = facts('127.0.0.1');
+  const navigation = {
+    ...base,
+    method: 'GET',
+    headers: { ...base.headers, 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' },
+  };
+  assert.equal(gate.http(navigation, response()), true);
+  const iframe = {
+    ...base,
+    method: 'GET',
+    headers: { ...base.headers, 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'iframe' },
+  };
+  assert.equal(gate.http(iframe, response()), false);
+  const api = { ...base, method: 'GET', headers: { ...base.headers, 'sec-fetch-site': 'cross-site' } };
+  assert.equal(gate.http(api, response()), false);
+  const post = { ...base, method: 'POST', headers: { ...navigation.headers } };
+  assert.equal(gate.http(post, response()), false);
+  const upgradeSocket = new EventEmitter();
+  upgradeSocket.destroy = () => {};
+  upgradeSocket.end = () => {};
+  assert.equal(gate.upgrade({ ...navigation }, upgradeSocket), false);
+  assert.deepEqual(seen, [undefined, 'cross-site', 'cross-site', 'cross-site', 'cross-site']);
+});
+
+test('minted navigation cookie reaches the dispatched request and keeps sec-fetch-site', () => {
+  const config = configuration(baseEnvironment);
+  const connection = {
+    authenticatedUrl: () => 'http://dsh.invalid/?token=fixture',
+    authorizeIndex(_request, response) {
+      response.writeHead(303, { 'set-cookie': 'dsh_session=fixture; Path=/; HttpOnly; SameSite=Strict' });
+      response.end();
+      return false;
+    },
+    requestRejection(request) {
+      return request.headers.cookie?.includes('dsh_session=fixture') ? undefined : 401;
+    },
+  };
+  const gate = createAdmission(connection, config);
+  let appended;
+  const response = { writeHead() {}, end() {}, appendHeader(name, value) { appended = [name, value]; } };
+  const base = facts('127.0.0.1');
+  const navigation = {
+    ...base,
+    method: 'GET',
+    headers: { ...base.headers, 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' },
+  };
+  assert.equal(gate.http(navigation, response), true);
+  assert.equal(navigation.headers['sec-fetch-site'], 'cross-site');
+  assert.match(navigation.headers.cookie, /(?:^|; )dsh_session=fixture(?:;|$)/u);
+  assert.equal(appended[0], 'set-cookie');
+  assert.match(appended[1], /dsh_session=fixture/u);
+});
+
 test('upgrade timers are bounded, cleared on close and cleaned on disposal', () => {
   const active = new Map();
   let sequence = 0;

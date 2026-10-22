@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "distribution": "0.2.1-rc.2-r1",
+  "distribution": "0.2.1-rc.2-r2",
   "registry": "ghcr.io/soulwhisper",
   "release": {
     "web": {
@@ -8,14 +8,14 @@
       "image": "dsh-web"
     },
     "tavern": {
-      "tag": "tavern-3.0",
+      "tag": "tavern-3.1",
       "image": "dsh-tavern"
     }
   },
   "node": {
-    "version": "24.22.0",
-    "image": "node:24.22.0-trixie-slim@sha256:7f486cabe892bff8fef04c0f7da8dba84a560be3e4e2740b7a86afc57ebec315",
-    "metadata": "https://registry-1.docker.io/v2/library/node/manifests/24.22.0-trixie-slim"
+    "version": "24.22.1",
+    "image": "node:24.22.1-trixie-slim@sha256:43b9ba1142b8dcf33fa8f922ca1be85714adc444e0586c7cf7726daaeabc1bea",
+    "metadata": "https://registry-1.docker.io/v2/library/node/manifests/24.22.1-trixie-slim"
   },
   "pnpm": "11.25.0",
   "dsh": {
@@ -25,21 +25,20 @@
   "market": "1.66.47",
   "tavern": {
     "repository": "https://github.com/flizzywine/dsh-tavern.git",
-    "version": "3.0",
-    "commit": "7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d",
-    "routesSha256": "91c78c5d8d3e19dc2084c2b3241ef7e0bdf761107f6c034c35a359201e8431f7",
+    "version": "3.1",
+    "commit": "9ddac3b55883ac7334c5b349368a56f2d6654c59",
+    "routesSha256": "62e38b0ef271cbb9cf4b6db2245db19813e2bc26db118fcfc831bb6892a30460",
     "theme": {
       "package": "@deepseek-ai/dsh-client-ui-theme",
       "version": "0.2.1-rc.2",
       "indexSha256": "1adf59906ab10e91765d96f3e42268b0b7669f921c4baf4021a3057894cf3000",
       "clientSha256": "f9915fb53d5f156e75291e63be66c80e607a82bfd03c7d583e0a12ebef5a6cb8"
     },
-    "upstreamTag": "v3.0"
+    "upstreamTag": "v3.1"
   },
   "ecosystem": {
     "dsh-tavern-wrongbook": "github:XGUIMAX/dsh-tavern-wrongbook#v1.33.0",
-    "dsh-tavern-comfy": "github:weixinlll/dsh-tavern-image#v2.9.0",
     "dsh-tavern-knock-knock": "github:dearacknowl/dsh-tavern-knock-knock#v0.7.1",
-    "narrative-anchor": "github:ActivityTime/narrative-anchor#2ee3da047e5fd6056aef361744655be99b4f7713"
+    "narrative-anchor": "github:ActivityTime/narrative-anchor#v1.0.1"
   }
 }

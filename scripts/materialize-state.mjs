@@ -12,7 +12,24 @@ async function normalizeLockFile(path) {
   const normalized = normalizeLockText(text);
   if (normalized !== text) await writeFile(path, normalized);
 }
-const obsolete = name => name === 'dsh-ui-auth' || name.startsWith('dsh-ui-auth/');
+const obsolete = name => name === 'dsh-ui-auth' || name.startsWith('dsh-ui-auth/') || name === 'dsh-tavern-comfy';
+// Deployment-injected configuration may exist before the first boot. It is
+// not durable DSH state and must not make an empty home look migrated.
+const INJECTED_HOME_ENTRIES = new Set(['cordis.patch.yml', 'skills']);
+const stateEntries = entries => entries.filter(name => !INJECTED_HOME_ENTRIES.has(name));
+// Bundled skills are recommendations, not enforced runtime content. Copy only
+// missing top-level bundles so an injected or user-edited skill wins.
+async function seedSkills(seed, home) {
+  const source = join(seed, 'skills');
+  if (!await exists(source)) return;
+  const target = join(home, 'skills');
+  await mkdir(target, { recursive: true });
+  for (const entry of await readdir(source, { withFileTypes: true })) {
+    const destination = join(target, entry.name);
+    if (await exists(destination)) continue;
+    await cp(join(source, entry.name), destination, { recursive: entry.isDirectory(), verbatimSymlinks: true });
+  }
+}
 const managed = (name, seed, workspace = {}) => name === '@soulwhisper/dsh-forward-auth'
   || Object.hasOwn(workspace.overrides ?? seed.pnpm?.overrides ?? {}, name)
   || Object.hasOwn(seed.dependencies ?? {}, name);
@@ -39,6 +56,55 @@ function immutableEntries(seed, source, workspace = {}) {
   return entries;
 }
 
+// Registry and git dependencies stay as real writable copies: their own
+// dependency lookup must reach the profile's override links. Only absolute
+// link dependencies belong to the immutable image tree.
+function managedCopyNames(seed, source, workspace = {}) {
+  const immutable = immutableEntries(seed, source, workspace);
+  return (seed.dshTavern?.managedDependencies ?? []).filter(name => !immutable.has(name));
+}
+
+async function sameManagedCopy(destination, expected) {
+  try {
+    const [actual, wanted] = await Promise.all([
+      readFile(join(destination, 'package.json'), 'utf8'),
+      readFile(join(expected, 'package.json'), 'utf8'),
+    ]);
+    const current = JSON.parse(actual);
+    const pinned = JSON.parse(wanted);
+    return current.name === pinned.name && current.version === pinned.version;
+  } catch {
+    return false;
+  }
+}
+
+async function restoreManagedCopies(target, source, seed, workspace = {}) {
+  const modules = join(target, 'node_modules');
+  await mkdir(modules, { recursive: true });
+  for (const name of managedCopyNames(seed, source, workspace)) {
+    const destination = join(modules, name);
+    const expected = join(source, 'node_modules', name);
+    let info;
+    try {
+      info = await lstat(destination);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+    // A real directory keeps its own dependency lookup only while it matches
+    // the pinned seed version. Missing entries, files, symlinks (including the
+    // old broken seed-link layout), and stale copies are restored from the seed.
+    if (info?.isDirectory() && !info.isSymbolicLink() && await sameManagedCopy(destination, expected)) continue;
+    await mkdir(dirname(destination), { recursive: true });
+    if (!(await lstat(dirname(destination))).isDirectory()) throw new Error(`Managed scope is not a real directory: ${name}`);
+    if (info) await rm(destination, { recursive: true, force: true });
+    await cp(expected, destination, { recursive: true, verbatimSymlinks: true });
+  }
+}
+
+async function removeSuperseded(target) {
+  await rm(join(target, 'node_modules', 'dsh-tavern-comfy'), { recursive: true, force: true });
+}
+
 async function managedLinks(target, source, seed, install, workspace = {}) {
   const modules = join(target, 'node_modules');
   if (install) await mkdir(modules, { recursive: true });
@@ -51,7 +117,16 @@ async function managedLinks(target, source, seed, install, workspace = {}) {
       await rm(destination, { recursive: true, force: true });
       await symlink(expected, destination);
     } else {
-      const info = await lstat(destination);
+      let info;
+      try {
+        info = await lstat(destination);
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+        await mkdir(dirname(destination), { recursive: true });
+        if (!(await lstat(dirname(destination))).isDirectory()) throw new Error(`Managed scope is not a real directory: ${name}`);
+        await symlink(expected, destination);
+        continue;
+      }
       if (!info.isSymbolicLink()) throw new Error(`Managed package was shadowed: ${name}; restore immutable links with an explicit state migration`);
       const recorded = await readlink(destination);
       // Exact immutable paths are valid even when a test fixture has no /opt/dsh.
@@ -105,13 +180,13 @@ export function mergeLock(previous, seed, workspace = {}) {
     Object.assign(importer[kind], newImporter[kind]);
   }
   merged.importers = { ...previous.importers, '.': importer };
-  for (const section of ['packages', 'snapshots']) for (const name of Object.keys(merged[section])) if (/^dsh-ui-auth(?:@|\/)/.test(name)) delete merged[section][name];
+  for (const section of ['packages', 'snapshots']) for (const name of Object.keys(merged[section])) if (/^(?:dsh-ui-auth|dsh-tavern-comfy)(?:@|\/)/.test(name)) delete merged[section][name];
   return merged;
 }
 
 export async function materializeState(options = {}) {
   const home = resolve(options.home ?? process.env.DSH_HOME ?? '/data/dsh');
-  const seed = resolve(options.seed ?? '/opt/dsh-seed');
+  const seed = resolve(options.seed ?? '/opt/dsh/seed');
   const profile = options.profile ?? process.env.DSH_PROFILE ?? 'web';
   const action = options.action ?? process.env.DSH_STATE_MIGRATION ?? 'refuse';
   const legacy = resolve(options.legacy ?? process.env.DSH_LEGACY_HOME ?? '/home/node/.dsh');
@@ -127,18 +202,26 @@ export async function materializeState(options = {}) {
   const markerPath = join(home, '.distribution-state.json');
   await mkdir(home, { recursive: true, mode: 0o700 });
   let entries = await readdir(home);
-  if (entries.length === 0 && legacy !== home && await exists(legacy) && (await readdir(legacy)).length) {
+  if (stateEntries(entries).length === 0 && legacy !== home && await exists(legacy) && (await readdir(legacy)).length) {
     if (action !== 'apply') throw new Error('Legacy /home/node/.dsh detected; snapshot it and set DSH_STATE_MIGRATION=apply to copy it without deleting the original');
     await cp(legacy, home, { recursive: true, verbatimSymlinks: true, preserveTimestamps: true });
     entries = await readdir(home);
   }
-  if (entries.length === 0) {
-    await cp(seed, home, { recursive: true, verbatimSymlinks: true });
+  if (stateEntries(entries).length === 0) {
+    const seedSkillsRoot = join(seed, 'skills');
+    await cp(seed, home, {
+      recursive: true,
+      verbatimSymlinks: true,
+      filter: path => path !== seedSkillsRoot && !path.startsWith(`${seedSkillsRoot}${sep}`),
+    });
+    await seedSkills(seed, home);
     await normalizeLockFile(join(home, 'profiles', profile, 'pnpm-lock.yaml'));
     const source = join(seed, 'profiles', profile);
     const seedManifest = await json(join(source, 'package.json'));
     const seedWorkspace = YAML.parse(await readFile(join(source, 'pnpm-workspace.yaml'), 'utf8'));
     await managedLinks(join(home, 'profiles', profile), source, seedManifest, true, seedWorkspace);
+    await restoreManagedCopies(join(home, 'profiles', profile), source, seedManifest, seedWorkspace);
+    await removeSuperseded(join(home, 'profiles', profile));
     await writeFile(markerPath, JSON.stringify({ schema: 1, distribution: identity, profile }, null, 2) + '\n', { mode: 0o600 });
     return { action: 'seeded' };
   }
@@ -146,11 +229,27 @@ export async function materializeState(options = {}) {
   if (marker?.schema > 1) throw new Error('Newer state schema cannot be rolled back; restore the pre-upgrade volume snapshot');
   if (marker?.schema === 1 && marker.distribution === identity && marker.profile === profile) {
     const source = join(seed, 'profiles', profile);
-    await normalizeLockFile(join(home, 'profiles', profile, 'pnpm-lock.yaml'));
+    const target = join(home, 'profiles', profile);
+    await normalizeLockFile(join(target, 'pnpm-lock.yaml'));
     try {
       const seedManifest = await json(join(source, 'package.json'));
       const seedWorkspace = YAML.parse(await readFile(join(source, 'pnpm-workspace.yaml'), 'utf8'));
-      await managedLinks(join(home, 'profiles', profile), source, seedManifest, false, seedWorkspace);
+      if (profile === 'tavern') {
+        const manifestPath = join(target, 'package.json');
+        if (await exists(manifestPath)) {
+          const previous = await json(manifestPath);
+          const restored = mergeManifest(previous, seedManifest, home, profile, seedWorkspace);
+          if (JSON.stringify(restored) !== JSON.stringify(previous)) {
+            await writeFile(manifestPath, `${JSON.stringify(restored, null, 2)}\n`);
+          }
+        }
+      }
+      await managedLinks(target, source, seedManifest, false, seedWorkspace);
+      await restoreManagedCopies(target, source, seedManifest, seedWorkspace);
+      await removeSuperseded(target);
+      // The image-owned version file is not user state. Restore it without
+      // re-seeding the profiles, credentials, sessions or workspace.
+      if (!await exists(join(home, 'BUNDLED_VERSIONS'))) await cp(join(seed, 'BUNDLED_VERSIONS'), join(home, 'BUNDLED_VERSIONS'));
       return { action: 'unchanged' };
     } catch (error) {
       if (action !== 'apply') throw error;
@@ -208,6 +307,8 @@ export async function materializeState(options = {}) {
     }));
     if (await exists(join(source, 'patches'))) await cp(join(source, 'patches'), join(target, 'patches'), { recursive: true });
     await managedLinks(target, source, seedManifest, true, seedWorkspace);
+    await restoreManagedCopies(target, source, seedManifest, seedWorkspace);
+    await removeSuperseded(target);
     await rm(join(target, 'node_modules/dsh-ui-auth'), { recursive: true, force: true });
     // A global overlay can also retain the obsolete auth plugin. Leave all
     // other rows/configuration and credential/account data in place.
@@ -216,6 +317,7 @@ export async function materializeState(options = {}) {
       await writeFile(overlay, YAML.stringify(migrateOverlay(YAML.parse(await readFile(overlay, 'utf8')), home)));
     }
     if (!await exists(join(target, 'cordis.patch.yml'))) await cp(join(source, 'cordis.patch.yml'), join(target, 'cordis.patch.yml'));
+    await seedSkills(seed, home);
     if (await exists(join(home, '.credentials.yaml'))) await chmod(join(home, '.credentials.yaml'), 0o600);
     await writeFile(join(home, 'BUNDLED_VERSIONS'), bundled);
     const temporary = `${markerPath}.tmp`;

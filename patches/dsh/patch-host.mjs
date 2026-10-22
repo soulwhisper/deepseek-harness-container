@@ -22,11 +22,12 @@ export function patchSource(kind, source) {
     source = replaceOnce(source, 'export declare class WebServer extends Service {', 'export declare class WebServer extends Service {' + gateClassDeclarations);
     source = replaceOnce(source, 'export default WebServer;', gateDeclarations + '\nexport default WebServer;');
   } else if (kind === 'boot') {
-    source = replaceOnce(source, 'const requiredStartupEntryIds = new Set([', 'const requiredStartupEntryIds = new Set([\n\t"distribution-forward-auth",\n\t"dsh-market",');
+    source = replaceOnce(source, 'const requiredStartupEntryIds = new Set([', 'const requiredStartupEntryIds = new Set([\n\t"distribution-forward-auth",');
     source = replaceOnce(source, '\t\tawait auditStartupEntries(ctx, binName);\n\t\treturn ctx;', '\t\tawait auditStartupEntries(ctx, binName);\n\t\tctx.provide("distributionStartupReady", true);\n\t\treturn ctx;');
   } else if (kind === 'manager') {
     source = replaceOnce(source, 'const protectedModules = new Set([', 'const protectedModules = new Set([\n\t"@soulwhisper/dsh-forward-auth",\n\t"@deepseek-ai/dsh-app-boot",');
-    source = replaceOnce(source, 'protectsManager(name) {', 'protectsManager(name) {\n\t\t\tif (name === "@soulwhisper/dsh-forward-auth") return true;');
+    source = replaceOnce(source, '\t\t\tthis.profile = ctx.profileContext;', '\t\t\tthis.profile = ctx.profileContext;\n\t\t\tfor (const name of readProfileManifest("dsh", this.profile.dir).dshTavern?.managedDependencies ?? []) protectedModules.add(name);');
+    source = replaceOnce(source, 'protectsManager(name) {', 'protectsManager(name) {\n\t\t\tif (name === "@soulwhisper/dsh-forward-auth") return true;\n\t\t\tconst tavernBundles = readProfileManifest("dsh", this.profile.dir).dshTavern?.managedBundles;\n\t\t\tif (Array.isArray(tavernBundles) && tavernBundles.includes(name)) return true;');
     source = replaceOnce(source, 'const known = specPackageName(spec, before, this.profile.dir);', 'const known = specPackageName(spec, before, this.profile.dir);\n\t\t\t\tif (known !== undefined && protectedModules.has(known)) throw new ManagementFailure("management-required");');
   } else if (kind === 'host') {
     source = replaceOnce(source, '\tconfig;\n\tstatic Config', '\tconfig;\n' + gateMembers + '\n\tstatic Config');

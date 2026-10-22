@@ -3,6 +3,10 @@ name: Validate Pull Request
 # PR-only change flow with explicit steps and a native amd64/arm64 matrix.
 # No QEMU: each runner builds and smokes only its own architecture image.
 # Public/fork PRs are not a supported submission path; their jobs are skipped.
+#
+# The workflow itself stays path-unfiltered so the required "CI checks passed"
+# status always exists. The change detector skips only the expensive image
+# matrix when no image/build input changed; static validation still runs.
 on:
   pull_request:
     branches: [main]
@@ -18,6 +22,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect image inputs
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      images: ${{ steps.detect.outputs.images }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Detect image-relevant files
+        id: detect
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" != pull_request ]; then
+            echo 'images=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch --no-tags origin "${BASE_SHA}"
+          files="$(git diff --no-renames --name-only "${BASE_SHA}...HEAD")"
+          # Only source/build inputs require the image matrix. Docs, tests,
+          # deploy examples, scaffold scripts and non-critical dotfiles are
+          # deliberately excluded; .dockerignore is the one dotfile exception
+          # because it changes the build context itself.
+          if grep -Eq '^(docker/|patches/|plugins/|versions\.json$|package\.json$|pnpm-lock\.yaml$|LICENSE$|NOTICE$|README\.md$|README\.zh-CN\.md$|docs/(source-build|regulations)\.md$|\.dockerignore$|\.github/workflows/ci\.yaml$|scripts/(entrypoint\.sh|materialize-state\.mjs|materialize-profiles\.mjs|floating-bundles\.mjs|normalize-locks\.mjs|finalize-profile\.mjs|readiness\.mjs|link-tavern-core\.mjs|seed-tavern-plugins\.mjs)$)' <<< "$files"; then
+            echo 'images=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'images=false' >> "$GITHUB_OUTPUT"
+          fi
+
   static:
     name: Static verify and tests
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -32,7 +73,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '24.22.0'
+          node-version: '24.22.1'
 
       - name: Install locked test dependencies
         shell: bash
@@ -50,8 +91,8 @@ jobs:
 
   images:
     name: Build and smoke ${{ matrix.target }} (${{ matrix.arch }})
-    needs: static
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    needs: [changes, static]
+    if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && needs.changes.outputs.images == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -71,7 +112,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '24.22.0'
+          node-version: '24.22.1'
 
       - name: Install smoke dependencies
         shell: bash
@@ -118,7 +159,7 @@ jobs:
   # Single required-status-check target for branch protection.
   ci-pass:
     name: CI checks passed
-    needs: [static, images]
+    needs: [changes, static, images]
     if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
@@ -126,10 +167,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for result in "${{ needs.static.result }}" "${{ needs.images.result }}"; do
+          for result in "${{ needs.changes.result }}" "${{ needs.static.result }}"; do
             if [ "${result}" != "success" ]; then
-              echo "::error::Validation did not succeed: ${result}"
+              echo "::error::Required job did not succeed: ${result}"
               exit 1
             fi
           done
+          if [ "${{ needs.changes.outputs.images }}" = "true" ]; then
+            if [ "${{ needs.images.result }}" != "success" ]; then
+              echo "::error::Image validation was required but did not succeed: ${{ needs.images.result }}"
+              exit 1
+            fi
+          elif [ "${{ needs.images.result }}" != "skipped" ]; then
+            echo "::error::Image validation unexpectedly ran or failed: ${{ needs.images.result }}"
+            exit 1
+          fi
           echo "Validation passed"

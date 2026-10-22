@@ -1,4 +1,4 @@
-// Profile locks are generated in /opt/dsh-seed and later copied to
+// Profile locks are generated in /opt/dsh/seed and later copied to
 // $DSH_HOME. pnpm records absolute link: specifiers as paths relative to the
 // workspace root, so the copied lock would point at the wrong home. Rewrite
 // only the recorded version of absolute link specifiers; the specifier and

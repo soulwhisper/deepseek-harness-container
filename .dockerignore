@@ -5,6 +5,7 @@ test
 deploy
 .github
 .renovate
+.agents
 handoff-*.md
 .data
 artifacts

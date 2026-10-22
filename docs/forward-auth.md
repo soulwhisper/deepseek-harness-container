@@ -31,6 +31,12 @@ There is no local password, bootstrap admin, admin/user panel, OIDC discovery,
 client secret, JWKS cache, login route or `auth-disabled` mode. Missing or broken
 configuration fails closed and leaves application routes denied.
 
+A top-level `GET`/`HEAD` document navigation from another origin is allowed
+through the native fence after the edge identity check, so a link from the
+homepage portal does not become a false 403. Only `Sec-Fetch-Site: cross-site`
+is relaxed for that navigation shape; Host, Origin, peer, and identity checks
+still apply. Cross-site `/api`, `POST`, and WebSocket requests remain denied.
+
 ## Configuration
 
 | Variable | Required | Meaning |

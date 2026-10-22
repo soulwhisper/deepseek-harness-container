@@ -10,7 +10,7 @@ anchor mismatch is a build failure.
 | --- | --- | --- |
 | `patches/dsh/patch-host.mjs` | DSH `0.2.1-rc.2` | Adds the mandatory pre-dispatch gate, startup-readiness marker and manager protection. Hashes four upstream files: host, types, manager and boot. |
 | `patches/market/patch-market.mjs` | dshmarket `1.66.47` | Gives the Web market an `OfficialDesktopRuntime` backed by `pluginManager`, so package operations use manager admission instead of the CLI path. |
-| `patches/tavern/patch-tavern.mjs` | Tavern commit `7f7372c2f2874fd8058e4bdbc16fc55eef4d5d4d` | Adds the exact public-Origin exception and applies the theme font-limit change. Verifies route and theme hashes. |
+| `patches/tavern/patch-tavern.mjs` | Tavern commit `9ddac3b55883ac7334c5b349368a56f2d6654c59` | Adds the exact public-Origin exception and applies the theme font-limit change. Verifies route and theme hashes. |
 | Tavern profile patch | `dsh-better-sidebar@0.28.0` | Fixes the thread seed boundary so a resume does not drop pre-resume history. Applied by pnpm from the Tavern recipe and pinned by the lock's `patch_hash`. |
 
 ## Why each patch exists
@@ -28,12 +28,14 @@ The Host patch adds that guarantee:
 - The gate runs before HTTP dispatch and before `upgrade`.
 - A missing gate or gate exception leaves the listener denied with 503.
 - Shutdown destroys tracked sockets.
-- App boot marks `distribution-forward-auth` and `dsh-market` as required when
-  present and enabled. Upstream ignores absent/disabled IDs; Tavern has no market
-  bundle, so this does not force market into Tavern. If forward-auth never
-  registers, the Host gate still denies all traffic.
-- The manager protects forward-auth and app-boot from disable/removal and direct
-  known-spec installation.
+- App boot marks only `distribution-forward-auth` as required. Web floating
+  plugins, including `dsh-market` and `dsh-context`, remain removable
+  recommendations. If forward-auth never registers, the Host gate still denies
+  all traffic.
+- The manager protects forward-auth, app-boot and Tavern's
+  `dshTavern.managedBundles`/plugin rows from disable/removal and direct
+  known-spec installation. Tavern pinned ecosystem entries are restored from
+  the immutable seed on restart.
 
 The local plugin is not the patch. It registers the gate through the patched API.
 See [Authentication](forward-auth.md).

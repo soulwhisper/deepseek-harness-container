@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { join, relative } from 'node:path';
 import { parse } from 'yaml';
 import { relativeLinkCount } from './normalize-locks.mjs';
+import { floatingBundles } from './floating-bundles.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const text = path => readFile(join(root, path), 'utf8');
@@ -45,6 +46,10 @@ for (const [name, spec] of Object.entries(versions.ecosystem)) {
   assert.match(name, /^[a-z][a-z0-9-]*$/u);
   assert.match(spec, /^github:[^/]+\/[^#]+#[^#]+$/u);
 }
+assert.equal(Object.hasOwn(versions.ecosystem, 'dsh-tavern-comfy'), false,
+  'Tavern image plugin is bundled with Tavern, not a profile dependency');
+assert.match(await text('docker/Dockerfile'), /scripts\/seed-tavern-plugins\.mjs/u,
+  'Tavern bundled plugin seed script is shipped in the image');
 for (const profile of ['web', 'tavern']) {
   const lockText = await text(`docker/profiles/${profile}/pnpm-lock.yaml`);
   const lock = parse(lockText);
@@ -62,8 +67,10 @@ assert.ok(!forwardAuthManifest.files.includes('upstream-MIT-LICENSE'), 'forward-
 assert.equal(await present('plugins/forward-auth/upstream-MIT-LICENSE'), false, 'Upstream DSH MIT notice belongs under patches/dsh');
 assert.ok(await present('patches/dsh/upstream-MIT-LICENSE'), 'Patched upstream DSH notice must remain in the distribution');
 for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/profiles/web/pnpm-lock.yaml',
+  'docker/skills/README', 'docker/skills/rtk/SKILL.md',
   'patches/dsh/patch-host.mjs', 'patches/market/patch-market.mjs', 'patches/tavern/patch-tavern.mjs',
-  'plugins/forward-auth/index.mjs', 'scripts/normalize-locks.mjs', 'scripts/field-test.mjs', 'test/packaging.test.mjs',
+  'plugins/forward-auth/index.mjs', 'scripts/normalize-locks.mjs', 'scripts/floating-bundles.mjs',
+  'scripts/seed-tavern-plugins.mjs', 'scripts/field-test.mjs', 'test/packaging.test.mjs',
   'deploy/docker/compose.yaml', 'deploy/kubernetes/dsh-web.yaml',
   'docs/index.md', 'docs/architecture.md', 'docs/constraints.md', 'docs/build.md', 'docs/deploy.md',
   'docs/operations.md', 'docs/data-layout.md', 'docs/patches.md', 'docs/source-build.md',
@@ -86,8 +93,42 @@ assert.match(dockerfile, /FROM scratch AS distribution-source/u, 'Explicit sourc
 assert.match(dockerfile, /COPY --from=distribution-source/u, 'Final image uses the source payload stage');
 assert.match(dockerfile, /XDG_CACHE_HOME=\/cache/u, 'Cache is outside /data');
 assert.match(dockerfile, /DSH_BACKUP_ROOT=\/backups/u, 'Rollback root is outside /data');
+assert.match(dockerfile, /COPY docker\/skills\/ \/opt\/dsh\/seed\/skills\//u, 'Bundled skill recommendations are seeded from the image');
+assert.doesNotMatch(dockerfile, /DSH_BUNDLED_SKILL_DIR/u, 'Bundled skills are not an immutable runtime scan root');
+assert.doesNotMatch(dockerfile, /COPY docker\/skills\/ \/opt\/dsh\/skills\//u, 'Skills must not be mounted as immutable runtime content');
 assert.doesNotMatch(dockerfile, /scripts\/smoke\.mjs|test\/|deploy\/|\.github\//u,
   'Test, smoke, deploy and CI inputs must not be copied into images');
+assert.doesNotMatch(dockerfile, /pnpm --dir \/opt\/dsh\/runtime add dsh-context/u,
+  'dsh-context must not be installed into the immutable runtime');
+assert.doesNotMatch(dockerfile, /patch-host\.mjs --repair/u, 'Runtime plugin installs must not require patch repair');
+assert.match(dockerfile, /floating-bundles\.mjs add web/u, 'Web build adds the profile-owned dsh-context bundle');
+assert.match(dockerfile, /pnpm --dir \/opt\/dsh\/seed\/profiles\/web install --no-frozen-lockfile/u,
+  'The profile-owned dsh-context gets a generated profile lock, not a stale committed pin');
+assert.match(dockerfile, /JuliusBrussee\/caveman\/releases\/latest/u, 'Caveman skill resolves the latest release tag');
+assert.match(dockerfile, /skills\/caveman\/SKILL\.md/u, 'Caveman skill is fetched from the resolved release');
+assert.doesNotMatch(dockerfile, /caveman\/main\//u, 'Caveman skill must not follow the moving main branch');
+assert.match(dockerfile, /rtk-oss-/u, 'Only the Apache-2.0 RTK OSS asset may be bundled');
+assert.equal((dockerfile.match(/COPY docker\/skills\/ \/opt\/dsh\/seed\/skills\//gu) ?? []).length, 1,
+  'Only one final stage may receive the optional skill seed');
+const webStage = dockerfile.slice(dockerfile.indexOf('FROM application AS web'), dockerfile.indexOf('FROM application AS tavern'));
+const tavernStage = dockerfile.slice(dockerfile.indexOf('FROM application AS tavern'));
+assert.match(webStage, /usr\/local\/bin\/rtk/u, 'Web image receives the RTK binary');
+assert.match(webStage, /distribution-source\/docker\/skills/u, 'Web source payload retains its skill sources');
+assert.match(await text('.dockerignore'), /^\.agents$/mu, 'Maintainer-only .agents skill is excluded from build context');
+assert.doesNotMatch(tavernStage, /rtk|caveman|dsh-context|docker\/skills/iu, 'Tavern must not receive optional Web assets or their source payload');
+assert.doesNotMatch(JSON.stringify(versions), /dsh-context|caveman|rtk/iu,
+  'Floating assets are not version-pinned in versions.json');
+assert.deepEqual([...floatingBundles.web], ['dsh-context'], 'Only dsh-context is a floating web bundle');
+const floatingText = await text('scripts/floating-bundles.mjs');
+assert.match(floatingText, /runtimeLinks/u, 'dsh-context runtime peers stay immutable links');
+assert.match(floatingText, /manifest\.dependencies\[name\] = 'latest'/u, 'dsh-context remains a latest profile package');
+assert.match(floatingText, /dsh\.bundle/u, 'Build verification rejects an upstream package without a bundle patch');
+assert.match(await text('patches/dsh/patch-host.mjs'), /dshTavern\?\.managedBundles/u,
+  'Manager protects the pinned Tavern bundle set');
+assert.match(await text('scripts/materialize-state.mjs'), /managedDependencies/u,
+  'State materialization restores pinned Tavern dependencies');
+assert.match(await text('scripts/materialize-state.mjs'), /managedLinks\(target/u,
+  'Tavern restart restores managed seed links');
 const ignore = await text('.gitignore');
 assert.match(ignore, /^handoff-\*\.md$/mu, 'Handoff files are ignored');
 assert.match(await text('.github/workflows/label-sync.yaml'), /sparse-checkout-cone-mode:\s*false/u,
@@ -108,6 +149,15 @@ assert.ok(ciWorkflow.on.pull_request !== undefined && ciWorkflow.on.merge_group 
 assert.deepEqual(ciWorkflow.on.pull_request.types, ['opened', 'synchronize', 'reopened', 'ready_for_review'], 'CI has explicit PR activity types');
 assert.equal(ciWorkflow.on.push, undefined, 'CI must not duplicate on branch pushes');
 assert.equal(ciWorkflow.jobs?.label, undefined, 'Labeler is a separate workflow');
+assert.ok(ciWorkflow.jobs?.changes, 'CI keeps a change detector for image-input gating');
+assert.equal(ciWorkflow.on.pull_request.paths, undefined, 'Required CI status must exist for docs/test/dot-only PRs');
+assert.equal(ciWorkflow.on.pull_request['paths-ignore'], undefined, 'Do not path-filter the required CI workflow');
+assert.deepEqual(ciWorkflow.jobs.images.needs, ['changes', 'static'], 'Image matrix depends on the image-input gate');
+assert.match(ciText, /needs\.changes\.outputs\.images == 'true'/u, 'Image matrix runs only for image/build inputs');
+assert.match(ciText, /\.dockerignore\$/u, 'Docker build-context changes remain image-relevant');
+assert.ok(ciText.includes(String.raw`github/workflows/ci\.yaml$`),
+  'Image-build workflow changes remain image-relevant');
+assert.deepEqual(ciWorkflow.jobs['ci-pass'].needs, ['changes', 'static', 'images'], 'Required gate includes the change detector');
 assert.doesNotMatch(ciText, /secrets\./u, 'CI build/test jobs must not receive repository secrets');
 const labelerText = await text('.github/workflows/labeler.yaml');
 const labelerWorkflow = parse(labelerText);

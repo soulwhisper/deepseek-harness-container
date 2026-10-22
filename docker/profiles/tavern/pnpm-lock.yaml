@@ -332,26 +332,23 @@ importers:
         specifier: 0.28.0
         version: 0.28.0(patch_hash=4f54fe004a0c388c920fb4827618d7795673580b54a583675b959a2b3fa7fac6)
       dsh-dream-skin:
-        specifier: link:/opt/dsh-tavern/apps/dsh-tavern/tavern-plugin/packages/dsh-dream-skin
-        version: link:/opt/dsh-tavern/apps/dsh-tavern/tavern-plugin/packages/dsh-dream-skin
-      dsh-tavern-comfy:
-        specifier: github:weixinlll/dsh-tavern-image#v2.9.0
-        version: https://codeload.github.com/weixinlll/dsh-tavern-image/tar.gz/9200ae00f5792c08dd694cf910e70847e95a8f3a
+        specifier: link:/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-dream-skin
+        version: link:/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-dream-skin
       dsh-tavern-knock-knock:
         specifier: github:dearacknowl/dsh-tavern-knock-knock#v0.7.1
         version: https://codeload.github.com/dearacknowl/dsh-tavern-knock-knock/tar.gz/c05699d741caf7fd330856df0b877a6f0a5626d8
       dsh-tavern-plugin:
-        specifier: link:/opt/dsh-tavern/apps/dsh-tavern/tavern-plugin
-        version: link:/opt/dsh-tavern/apps/dsh-tavern/tavern-plugin
+        specifier: link:/opt/apps/dsh-tavern/tavern-plugin
+        version: link:/opt/apps/dsh-tavern/tavern-plugin
       dsh-tavern-remote:
-        specifier: link:/opt/dsh-tavern/apps/dsh-tavern/tavern-plugin/packages/dsh-tavern-remote
-        version: link:/opt/dsh-tavern/apps/dsh-tavern/tavern-plugin/packages/dsh-tavern-remote
+        specifier: link:/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-tavern-remote
+        version: link:/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-tavern-remote
       dsh-tavern-wrongbook:
         specifier: github:XGUIMAX/dsh-tavern-wrongbook#v1.33.0
         version: https://codeload.github.com/XGUIMAX/dsh-tavern-wrongbook/tar.gz/13cfdb032aa47eb6288960c80e6ebd26a66e5c3a
       narrative-anchor:
-        specifier: github:ActivityTime/narrative-anchor#2ee3da047e5fd6056aef361744655be99b4f7713
-        version: https://codeload.github.com/ActivityTime/narrative-anchor/tar.gz/2ee3da047e5fd6056aef361744655be99b4f7713
+        specifier: github:ActivityTime/narrative-anchor#v1.0.1
+        version: https://codeload.github.com/ActivityTime/narrative-anchor/tar.gz/657488d97a09e96728c93bd171c9d7e9e22aa15d
 
 packages:
 
@@ -806,10 +803,6 @@ packages:
       '@huanlin/dsh-plugin-better-locale':
         optional: true
 
-  dsh-tavern-comfy@https://codeload.github.com/weixinlll/dsh-tavern-image/tar.gz/9200ae00f5792c08dd694cf910e70847e95a8f3a:
-    resolution: {gitHosted: true, integrity: sha512-2vx59Z857vDRs18xuNVskbgLTS2NMm3hDCNAHDczY8b5GwpYRQq7xw/E5rH9BO9CgHaqF9EDBTqkasOXhLFd6Q==, tarball: https://codeload.github.com/weixinlll/dsh-tavern-image/tar.gz/9200ae00f5792c08dd694cf910e70847e95a8f3a}
-    version: 2.9.0
-
   dsh-tavern-knock-knock@https://codeload.github.com/dearacknowl/dsh-tavern-knock-knock/tar.gz/c05699d741caf7fd330856df0b877a6f0a5626d8:
     resolution: {gitHosted: true, integrity: sha512-R8UOnrLVKlOCDXHnKgICPjBnq3LKqGzcmxmpdrqSUMRl5CCDkDnwze9XJjbytb3rS0VTNRZp7uhH48wlx3SgNg==, tarball: https://codeload.github.com/dearacknowl/dsh-tavern-knock-knock/tar.gz/c05699d741caf7fd330856df0b877a6f0a5626d8}
     version: 0.7.1
@@ -866,9 +859,9 @@ packages:
   mermaid@11.17.2:
     resolution: {integrity: sha512-V6K3C8EBdEsPFZXSKMJe6ppQOENxuHARr9GvHX4hh47lAbhMRD9qf4oEK7LoaRQxULMa80/qt5gHO73aCleBBg==}
 
-  narrative-anchor@https://codeload.github.com/ActivityTime/narrative-anchor/tar.gz/2ee3da047e5fd6056aef361744655be99b4f7713:
-    resolution: {gitHosted: true, integrity: sha512-DM1Rr3itoa5wkk0zsXQBewZVVMJs17v6SEFQxPHaaKRcGSi/7es8aWdVqGtDqd9pd2EQyUyaxa20xzQ1H9MH5A==, tarball: https://codeload.github.com/ActivityTime/narrative-anchor/tar.gz/2ee3da047e5fd6056aef361744655be99b4f7713}
-    version: 0.8.0
+  narrative-anchor@https://codeload.github.com/ActivityTime/narrative-anchor/tar.gz/657488d97a09e96728c93bd171c9d7e9e22aa15d:
+    resolution: {gitHosted: true, integrity: sha512-4NAv3e10JDIg9rE5ylZMiz4quIGledUQXPMwsi2ip5I0gMS+jQi416jbfgdKoqmBTo/HgyFVdprH/UwEKp3Pjg==, tarball: https://codeload.github.com/ActivityTime/narrative-anchor/tar.gz/657488d97a09e96728c93bd171c9d7e9e22aa15d}
+    version: 1.0.1
     engines: {node: '>=18'}
 
   package-manager-detector@1.9.0:
@@ -1599,19 +1592,19 @@ snapshots:
       '@codemirror/search': 6.7.2
       '@codemirror/state': 6.7.6
       '@codemirror/view': 6.43.15
-      '@deepseek-ai/cordis': link:../../../dsh/runtime/node_modules/@deepseek-ai/cordis
-      '@deepseek-ai/dsh-agent': link:../../../dsh/runtime/node_modules/@deepseek-ai/dsh-agent
-      '@deepseek-ai/dsh-client-locale': link:../../../dsh/runtime/node_modules/@deepseek-ai/dsh-client-locale
-      '@deepseek-ai/dsh-client-ui-conversation': link:../../../dsh/runtime/node_modules/@deepseek-ai/dsh-client-ui-conversation
-      '@deepseek-ai/dsh-client-ui-settings': link:../../../dsh/runtime/node_modules/@deepseek-ai/dsh-client-ui-settings
-      '@deepseek-ai/dsh-client-ui-sidebar-right': link:../../../dsh/runtime/node_modules/@deepseek-ai/dsh-client-ui-sidebar-right
-      '@deepseek-ai/dsh-host-webserver': link:../../../dsh/runtime/node_modules/@deepseek-ai/dsh-host-webserver
-      '@deepseek-ai/dsh-llm': link:../../../dsh/runtime/node_modules/@deepseek-ai/dsh-llm
-      '@deepseek-ai/dsh-session': link:../../../dsh/runtime/node_modules/@deepseek-ai/dsh-session
-      '@deepseek-ai/dsh-settings': link:../../../dsh/runtime/node_modules/@deepseek-ai/dsh-settings
-      '@deepseek-ai/dsh-subagent': link:../../../dsh/runtime/node_modules/@deepseek-ai/dsh-subagent
-      '@deepseek-ai/dsh-tools': link:../../../dsh/runtime/node_modules/@deepseek-ai/dsh-tools
-      '@deepseek-ai/schemastery': link:../../../dsh/runtime/node_modules/@deepseek-ai/schemastery
+      '@deepseek-ai/cordis': link:../../../runtime/node_modules/@deepseek-ai/cordis
+      '@deepseek-ai/dsh-agent': link:../../../runtime/node_modules/@deepseek-ai/dsh-agent
+      '@deepseek-ai/dsh-client-locale': link:../../../runtime/node_modules/@deepseek-ai/dsh-client-locale
+      '@deepseek-ai/dsh-client-ui-conversation': link:../../../runtime/node_modules/@deepseek-ai/dsh-client-ui-conversation
+      '@deepseek-ai/dsh-client-ui-settings': link:../../../runtime/node_modules/@deepseek-ai/dsh-client-ui-settings
+      '@deepseek-ai/dsh-client-ui-sidebar-right': link:../../../runtime/node_modules/@deepseek-ai/dsh-client-ui-sidebar-right
+      '@deepseek-ai/dsh-host-webserver': link:../../../runtime/node_modules/@deepseek-ai/dsh-host-webserver
+      '@deepseek-ai/dsh-llm': link:../../../runtime/node_modules/@deepseek-ai/dsh-llm
+      '@deepseek-ai/dsh-session': link:../../../runtime/node_modules/@deepseek-ai/dsh-session
+      '@deepseek-ai/dsh-settings': link:../../../runtime/node_modules/@deepseek-ai/dsh-settings
+      '@deepseek-ai/dsh-subagent': link:../../../runtime/node_modules/@deepseek-ai/dsh-subagent
+      '@deepseek-ai/dsh-tools': link:../../../runtime/node_modules/@deepseek-ai/dsh-tools
+      '@deepseek-ai/schemastery': link:../../../runtime/node_modules/@deepseek-ai/schemastery
       '@formkit/auto-animate': 0.10.0
       '@lezer/highlight': 1.2.5
       '@xterm/addon-fit': 0.11.0
@@ -1626,8 +1619,6 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
-
-  dsh-tavern-comfy@https://codeload.github.com/weixinlll/dsh-tavern-image/tar.gz/9200ae00f5792c08dd694cf910e70847e95a8f3a: {}
 
   dsh-tavern-knock-knock@https://codeload.github.com/dearacknowl/dsh-tavern-knock-knock/tar.gz/c05699d741caf7fd330856df0b877a6f0a5626d8: {}
 
@@ -1690,10 +1681,10 @@ snapshots:
       ts-dedent: 2.3.0
       uuid: 14.0.3
 
-  narrative-anchor@https://codeload.github.com/ActivityTime/narrative-anchor/tar.gz/2ee3da047e5fd6056aef361744655be99b4f7713:
+  narrative-anchor@https://codeload.github.com/ActivityTime/narrative-anchor/tar.gz/657488d97a09e96728c93bd171c9d7e9e22aa15d:
     dependencies:
-      '@deepseek-ai/dsh-agent': link:../../../dsh/runtime/node_modules/@deepseek-ai/dsh-agent
-      '@deepseek-ai/schemastery': link:../../../dsh/runtime/node_modules/@deepseek-ai/schemastery
+      '@deepseek-ai/dsh-agent': link:../../../runtime/node_modules/@deepseek-ai/dsh-agent
+      '@deepseek-ai/schemastery': link:../../../runtime/node_modules/@deepseek-ai/schemastery
 
   package-manager-detector@1.9.0: {}
 

@@ -1,0 +1,5 @@
+# Minimal mobile layout switch. The host half is inert; the browser half is
+# discovered through the package.json dsh.client declaration.
+- insert:
+    - id: mobile-layout
+      name: '@soulwhisper/dsh-mobile-layout'

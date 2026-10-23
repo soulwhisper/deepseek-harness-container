@@ -84,14 +84,103 @@ profile:
 | `dsh-better-sidebar` | `better-sidebar` | Bundle; has its own duplicate-mount guard |
 | `dsh-tavern-knock-knock` | none | Dependency-only; no `dsh.bundle` |
 
-`dsh-tavern-image` 3.0.2 is bundled inside the Tavern source and installed by
+`dsh-tavern-image` 3.1.1 is bundled inside the Tavern source and installed by
 `scripts/seed-tavern-plugins.mjs` into Tavern `data/plugins`; it is not a
 profile package. Do not add `dsh-tavern-comfy` or `dsh-tavern-image` back to
-`versions.ecosystem`.
+`versions.ecosystem`. The authoritative version is
+`tavern-plugin/packages/dsh-tavern-image-bundled/BUNDLED-VERSION.json` at the
+pinned commit; update this note and `NOTICE` when it changes.
 
 Bundle IDs are unique. Keep the bundle order stable, especially around
 `dsh-better-sidebar` and aggregate bundles. Do not move these packages to the
 Web floating path or into the writable market set.
+
+## Tavern version bumps and Renovate PRs
+
+`versions.tavern.version` is the upstream **release tag** without the `v`, not
+the upstream in-tree `package.json` version. Upstream publishes npm from the
+tag (v3.1.3 → 3.1.3), while the checked-out tree may already declare a newer
+integration version (v3.1.3 ships `package.json` 3.2.0). Keep the release-tag
+identity for the image, OCI label and release tag.
+
+A Tavern bump is a coupled pin update. A version-only Renovate PR is
+intentionally incomplete and must not be merged.
+
+1. Resolve the tag to an exact commit and use the commit everywhere:
+   ```bash
+   git ls-remote --tags https://github.com/flizzywine/dsh-tavern.git 'refs/tags/vX.Y.Z*'
+   git fetch --depth=1 origin <40-hex-commit>
+   git show <40-hex-commit>:tavern-plugin/lib/http/routes.js | sha256sum
+   ```
+2. Recompute `tavern.routesSha256` from that exact commit and re-check every
+   anchor in `patches/tavern/patch-tavern.mjs`. Never weaken a hash or anchor to
+   make a build pass.
+3. Check `bin/theme-font-limit.mjs`, `config/dsh-compatibility.json` and
+   `tavern-plugin/packages/dsh-tavern-image-bundled/BUNDLED-VERSION.json`.
+   The wrongbook host patches must also be re-checked; see below.
+4. Update every coupled surface:
+   - `versions.json`: `release.tavern.tag`, `tavern.version`, `commit`,
+     `routesSha256`, `upstreamTag`
+   - `docker/Dockerfile`: both commit checks, both OCI labels, and the
+     `patches/wrongbook` invocation
+   - `NOTICE`: Tavern version/source commit, bundled scene-image version and
+     the vendored wrongbook patch notice
+   - `docs/patches.md`, `docs/source-build.md`: source commit and patch list
+   - `README.md`, `README.zh-CN.md`, `docs/index.md`, `docs/architecture.md`
+   - `deploy/docker/compose.yaml`, `deploy/docker/.env.example`
+   - `scripts/verify-runtime.mjs`: bundled scene-image version and archive
+     assertions
+5. Regenerate profile locks only when the dependency graph changed. The Tavern
+   profile lock uses `link:/opt/apps/dsh-tavern/...`; a source-only bump normally
+   produces no lock diff. Never hand-edit a lock.
+6. Run `node scripts/verify.mjs` and `node --test test/*.test.mjs`. Because
+   `versions.json` is an image input, CI must build and smoke Web and Tavern on
+   native amd64 and arm64, and `CI checks passed` must succeed.
+7. Merge, tag `tavern-<version>` on `main`, push the tag, and record the
+   published multi-arch digest. Never reuse an existing release tag and never
+   bump the Web `distribution` identity for a Tavern-only change.
+
+### Renovate PR handling
+
+- Renovate only rewrites `tavern.upstreamTag`; it cannot update the commit,
+  hashes, locks, labels, docs or the wrongbook patches. A version-only PR is
+  expected to fail `scripts/verify.mjs`.
+- Treat the PR as an upstream signal. Close it as superseded and open a manual
+  `release/dsh-tavern-<version>` PR from `main`. Do not push to a `renovate/*`
+  branch; a rebase can reset it.
+- `type/patch` is not a risk assessment. Check the commit count, diffstat,
+  bundled plugin version and compatibility allowlist before adopting it.
+- Keep `automerge: false` and `review/required`; humans own the release tag.
+- If an upstream tag moves, the pinned commit remains the source of truth. Do
+  not change the Dockerfile to fetch a moving tag.
+
+### Wrongbook host-patch tool
+
+`dsh-tavern-wrongbook` looks for its host-patch runner at
+`<tavern data>/tools/mvu-api-test/patch-all.mjs` and runs `--apply` at startup.
+That model assumes a writable desktop Tavern checkout. In this image
+`/opt/apps/dsh-tavern` is immutable, so the supported patches are applied during
+the image build and the same tool is seeded once into Tavern data only for
+status reporting.
+
+Vendored subset: `patches/wrongbook/` from wrongbook v1.33.0 `debug/`.
+
+- Included: MVU pure-API tests (`patch-mvu-api.mjs`) and timeout body retention
+  (`patch-timeout-body.mjs`).
+- Not included: the client helper/frame/workshop set, the two reasoning-channel
+  patches, and the card-local `generate` patch. They target an older Tavern
+  client/turn tree or user card data; `patch-all.mjs` lists them as not
+  applicable.
+- Build gate:
+  `TAVERN_APP=/opt/apps/dsh-tavern node patches/wrongbook/patch-all.mjs --apply --strict --no-backup`
+- Runtime seed: `/opt/dsh/seed/tavern-tools/mvu-api-test/` →
+  `$DSH_HOME/profile-data/tavern/data/tools/mvu-api-test/` on first boot.
+  An existing user-managed copy is never overwritten.
+- Runtime `--apply` must be a no-op. Do not try to patch `/opt/apps` at runtime.
+- On every Tavern bump, run the status/apply gate against the new source. If an
+  anchor is unknown, port it deliberately or remove it from `PATCHES`; never
+  ship a guessed anchor. Update `patches/wrongbook/SOURCE`, `NOTICE` and
+  `docs/patches.md` when the subset changes.
 
 ## Floating optional assets
 
@@ -178,6 +267,14 @@ node scripts/verify.mjs
 node --test test/*.test.mjs
 ```
 
-Then push and use GitHub Actions. Do not claim image/test completion from source
+For a Tavern pin change, also preflight the wrongbook patches against a
+throwaway checkout of the pinned commit:
+
+```text
+TAVERN_APP=/tmp/dsh-tavern-checkout node patches/wrongbook/patch-all.mjs --apply --strict
+```
+
+The Tavern image build runs the same gate against the immutable source. Then
+push and use GitHub Actions. Do not claim image/test completion from source
 inspection alone. Do not run a full local image build unless the user explicitly
 asks for it.

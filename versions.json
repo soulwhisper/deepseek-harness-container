@@ -8,7 +8,7 @@
       "image": "dsh-web"
     },
     "tavern": {
-      "tag": "tavern-3.1",
+      "tag": "tavern-3.1.3",
       "image": "dsh-tavern"
     }
   },
@@ -25,16 +25,16 @@
   "market": "1.66.47",
   "tavern": {
     "repository": "https://github.com/flizzywine/dsh-tavern.git",
-    "version": "3.1",
-    "commit": "9ddac3b55883ac7334c5b349368a56f2d6654c59",
-    "routesSha256": "62e38b0ef271cbb9cf4b6db2245db19813e2bc26db118fcfc831bb6892a30460",
+    "version": "3.1.3",
+    "commit": "5deb1ef377240d0f41808a8e346040ff1def31d1",
+    "routesSha256": "7fa4be7b571a89fabd50dcdfc2925593d34ca50f1fda597bf5b1f551b1d590e0",
     "theme": {
       "package": "@deepseek-ai/dsh-client-ui-theme",
       "version": "0.2.1-rc.2",
       "indexSha256": "1adf59906ab10e91765d96f3e42268b0b7669f921c4baf4021a3057894cf3000",
       "clientSha256": "f9915fb53d5f156e75291e63be66c80e607a82bfd03c7d583e0a12ebef5a6cb8"
     },
-    "upstreamTag": "v3.1"
+    "upstreamTag": "v3.1.3"
   },
   "ecosystem": {
     "dsh-tavern-wrongbook": "github:XGUIMAX/dsh-tavern-wrongbook#v1.33.0",

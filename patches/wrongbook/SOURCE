@@ -1,0 +1,8 @@
+Vendored from https://github.com/XGUIMAX/dsh-tavern-wrongbook/tree/v1.33.0/debug
+Upstream commit: 13cfdb032aa47eb6288960c80e6ebd26a66e5c3a
+Files mapped:
+  debug/patch-all.mjs        -> patch-all.mjs (adapted for the image layout)
+  debug/patch.mjs            -> patch-mvu-api.mjs
+  debug/patch-test.mjs       -> patch-timeout-body.mjs
+License: MIT; the upstream package notice is retained in NOTICE.
+Only patches whose anchors match the pinned Tavern source are applied.

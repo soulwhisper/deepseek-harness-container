@@ -21,6 +21,7 @@ fi
 mkdir -p "$HOME" "$DSH_AGENTS_HOME" "$XDG_CACHE_HOME" "$DSH_HOME" /logs "$DSH_BACKUP_ROOT" /workspace
 node /opt/dsh/scripts/materialize-state.mjs
 node /opt/dsh/scripts/seed-tavern-plugins.mjs
+node /opt/dsh/scripts/seed-tavern-tools.mjs
 
 # The previous image used /data/cache as XDG_CACHE_HOME. Move that legacy root
 # out of state once; it is rebuildable and must not remain in /data backups.

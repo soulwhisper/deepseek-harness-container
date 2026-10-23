@@ -61,7 +61,8 @@ The Tavern image retains:
 - an authenticated archive at `/opt/dsh/source/tavern.tar.gz`, served at
   `/distribution/source.tar.gz` through the mandatory forward-auth gate;
 - `DSH_SOURCE_URL`, identifying the distribution revision;
-- the exact route/theme hashes in `versions.json`.
+- the exact route/theme hashes in `versions.json` and the vendored wrongbook
+  host-patch anchors under `distribution/patches/wrongbook/`.
 
 The archive contains the Tavern source and the whitelisted distribution build
 inputs, including `distribution/docs/source-build.md` and

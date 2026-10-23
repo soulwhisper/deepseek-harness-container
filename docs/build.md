@@ -147,10 +147,12 @@ immutable dependency only. Web-only floating plugins and skills are removable
 and are not protected by the manager.
 
 The Tavern build also applies the supported `dsh-tavern-wrongbook` host patches
-to the immutable source. The wrongbook runner is seeded once into
-`data/tools/mvu-api-test` for status reporting; it must be a no-op at runtime
-because `/opt/apps` is read-only. The build fails if a retained patch anchor no
-longer matches. See [Upstream patches](patches.md#wrongbook-host-patches).
+to the immutable source. The wrongbook runner is seeded at startup when absent
+at `$DSH_HOME/profile-data/tavern/data/tools/mvu-api-test` for status reporting;
+recognized upstream/image-managed copies are migrated and custom copies are
+preserved. It must be a no-op at runtime because `/opt/apps` is read-only. The
+build fails if a retained patch anchor no longer matches. See
+[Upstream patches](patches.md#wrongbook-host-patches).
 
 ## Pins and locks
 

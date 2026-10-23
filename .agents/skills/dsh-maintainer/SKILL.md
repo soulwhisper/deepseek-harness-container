@@ -23,6 +23,19 @@ directory is seeded into the Web image as user-facing skills.
   image inputs, followed by `CI checks passed`.
 - Deploy and compare published image digests, not mutable tags.
 
+## Review findings
+
+- Treat review comments from any provider (human, CodeRabbit, cubic, other
+  bots) as leads, not facts. Re-read the cited code and its call path from a
+  clean context before accepting or rejecting a finding.
+- Classify each finding as valid, invalid or already handled. Do not presume
+  code is broken because a reviewer suggested it, and do not dismiss it
+  because a check passed.
+- Fix valid findings; reply with evidence for invalid ones. Never apply a
+  suggested patch mechanically when it changes an anchor, behavior or scope.
+- Re-run the exact local gate plus the route/patch smoke after fixes; the
+  latest CI run remains the authoritative image gate.
+
 ## CI gating and non-blocking workflow
 
 - Do not block the next implementation step on CI completion.
@@ -109,7 +122,7 @@ intentionally incomplete and must not be merged.
 1. Resolve the tag to an exact commit and use the commit everywhere:
    ```bash
    git ls-remote --tags https://github.com/flizzywine/dsh-tavern.git 'refs/tags/vX.Y.Z*'
-   git fetch --depth=1 origin <40-hex-commit>
+   git fetch --depth=1 https://github.com/flizzywine/dsh-tavern.git <40-hex-commit>
    git show <40-hex-commit>:tavern-plugin/lib/http/routes.js | sha256sum
    ```
 2. Recompute `tavern.routesSha256` from that exact commit and re-check every
@@ -160,8 +173,8 @@ intentionally incomplete and must not be merged.
 `<tavern data>/tools/mvu-api-test/patch-all.mjs` and runs `--apply` at startup.
 That model assumes a writable desktop Tavern checkout. In this image
 `/opt/apps/dsh-tavern` is immutable, so the supported patches are applied during
-the image build and the same tool is seeded once into Tavern data only for
-status reporting.
+the image build and the same tool is seeded at startup when absent in Tavern
+data only for status reporting.
 
 Vendored subset: `patches/wrongbook/` from wrongbook v1.33.0 `debug/`.
 
@@ -174,8 +187,9 @@ Vendored subset: `patches/wrongbook/` from wrongbook v1.33.0 `debug/`.
 - Build gate:
   `TAVERN_APP=/opt/apps/dsh-tavern node patches/wrongbook/patch-all.mjs --apply --strict --no-backup`
 - Runtime seed: `/opt/dsh/seed/tavern-tools/mvu-api-test/` →
-  `$DSH_HOME/profile-data/tavern/data/tools/mvu-api-test/` on first boot.
-  An existing user-managed copy is never overwritten.
+  `$DSH_HOME/profile-data/tavern/data/tools/mvu-api-test/` at startup when
+  absent. Recognized upstream/image-managed copies are migrated or refreshed;
+  a custom `patch-all.mjs` is preserved.
 - Runtime `--apply` must be a no-op. Do not try to patch `/opt/apps` at runtime.
 - On every Tavern bump, run the status/apply gate against the new source. If an
   anchor is unknown, port it deliberately or remove it from `PATCHES`; never

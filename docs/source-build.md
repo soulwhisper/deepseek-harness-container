@@ -11,8 +11,10 @@ tavern.tar.gz
   dsh-tavern/
     complete flizzywine/dsh-tavern source at
     5deb1ef377240d0f41808a8e346040ff1def31d1
-    (AGPL license, upstream lock, checked-in client output and the modified
-    tavern-plugin/lib/http/routes.js public-Origin guard)
+    (AGPL license, upstream lock, checked-in client output, the modified
+    tavern-plugin/lib/http/routes.js public-Origin guard and the wrongbook
+    patches in tavern-plugin/lib/domain/tavern-helper-scripts.js and
+    tavern-plugin/lib/domain/card-response-test.js)
   distribution/
     docker/Dockerfile
     docker/runtime/ (manifest, workspace, lock)

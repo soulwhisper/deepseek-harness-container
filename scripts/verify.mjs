@@ -115,7 +115,7 @@ assert.match(await text('scripts/entrypoint.sh'), /seed-tavern-tools\.mjs/u,
   'Tavern startup seeds the wrongbook patch tool');
 for (const path of ['patches/wrongbook/patch-all.mjs', 'patches/wrongbook/patch-mvu-api.mjs',
   'patches/wrongbook/patch-timeout-body.mjs', 'scripts/seed-tavern-tools.mjs']) {
-  assert.doesNotMatch(await text(path), /C:\/Users|C:\\\\Users/u,
+  assert.doesNotMatch(await text(path), /C:\/Users|C:\\Users/u,
     `Distribution-owned paths must not retain upstream workstation paths: ${path}`);
 }
 assert.match(await text('.agents/skills/dsh-maintainer/SKILL.md'), /patches\/wrongbook\/patch-all\.mjs/u,

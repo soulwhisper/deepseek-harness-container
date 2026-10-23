@@ -27,8 +27,16 @@ const PATCHED = [
         // 超时时不该把已经拿到的正文丢掉。
         round._lastText = ''
         record.rounds.push(round)`,
-  `          const result = nativeResult((await call('native')).events, afterSeq)
-          if (result.ready && result.text) round._lastText = result.text
+  `          const nativeEvents = (await call('native')).events
+          const result = nativeResult(nativeEvents, afterSeq)
+          // 前台正文在 turn/end 之前就落库；MVU 卡后台结算不结束，不能等 result.ready。
+          const foregroundText = nativeEvents
+            .filter((event) => event.type === 'assistant/message' && Number(event.seq) > afterSeq)
+            .flatMap((event) => event.data?.message?.content || [])
+            .filter((block) => block.type === 'text')
+            .map((block) => block.text)
+            .join('\\n')
+          if (foregroundText) round._lastText = foregroundText
           if (result.ready) {`,
   `    } catch (error) {
       const timedOut = signal.aborted && !controller.signal.aborted

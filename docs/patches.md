@@ -83,18 +83,21 @@ the vendored subset against `/opt/apps/dsh-tavern` instead:
 - MVU cards without card-owned scripts are allowed in pure-API tests;
 - a timed-out pure-API card test keeps the foreground body it already received.
 
-The remaining upstream wrongbook patches target an older Tavern client/turn
-tree and are listed as not applicable rather than applied with guessed anchors.
-The same directory is seeded once into Tavern data so the wrongbook panel can
-report the real state; runtime `--apply` is a no-op.
+Most remaining upstream wrongbook patches target an older Tavern client/turn
+tree; the card-generate patch is excluded because it targets user-owned card
+data. They are listed as not applicable rather than applied with guessed anchors.
+The same directory is seeded at startup when absent under
+`$DSH_HOME/profile-data/tavern/data/tools/mvu-api-test` so the wrongbook panel
+can report the real state; recognized upstream or image-managed copies are
+migrated, custom copies are preserved, and runtime `--apply` is a no-op.
 
 ## Updating upstream
 
 1. Update the version/commit and all coupled hashes in `versions.json`.
 2. Recompute the exact source hashes and rebase only the local change.
-3. Re-run `node patches/wrongbook/patch-all.mjs --apply --strict` against the
-   new source. Port or remove a patch when its anchor no longer matches; never
-   weaken the anchor check.
+3. Re-run `TAVERN_APP=/path/to/new/source node patches/wrongbook/patch-all.mjs --apply --strict`
+   against the new source. Port or remove a patch when its anchor no longer
+   matches; never weaken the anchor check.
 4. Update runtime/profile locks if the dependency graph changed.
 5. Rebuild both images and run `node scripts/verify.mjs`,
    `node --test test/*.test.mjs` and the final-image smoke.

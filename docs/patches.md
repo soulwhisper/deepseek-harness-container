@@ -10,7 +10,8 @@ anchor mismatch is a build failure.
 | --- | --- | --- |
 | `patches/dsh/patch-host.mjs` | DSH `0.2.1-rc.2` | Adds the mandatory pre-dispatch gate, startup-readiness marker and manager protection. Hashes four upstream files: host, types, manager and boot. |
 | `patches/market/patch-market.mjs` | dshmarket `1.66.47` | Gives the Web market an `OfficialDesktopRuntime` backed by `pluginManager`, so package operations use manager admission instead of the CLI path. |
-| `patches/tavern/patch-tavern.mjs` | Tavern commit `9ddac3b55883ac7334c5b349368a56f2d6654c59` | Adds the exact public-Origin exception and applies the theme font-limit change. Verifies route and theme hashes. |
+| `patches/tavern/patch-tavern.mjs` | Tavern commit `5deb1ef377240d0f41808a8e346040ff1def31d1` | Adds the exact public-Origin exception and applies the theme font-limit change. Verifies route and theme hashes. |
+| `patches/wrongbook/patch-all.mjs` | Tavern commit `5deb1ef377240d0f41808a8e346040ff1def31d1` | Applies the wrongbook host patches whose anchors still match the pinned source: MVU pure-API tests and timeout body retention. Other upstream wrongbook patches are reported as not applicable. |
 | Tavern profile patch | `dsh-better-sidebar@0.28.0` | Fixes the thread seed boundary so a resume does not drop pre-resume history. Applied by pnpm from the Tavern recipe and pinned by the lock's `patch_hash`. |
 
 ## Why each patch exists
@@ -72,14 +73,35 @@ before the resume. The pnpm patch selects the inherited marker first. It is a
 data-loss fix, not a security boundary, and applies only where that package is
 installed.
 
+### Wrongbook host patches
+
+`dsh-tavern-wrongbook` normally re-applies its host patches at startup from
+`<tavern data>/tools/mvu-api-test/patch-all.mjs`. That path is writable user
+data, but the Tavern application root in this image is immutable. The build runs
+the vendored subset against `/opt/apps/dsh-tavern` instead:
+
+- MVU cards without card-owned scripts are allowed in pure-API tests;
+- a timed-out pure-API card test keeps the foreground body it already received.
+
+Most remaining upstream wrongbook patches target an older Tavern client/turn
+tree; the card-generate patch is excluded because it targets user-owned card
+data. They are listed as not applicable rather than applied with guessed anchors.
+The same directory is seeded at startup when absent under
+`$DSH_HOME/profile-data/tavern/data/tools/mvu-api-test` so the wrongbook panel
+can report the real state; recognized upstream or image-managed copies are
+migrated, custom copies are preserved, and runtime `--apply` is a no-op.
+
 ## Updating upstream
 
 1. Update the version/commit and all coupled hashes in `versions.json`.
 2. Recompute the exact source hashes and rebase only the local change.
-3. Update runtime/profile locks if the dependency graph changed.
-4. Rebuild both images and run `node scripts/verify.mjs`,
+3. Re-run `TAVERN_APP=/path/to/new/source node patches/wrongbook/patch-all.mjs --apply --strict`
+   against the new source. Port or remove a patch when its anchor no longer
+   matches; never weaken the anchor check.
+4. Update runtime/profile locks if the dependency graph changed.
+5. Rebuild both images and run `node scripts/verify.mjs`,
    `node --test test/*.test.mjs` and the final-image smoke.
-5. For Tavern, rebuild the source archive and verify the authenticated download
+6. For Tavern, rebuild the source archive and verify the authenticated download
    still contains the modified source and build recipe.
 
 A failure in this directory is an upstream break. Fix or revert the pin; do not

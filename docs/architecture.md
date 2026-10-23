@@ -8,7 +8,7 @@ boundary, and which repository changes are allowed to affect which upstream.
 | Image | Release tag | Profile | Purpose |
 | --- | --- | --- | --- |
 | `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2-r2` | `web-0.2.1-rc.2-r2` | DSH Web, `dshmarket`, `dsh-context`, required forward-auth | General DSH Web with owner-approved community plugins |
-| `ghcr.io/soulwhisper/dsh-tavern:3.1` | `tavern-3.1` | Custom Tavern workspace, forward-auth, ecosystem | Dedicated Tavern instance |
+| `ghcr.io/soulwhisper/dsh-tavern:3.1.3` | `tavern-3.1.3` | Custom Tavern workspace, forward-auth, ecosystem | Dedicated Tavern instance |
 
 Both images use Node 24/glibc, UID/GID `1000:1000`, `tini`, a read-only root
 filesystem, and a native DSH listener on port `3080`. They are built natively for
@@ -56,6 +56,7 @@ surface.
 | `patches/dsh/` | Host gate, startup audit, manager policy | DSH host/manager/app-boot files and exact anchors |
 | `patches/market/` | Market-to-native-manager bridge | dshmarket artifact and one anchor |
 | `patches/tavern/` | Tavern Origin fence and theme limit | Tavern route/theme sources; route and theme hashes |
+| `patches/wrongbook/` | Supported wrongbook host patches and status runner | Tavern helper/card-response sources; patch anchors |
 | `plugins/forward-auth/` | Own authentication plugin, notices, native Connection exchange | This package's API contract and DSH Connection APIs |
 | `docker/` | Dockerfile, runtime closure, profile workspaces/locks | Build graph, Node/native ABI, pnpm lock format |
 | `scripts/` | Build, state migration, readiness and verification | Maintenance tooling; not a separate runtime |

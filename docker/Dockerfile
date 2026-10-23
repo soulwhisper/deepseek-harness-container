@@ -31,7 +31,7 @@ COPY --chmod=0755 scripts/entrypoint.sh /scripts/entrypoint.sh
 COPY scripts/materialize-state.mjs scripts/normalize-locks.mjs \
      scripts/materialize-profiles.mjs scripts/floating-bundles.mjs \
      scripts/readiness.mjs scripts/finalize-profile.mjs scripts/link-tavern-core.mjs \
-     scripts/seed-tavern-plugins.mjs /scripts/
+     scripts/seed-tavern-plugins.mjs scripts/seed-tavern-tools.mjs /scripts/
 COPY versions.json package.json pnpm-lock.yaml LICENSE NOTICE README.md README.zh-CN.md /
 COPY docs/source-build.md docs/regulations.md /docs/
 
@@ -59,21 +59,24 @@ RUN pnpm install --frozen-lockfile --prod \
 # architecture (a stale multi-arch cache can otherwise hide this until boot).
 RUN node -e "const {createRequire}=require('node:module'); const r=createRequire('/opt/dsh/docker/runtime/package.json'); const name='node-addon-require-builtin-linux-'+(process.arch==='arm64'?'arm64':'x64')+'-gnu'; require(r.resolve(name));"
 COPY versions.json /opt/dsh/versions.json
-COPY scripts/entrypoint.sh scripts/materialize-state.mjs scripts/normalize-locks.mjs scripts/materialize-profiles.mjs scripts/floating-bundles.mjs scripts/readiness.mjs scripts/finalize-profile.mjs scripts/link-tavern-core.mjs scripts/seed-tavern-plugins.mjs /opt/dsh/scripts/
+COPY scripts/entrypoint.sh scripts/materialize-state.mjs scripts/normalize-locks.mjs scripts/materialize-profiles.mjs scripts/floating-bundles.mjs scripts/readiness.mjs scripts/finalize-profile.mjs scripts/link-tavern-core.mjs scripts/seed-tavern-plugins.mjs scripts/seed-tavern-tools.mjs /opt/dsh/scripts/
 RUN chmod 0755 /opt/dsh/scripts/entrypoint.sh
 COPY docker/profiles/web/pnpm-workspace.yaml /opt/dsh/profiles/web/pnpm-workspace.yaml
 COPY docker/profiles/tavern/pnpm-workspace.yaml /opt/dsh/profiles/tavern/pnpm-workspace.yaml
 COPY docker/profiles/distribution.patch.yml /opt/dsh/profiles/distribution.patch.yml
 FROM runtime-build AS tavern-source
 COPY patches/tavern /opt/dsh/patches/tavern
+COPY patches/wrongbook /opt/dsh/patches/wrongbook
 WORKDIR /opt/apps/dsh-tavern
 RUN git init . \
     && git remote add origin https://github.com/flizzywine/dsh-tavern.git \
-    && git fetch --depth=1 origin 9ddac3b55883ac7334c5b349368a56f2d6654c59 \
+    && git fetch --depth=1 origin 5deb1ef377240d0f41808a8e346040ff1def31d1 \
     && git checkout --detach FETCH_HEAD \
-    && test "$(git rev-parse HEAD)" = 9ddac3b55883ac7334c5b349368a56f2d6654c59 \
+    && test "$(git rev-parse HEAD)" = 5deb1ef377240d0f41808a8e346040ff1def31d1 \
     && rm -rf .git \
-    && node /opt/dsh/patches/tavern/patch-tavern.mjs
+    && node /opt/dsh/patches/tavern/patch-tavern.mjs \
+    && TAVERN_APP=/opt/apps/dsh-tavern node /opt/dsh/patches/wrongbook/patch-all.mjs \
+         --apply --strict --no-backup
 
 # Maintainer-only lock generation. Export with:
 # docker buildx build --target profile-locks --output type=local,dest=. .
@@ -179,6 +182,8 @@ RUN DSH_BUILD_PROFILE=web node /opt/dsh/scripts/materialize-profiles.mjs \
 FROM tavern-source AS tavern-build
 # This is the working custom recipe, not plugin-add of the core package:
 # source workspace install + pruned profile + stable absolute source links.
+RUN mkdir -p /opt/dsh/seed/tavern-tools \
+    && cp -a /opt/dsh/patches/wrongbook /opt/dsh/seed/tavern-tools/mvu-api-test
 RUN pnpm install --frozen-lockfile --prod=false \
     && node /opt/dsh/scripts/link-tavern-core.mjs
 COPY docker/profiles/tavern/pnpm-lock.yaml /opt/dsh/profiles/tavern/pnpm-lock.yaml
@@ -239,6 +244,6 @@ COPY --from=tavern-build /opt/dsh /opt/dsh
 COPY --from=tavern-build /opt/apps/dsh-tavern /opt/apps/dsh-tavern
 RUN test "${#IMAGE_REVISION}" -eq 40 && test -z "$(printf '%s' "$IMAGE_REVISION" | tr -d '0-9a-f')"
 LABEL org.opencontainers.image.title="DeepSeek Harness Tavern with forward-auth" \
-      org.opencontainers.image.version="3.1" \
+      org.opencontainers.image.version="3.1.3" \
       org.opencontainers.image.licenses="Apache-2.0 AND MIT AND AGPL-3.0-only" \
-      io.github.soulwhisper.dsh-tavern.commit="9ddac3b55883ac7334c5b349368a56f2d6654c59"
+      io.github.soulwhisper.dsh-tavern.commit="5deb1ef377240d0f41808a8e346040ff1def31d1"

@@ -387,9 +387,25 @@ async function runtime() {
     check((await stat('/opt/apps/dsh-tavern/node_modules/jsdom')).isDirectory(), 'Tavern workspace dependency');
     check((await stat('/opt/apps/dsh-tavern/LICENSE')).isFile(), 'Tavern original license');
     const bundled = JSON.parse(await readFile('/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-tavern-image-bundled/BUNDLED-VERSION.json', 'utf8'));
-    check(bundled.name === 'dsh-tavern-image' && bundled.version === '3.0.2', 'Tavern bundled scene-image version');
+    check(bundled.name === 'dsh-tavern-image' && bundled.version === '3.1.1', 'Tavern bundled scene-image version');
     const installed = JSON.parse(await readFile('/data/dsh/profile-data/tavern/data/plugins/dsh-tavern-image/package.json', 'utf8'));
-    check(installed.name === 'dsh-tavern-image' && installed.version === '3.0.2', 'Tavern bundled scene-image install');
+    check(installed.name === 'dsh-tavern-image' && installed.version === '3.1.1', 'Tavern bundled scene-image install');
+    const hostPatches = await readFile('/opt/apps/dsh-tavern/tavern-plugin/lib/domain/tavern-helper-scripts.js', 'utf8');
+    check(!hostPatches.includes('chat.mvu?.enabled === true ||')
+      && hostPatches.includes('projectTavernHelperScripts(helperScripts).scripts.length > 0'),
+      'Tavern wrongbook MVU pure-API patch applied');
+    const timeoutBody = await readFile('/opt/apps/dsh-tavern/tavern-plugin/lib/domain/card-response-test.js', 'utf8');
+    check(timeoutBody.includes('_lastText') && timeoutBody.includes('textNote'),
+      'Tavern wrongbook timeout-body patch applied');
+    for (const path of ['/opt/dsh/seed/tavern-tools/mvu-api-test/patch-all.mjs',
+      '/data/dsh/profile-data/tavern/data/tools/mvu-api-test/patch-all.mjs']) {
+      check((await stat(path)).isFile(), `Wrongbook host-patch tool present: ${path}`);
+    }
+    const patchStatus = spawnSync(process.execPath,
+      ['/data/dsh/profile-data/tavern/data/tools/mvu-api-test/patch-all.mjs', '--strict'],
+      { encoding: 'utf8', env: { ...process.env, TAVERN_APP: '/opt/apps/dsh-tavern' } });
+    check(patchStatus.status === 0 && patchStatus.stdout.includes('全部就位'),
+      'Wrongbook host patches are already image-applied');
     const archive = spawnSync('tar', ['-tzf', process.env.DSH_SOURCE_ARCHIVE], { encoding: 'utf8' });
     check(archive.status === 0 && archive.stdout.includes('dsh-tavern/LICENSE')
       && archive.stdout.includes('dsh-tavern/tavern-plugin/src/')
@@ -398,6 +414,8 @@ async function runtime() {
       && archive.stdout.includes('distribution/docs/regulations.md')
       && archive.stdout.includes('distribution/patches/dsh/patch-host.mjs')
       && archive.stdout.includes('distribution/patches/tavern/patch-tavern.mjs')
+      && archive.stdout.includes('distribution/patches/wrongbook/patch-all.mjs')
+      && archive.stdout.includes('distribution/scripts/seed-tavern-tools.mjs')
       && !archive.stdout.includes('distribution/test/')
       && !archive.stdout.includes('distribution/scripts/smoke.mjs')
       && !archive.stdout.includes('distribution/deploy/')

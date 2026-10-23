@@ -23,6 +23,7 @@ for (const [target, version] of Object.entries({ web: versions.distribution, tav
   assert.equal(release?.image, `dsh-${target}`, `${target} image name`);
 }
 assert.equal(versions.tavern.upstreamTag, `v${versions.tavern.version}`, 'Tavern upstream tag keeps its v prefix; release/image tags do not');
+assert.equal(versions.release.tavern.tag, `tavern-${versions.tavern.version}`, 'Tavern release tag matches the image version');
 assert.match(versions.node.image, new RegExp(`^node:${versions.node.version.replaceAll('.', '\\.')}-.+@sha256:[a-f0-9]{64}$`));
 assert.match(await text('docker/Dockerfile'), new RegExp(`org\\.opencontainers\\.image\\.version="${versions.distribution}"`, 'u'));
 assert.match(await text('docker/Dockerfile'), new RegExp(`org\\.opencontainers\\.image\\.version="${versions.tavern.version}"`, 'u'));
@@ -69,8 +70,11 @@ assert.ok(await present('patches/dsh/upstream-MIT-LICENSE'), 'Patched upstream D
 for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/profiles/web/pnpm-lock.yaml',
   'docker/skills/README', 'docker/skills/rtk/SKILL.md',
   'patches/dsh/patch-host.mjs', 'patches/market/patch-market.mjs', 'patches/tavern/patch-tavern.mjs',
+  'patches/wrongbook/patch-all.mjs', 'patches/wrongbook/patch-mvu-api.mjs',
+  'patches/wrongbook/patch-timeout-body.mjs',
   'plugins/forward-auth/index.mjs', 'scripts/normalize-locks.mjs', 'scripts/floating-bundles.mjs',
-  'scripts/seed-tavern-plugins.mjs', 'scripts/field-test.mjs', 'test/packaging.test.mjs',
+  'scripts/seed-tavern-plugins.mjs', 'scripts/seed-tavern-tools.mjs',
+  'scripts/field-test.mjs', 'test/packaging.test.mjs',
   'deploy/docker/compose.yaml', 'deploy/kubernetes/dsh-web.yaml',
   'docs/index.md', 'docs/architecture.md', 'docs/constraints.md', 'docs/build.md', 'docs/deploy.md',
   'docs/operations.md', 'docs/data-layout.md', 'docs/patches.md', 'docs/source-build.md',
@@ -101,6 +105,21 @@ assert.doesNotMatch(dockerfile, /scripts\/smoke\.mjs|test\/|deploy\/|\.github\//
 assert.doesNotMatch(dockerfile, /pnpm --dir \/opt\/dsh\/runtime add dsh-context/u,
   'dsh-context must not be installed into the immutable runtime');
 assert.doesNotMatch(dockerfile, /patch-host\.mjs --repair/u, 'Runtime plugin installs must not require patch repair');
+assert.match(dockerfile, /patches\/wrongbook\/patch-all\.mjs/u,
+  'Tavern build invokes the vendored wrongbook host patches');
+assert.match(dockerfile, /--apply --strict --no-backup/u,
+  'Wrongbook patches are applied strictly at build time, without source backups');
+assert.match(dockerfile, /scripts\/seed-tavern-tools\.mjs/u,
+  'Tavern seeds the wrongbook patch tool into user data');
+assert.match(await text('scripts/entrypoint.sh'), /seed-tavern-tools\.mjs/u,
+  'Tavern startup seeds the wrongbook patch tool');
+for (const path of ['patches/wrongbook/patch-all.mjs', 'patches/wrongbook/patch-mvu-api.mjs',
+  'patches/wrongbook/patch-timeout-body.mjs', 'scripts/seed-tavern-tools.mjs']) {
+  assert.doesNotMatch(await text(path), /C:\/Users|C:\\Users/u,
+    `Distribution-owned paths must not retain upstream workstation paths: ${path}`);
+}
+assert.match(await text('.agents/skills/dsh-maintainer/SKILL.md'), /patches\/wrongbook\/patch-all\.mjs/u,
+  'Maintainer skill records the wrongbook patch upgrade check');
 assert.match(dockerfile, /floating-bundles\.mjs add web/u, 'Web build adds the profile-owned dsh-context bundle');
 assert.match(dockerfile, /pnpm --dir \/opt\/dsh\/seed\/profiles\/web install --no-frozen-lockfile/u,
   'The profile-owned dsh-context gets a generated profile lock, not a stale committed pin');

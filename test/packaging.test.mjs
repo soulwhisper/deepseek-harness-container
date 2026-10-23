@@ -11,6 +11,17 @@ import { normalizeLockText, relativeLinkCount } from '../scripts/normalize-locks
 import { stableImmutableTarget } from '../scripts/finalize-profile.mjs';
 import { addFloatingBundles, verifyFloatingBundles } from '../scripts/floating-bundles.mjs';
 import { patchRoutes, verifyTheme } from '../patches/tavern/patch-tavern.mjs';
+import {
+  applyText as applyMvuApiText,
+  revertText as revertMvuApiText,
+  stateOf as mvuApiState,
+} from '../patches/wrongbook/patch-mvu-api.mjs';
+import {
+  applyText as applyTimeoutBodyText,
+  revertText as revertTimeoutBodyText,
+  stateOf as timeoutBodyState,
+} from '../patches/wrongbook/patch-timeout-body.mjs';
+import { seedTavernTools } from '../scripts/seed-tavern-tools.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const runtimeManifest = join(root, 'package.json');
@@ -381,6 +392,87 @@ test('theme patch verifies exact package and file hashes', async t => {
   };
   await verifyTheme(directory, expected);
   await assert.rejects(verifyTheme(directory, { ...expected, clientSha256: '0'.repeat(64) }), /theme source mismatch/);
+});
+
+test('wrongbook MVU API patch applies once and reverts exactly', () => {
+  const source = `export function hasTavernScriptRuntime(chat, helperScripts) {
+  if (!chat || !chat.cardPath || !['story', 'script'].includes(chat.mode || 'story')) return false
+  return chat.mvu?.enabled === true || projectTavernHelperScripts(helperScripts).scripts.length > 0
+}
+`;
+  assert.equal(mvuApiState(source), 'original');
+  const patched = applyMvuApiText(source);
+  assert.equal(mvuApiState(patched), 'patched');
+  assert.doesNotMatch(patched, /chat\.mvu\?\.enabled === true \|\|/u);
+  assert.match(patched, /return projectTavernHelperScripts\(helperScripts\)\.scripts\.length > 0/u);
+  assert.equal(applyMvuApiText(patched), patched);
+  assert.equal(revertMvuApiText(patched), source);
+  assert.throws(() => applyMvuApiText('export function hasTavernScriptRuntime() {}'), /anchor changed/u);
+});
+
+test('wrongbook timeout-body patch applies once and reverts exactly', () => {
+  const source = `function run() {
+        const round = { round: index + 1, input, selection, status: 'running', refused: null }
+        record.rounds.push(round)
+        while (true) {
+          const result = nativeResult((await call('native')).events, afterSeq)
+          if (result.ready) {
+            break
+          }
+        }
+    } catch (error) {
+      Object.assign(record, { status: controller.signal.aborted ? 'cancelled' : 'error', refused: null, evidence: signal.aborted && !controller.signal.aborted ? '测试超时' : String(error.message || error) })
+    }
+`;
+  assert.equal(timeoutBodyState(source), 'original');
+  const patched = applyTimeoutBodyText(source);
+  assert.equal(timeoutBodyState(patched), 'patched');
+  assert.match(patched, /round\._lastText = ''/u);
+  assert.match(patched, /const foregroundText = nativeEvents/u);
+  assert.match(patched, /if \(foregroundText\) round\._lastText = foregroundText/u);
+  assert.match(patched, /textNote: '测试超时，但前台正文已收到'/u);
+  assert.equal(applyTimeoutBodyText(patched), patched);
+  assert.equal(revertTimeoutBodyText(patched), source);
+  assert.throws(() => applyTimeoutBodyText('function run() {}'), /anchors changed/u);
+});
+
+test('tavern patch tools seed once and never overwrite a user copy', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'dsh-tavern-tools-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const source = join(dir, 'source');
+  const home = join(dir, 'home');
+  await mkdir(source);
+  await writeFile(join(source, 'patch-all.mjs'), 'image tool\n');
+  const target = join(home, 'profile-data/tavern/data/tools/mvu-api-test');
+  assert.equal((await seedTavernTools({ home, source })).action, 'seeded');
+  assert.equal(await readFile(join(target, 'patch-all.mjs'), 'utf8'), 'image tool\n');
+  await writeFile(join(target, 'patch-all.mjs'), 'user tool\n');
+  assert.equal((await seedTavernTools({ home, source })).action, 'unchanged');
+  assert.equal(await readFile(join(target, 'patch-all.mjs'), 'utf8'), 'user tool\n');
+  assert.equal((await seedTavernTools({ home, source: join(dir, 'absent') })).action, 'missing-source');
+});
+
+test('tavern patch tools migrate recognized upstream copies and refresh managed copies', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'dsh-tavern-tools-migrate-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const source = join(dir, 'source');
+  const home = join(dir, 'home');
+  await mkdir(source);
+  await writeFile(join(source, 'patch-all.mjs'), 'Image-managed subset of dsh-tavern-wrongbook\nimage tool\n');
+  await writeFile(join(source, 'patch-mvu-api.mjs'), 'api tool\n');
+  const target = join(home, 'profile-data/tavern/data/tools/mvu-api-test');
+  await mkdir(target, { recursive: true });
+  await writeFile(join(target, 'patch-all.mjs'),
+    "const DATA = 'C:/Users/213123543/.dsh/profile-data/tavern/data'\nconst DEBUG = DATA + '/tools'\n");
+  await writeFile(join(target, 'user-notes.txt'), 'keep me\n');
+  assert.equal((await seedTavernTools({ home, source })).action, 'migrated');
+  assert.match(await readFile(join(target, 'patch-all.mjs'), 'utf8'), /image tool/u);
+  assert.equal(await readFile(join(target, 'patch-mvu-api.mjs'), 'utf8'), 'api tool\n');
+  assert.equal(await readFile(join(target, 'user-notes.txt'), 'utf8'), 'keep me\n');
+  await writeFile(join(source, 'patch-all.mjs'), 'Image-managed subset of dsh-tavern-wrongbook\nnew image tool\n');
+  assert.equal((await seedTavernTools({ home, source })).action, 'refreshed');
+  assert.match(await readFile(join(target, 'patch-all.mjs'), 'utf8'), /new image tool/u);
+  assert.equal(await readFile(join(target, 'user-notes.txt'), 'utf8'), 'keep me\n');
 });
 
 test('migration retains Tavern user metadata but updates managed absolute data root', () => {

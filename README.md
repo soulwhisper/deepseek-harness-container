@@ -11,7 +11,7 @@ An independent, self-packaged [DeepSeek Harness](https://github.com/deepseek-ai/
 | Image | Release tag | Profile |
 | --- | --- | --- |
 | `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2-r2` | `web-0.2.1-rc.2-r2` | DSH Web + `dshmarket` + `dsh-context` + required forward-auth |
-| `ghcr.io/soulwhisper/dsh-tavern:3.1` | `tavern-3.1` | Custom Tavern workspace + forward-auth + pinned manager-protected ecosystem |
+| `ghcr.io/soulwhisper/dsh-tavern:3.1.3` | `tavern-3.1.3` | Custom Tavern workspace + forward-auth + pinned manager-protected ecosystem |
 
 Web images use the distribution revision (`<dsh-version>-rN` when the image
 changes without a DSH bump); Tavern follows dsh-tavern. They are

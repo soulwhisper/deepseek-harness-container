@@ -10,19 +10,22 @@ rebuild the Tavern image. It is included in the source archive at
 tavern.tar.gz
   dsh-tavern/
     complete flizzywine/dsh-tavern source at
-    9ddac3b55883ac7334c5b349368a56f2d6654c59
-    (AGPL license, upstream lock, checked-in client output and the modified
-    tavern-plugin/lib/http/routes.js public-Origin guard)
+    5deb1ef377240d0f41808a8e346040ff1def31d1
+    (AGPL license, upstream lock, checked-in client output, the modified
+    tavern-plugin/lib/http/routes.js public-Origin guard and the wrongbook
+    patches in tavern-plugin/lib/domain/tavern-helper-scripts.js and
+    tavern-plugin/lib/domain/card-response-test.js)
   distribution/
     docker/Dockerfile
     docker/runtime/ (manifest, workspace, lock)
     docker/profiles/ (web/tavern workspaces and committed locks,
                       distribution.patch.yml)
-    patches/dsh/ patches/market/ patches/tavern/
+    patches/dsh/ patches/market/ patches/tavern/ patches/wrongbook/
     plugins/forward-auth/ (source, notices, licenses)
     scripts/entrypoint.sh, materialize-state.mjs, normalize-locks.mjs,
             materialize-profiles.mjs, floating-bundles.mjs, readiness.mjs,
-            finalize-profile.mjs, link-tavern-core.mjs
+            finalize-profile.mjs, link-tavern-core.mjs,
+            seed-tavern-plugins.mjs, seed-tavern-tools.mjs
     versions.json, package.json, pnpm-lock.yaml
     LICENSE, NOTICE, README.md, README.zh-CN.md
     docs/source-build.md, docs/regulations.md
@@ -58,18 +61,19 @@ docker buildx build -f docker/Dockerfile --target tavern \
 ```
 
 The Dockerfile verifies the pinned Tavern commit, installs the committed locks
-with pnpm 11.25.0, applies the exact-hash patches, retains the full linked source
-and builds the archive. It installs no browser or desktop stack.
+with pnpm 11.25.0, applies the exact-hash patches and the vendored wrongbook host
+patches, retains the full linked source and builds the archive. It installs no
+browser or desktop stack.
 
 To rebuild from the already-modified source supplied in the archive without
 redownloading the Tavern Git tree:
 
 1. Use `distribution/` as the Docker build context.
 2. Copy `dsh-tavern/` into `distribution/local-tavern-source/`.
-3. In the `tavern-source` stage, replace the Git init/fetch/checkout and
-   `patch-tavern.mjs` invocation with a `COPY local-tavern-source/
-   /opt/apps/dsh-tavern/` step. The route file is already patched, so
-   do not apply the route patch twice.
+3. In the `tavern-source` stage, replace the Git init/fetch/checkout,
+   `patch-tavern.mjs` and `patches/wrongbook/patch-all.mjs` invocations with a
+   `COPY local-tavern-source/ /opt/apps/dsh-tavern/` step. The route and
+   wrongbook host patches are already applied; do not apply them twice.
 4. Apply the theme-font-limit helper exactly as invoked at the bottom of
    `distribution/patches/tavern/patch-tavern.mjs`; the route file is already
    patched. If you change the theme package, update and verify

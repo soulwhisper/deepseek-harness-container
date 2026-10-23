@@ -53,7 +53,7 @@ jobs:
           # deploy examples, scaffold scripts and non-critical dotfiles are
           # deliberately excluded; .dockerignore is the one dotfile exception
           # because it changes the build context itself.
-          if grep -Eq '^(docker/|patches/|plugins/|versions\.json$|package\.json$|pnpm-lock\.yaml$|LICENSE$|NOTICE$|README\.md$|README\.zh-CN\.md$|docs/(source-build|regulations)\.md$|\.dockerignore$|\.github/workflows/ci\.yaml$|scripts/(entrypoint\.sh|materialize-state\.mjs|materialize-profiles\.mjs|floating-bundles\.mjs|normalize-locks\.mjs|finalize-profile\.mjs|readiness\.mjs|link-tavern-core\.mjs|seed-tavern-plugins\.mjs)$)' <<< "$files"; then
+          if grep -Eq '^(docker/|patches/|plugins/|versions\.json$|package\.json$|pnpm-lock\.yaml$|LICENSE$|NOTICE$|README\.md$|README\.zh-CN\.md$|docs/(source-build|regulations)\.md$|\.dockerignore$|\.github/workflows/ci\.yaml$|scripts/(entrypoint\.sh|materialize-state\.mjs|materialize-profiles\.mjs|floating-bundles\.mjs|normalize-locks\.mjs|finalize-profile\.mjs|readiness\.mjs|link-tavern-core\.mjs|seed-tavern-plugins\.mjs|seed-tavern-tools\.mjs)$)' <<< "$files"; then
             echo 'images=true' >> "$GITHUB_OUTPUT"
           else
             echo 'images=false' >> "$GITHUB_OUTPUT"

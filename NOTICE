@@ -43,6 +43,11 @@ dsh-tavern-wrongbook v1.33.0 — MIT License
 Copyright (c) 2026 XGUIMAX
 https://github.com/XGUIMAX/dsh-tavern-wrongbook/tree/v1.33.0
 
+dsh-tavern-wrongbook host-patch scripts — MIT License (vendored subset from
+debug/patch-all.mjs, debug/patch.mjs and debug/patch-test.mjs)
+Copyright (c) 2026 XGUIMAX
+https://github.com/XGUIMAX/dsh-tavern-wrongbook/tree/v1.33.0/debug
+
 dsh-tavern-knock-knock v0.7.1 — MIT License
 Copyright (c) 2026 Knock Knock contributors
 https://github.com/dearacknowl/dsh-tavern-knock-knock/tree/v0.7.1
@@ -51,7 +56,7 @@ narrative-anchor v1.0.1 — MIT License
 Copyright (c) 2026 narrative-anchor contributors
 https://github.com/ActivityTime/narrative-anchor/tree/v1.0.1
 
-dsh-tavern-image v3.0.2 — MIT License (bundled with the Tavern source; not a
+dsh-tavern-image v3.1.1 — MIT License (bundled with the Tavern source; not a
 separate profile dependency)
 Copyright (c) 2026 dsh-tavern-image contributors
 https://github.com/weixinlll/dsh-tavern-image
@@ -76,8 +81,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-DSH Tavern v3.1 is AGPL-3.0-only, NOT Apache-2.0 or MIT.
-Source: https://github.com/flizzywine/dsh-tavern/tree/9ddac3b55883ac7334c5b349368a56f2d6654c59
+DSH Tavern v3.1.3 is AGPL-3.0-only, NOT Apache-2.0 or MIT.
+Source: https://github.com/flizzywine/dsh-tavern/tree/5deb1ef377240d0f41808a8e346040ff1def31d1
 Its original complete LICENSE and source remain at
 /opt/apps/dsh-tavern in the tavern image.
 Container-specific modifications: pinned-source custom workspace build,

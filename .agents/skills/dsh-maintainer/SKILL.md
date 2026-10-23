@@ -259,17 +259,33 @@ Rules:
 - Keep the skill manual. Do not add automatic bash rewriting, hooks, or a
   provider-API proxy.
 
+## Release preparation
+
+- Use the manual **Prepare release** workflow. It creates a draft PR only; it
+  never tags, merges or publishes an image.
+- It collects commits since the previous `web-*`/`tavern-*` tag, updates the
+  Web distribution version and matching Web references, and regenerates
+  `CHANGELOG.md`.
+- Review the changelog and release tables, fill gaps, and wait for CI. Tavern
+  has its own version/tag and is not bumped by the Web preparation workflow.
+- Merge the release PR, then create `web-<distribution>` on the merge commit.
+  The tag push runs `publish.yaml`; do not publish from a branch or from the
+  prepare workflow.
+
 ## Post-merge cleanup
 
 After the PR is merged and the user authorizes cleanup:
 
 1. Switch to the released base branch and synchronize:
    `git switch main`, then `git pull --ff-only`.
-2. Review local branches already merged into `main`.
+2. Review local branches already merged into `main`; use `git branch --merged main`.
 3. Delete only local stale branches after review. Do not delete remote branches.
 4. Clean local build images, cached layers and transient artifacts; report what
-   was removed and how much space was reclaimed.
-5. Never delete remote branches, unmerged branches, user data or shared caches
+   was removed and how much space was reclaimed. Check local `dsh-web:smoke`,
+   `dsh-tavern:smoke`, `:local` images, staging tags and buildx cache before
+   removing them.
+5. Verify the published tag and digest before deleting local release artifacts.
+6. Never delete remote branches, unmerged branches, user data or shared caches
    without explicit confirmation.
 
 ## Verification checklist

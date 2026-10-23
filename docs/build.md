@@ -214,6 +214,17 @@ digest; the combine job creates one multi-arch index from those digest-qualified
 manifests, not from mutable staging tags. There is no floating tag, branch
 publication or candidate `sha-` image.
 
+Release preparation is a separate manual workflow. Dispatch **Prepare release**
+with the next Web distribution version (and an optional changelog base tag).
+It collects history since the previous release, updates the Web version/tag,
+package versions, Dockerfile Web label and known release tables, generates
+`CHANGELOG.md`, and opens a draft PR. It never tags, merges or publishes.
+
+Review the draft, fill any documentation/release-note gaps, and let CI pass.
+After merge, create the `web-<distribution>` tag on the merge commit; that tag
+push runs `publish.yaml`. Tavern has its own version/tag and is not bumped by the
+Web preparation workflow. Do not auto-publish on main.
+
 A release tag is not proof that a state migration, community plugin or model
 configuration is approved. Startup installs nothing. See
 [Deployment](deploy.md) and [Operations](operations.md).

@@ -56,14 +56,14 @@ jobs:
         run: |
           set -euo pipefail
           npm install --global --ignore-scripts pnpm@11.25.0
-          pnpm --dir docker/runtime install --frozen-lockfile --prod --store-dir /tmp/pnpm-store
+          pnpm --dir docker/runtime/web install --no-frozen-lockfile --prod --store-dir /tmp/pnpm-store
 
       - name: Apply exact-hash patches
         shell: bash
         run: |
           set -euo pipefail
-          node patches/dsh/patch-host.mjs docker/runtime
-          node patches/market/patch-market.mjs docker/runtime/node_modules/dshmarket
+          node patches/dsh/patch-host.mjs docker/runtime/web
+          node patches/market/patch-market.mjs docker/runtime/web/node_modules/dshmarket
 
       - name: Run direct field test
         env:

@@ -219,16 +219,24 @@ async function manager() {
     const refusal = JSON.parse(forbidden.text);
     check(forbidden.status >= 400 && refusal.ok !== true
       && /management-required|not-removable/u.test(JSON.stringify(refusal)), 'Market cannot remove required forward-auth');
+    // The Web profile bundles the sidebar at 0.28.2. Remove it through the
+    // market first so the pinned 0.28.2 install exercises a real install instead
+    // of the manager's already-installed refusal.
+    const removedBundled = await request('/dsh-market/uninstall', headers, 'POST',
+      JSON.stringify({ name: 'dsh-better-sidebar' }), 180_000);
+    const removedBundledBody = JSON.parse(removedBundled.text);
+    check(removedBundled.status === 200 && removedBundledBody.ok === true,
+      'Market can remove a bundled Web plugin');
     const registry = await request('/dsh-market/registry', headers, 'GET', undefined, 90_000);
     check(registry.status === 200, 'Real curated market catalog');
     const entry = JSON.parse(registry.text).registry?.plugins?.find(plugin =>
       plugin.npm === 'dsh-better-sidebar' || plugin.name === 'dsh-better-sidebar');
     check(typeof entry?.url === 'string', 'Real curated sidebar catalog entry');
     const installed = await request('/dsh-market/install', headers, 'POST',
-      JSON.stringify({ url: entry.url, version: '0.28.0' }), 180_000);
+      JSON.stringify({ url: entry.url, version: '0.28.2' }), 180_000);
     const installedBody = JSON.parse(installed.text);
     check(installed.status === 200 && installedBody.ok === true,
-      'Pinned plugin market install');
+      `Pinned plugin market install (status ${installed.status}: ${String(installedBody.error ?? installedBody.detail ?? '').slice(0, 160)})`);
     // Exercise the exact SAME shipped market adapter against the actual remote manager,
     // not a mock. Existing installs require native remove + add; direct add is refused.
     const adapterURL = new URL('lib/official-desktop.js', pathToFileURL(runtimeRequire.resolve('dshmarket/package.json')));
@@ -250,15 +258,15 @@ async function manager() {
     };
     const adapter = createOfficialDesktopRuntime(() => actualManager, 'web', '/data/dsh/profiles/web');
     try {
-      const reinstalled = await adapter.runPlugin('web', ['add', 'dsh-better-sidebar@0.28.0']);
+      const reinstalled = await adapter.runPlugin('web', ['add', 'dsh-better-sidebar@0.28.2']);
       check(reinstalled.exitCode === 0 && calls.filter(method => method === 'installBundle').length === 2
         && calls.includes('removeBundle'), 'Real adapter/native-manager exact-version reinstall');
     } finally { await adapter.dispose(); }
     const updated = await request('/dsh-market/update', headers, 'POST',
-      JSON.stringify({ name: 'dsh-better-sidebar', force: true, compatVersion: '0.28.0' }), 180_000);
+      JSON.stringify({ name: 'dsh-better-sidebar', force: true, compatVersion: '0.28.2' }), 180_000);
     const update = JSON.parse(updated.text);
     check(updated.status === 200 && update.ok === true && update.skipped === 'current'
-      && update.version === '0.28.0', 'Exact-current market update is honestly a no-op');
+      && update.version === '0.28.2', 'Exact-current market update is honestly a no-op');
   }
   const after = await rpc('listBundles', {});
   check(after.some(bundle => bundle.name === protectedName && bundle.enabled), 'forward-auth remains selected after mutation attempts');
@@ -344,7 +352,7 @@ async function runtime() {
       'DeepSeek account UI is hidden by default');
     check(/id: account-controller\n  name: [^\n]+\n  disabled: true/u.test(dump.stdout),
       'DeepSeek account login API is disabled by default');
-    check(/id: message-feedback\n  name: [^\n]+\n  disabled: true/u.test(dump.stdout),
+    check(/id: message-feedback\n  name: [^\n]+\n(?:  config:\n(?:    [^\n]*\n)+)?  disabled: true/u.test(dump.stdout),
       'Message feedback host is disabled by default');
     check(/id: ui-message-feedback\n  name: [^\n]+\n  disabled: true/u.test(dump.stdout),
       'Message feedback UI is disabled by default');

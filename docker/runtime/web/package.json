@@ -1,15 +1,15 @@
 {
-  "name": "@soulwhisper/dsh-container-runtime",
-  "version": "0.2.1-rc.2-r2",
+  "name": "@soulwhisper/dsh-container-runtime-web",
+  "version": "0.2.2-alpha.2-r1",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.25.0",
-  "engines": { "node": "24.22.2" },
+  "engines": { "node": "24.22.1" },
   "dependencies": {
     "@deepseek-ai/cordis-plugin-group": "1.0.5",
-    "@deepseek-ai/dsh": "0.2.1-rc.2",
+    "@deepseek-ai/dsh": "0.2.2-alpha.2",
     "@soulwhisper/dsh-forward-auth": "file:../../plugins/forward-auth",
-    "dshmarket": "1.66.47",
+    "dshmarket": "1.73.5",
     "yaml": "2.9.1"
   }
 }

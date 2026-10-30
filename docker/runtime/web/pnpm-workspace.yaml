@@ -1,0 +1,16 @@
+packages:
+  - .
+nodeLinker: hoisted
+storeDir: /cache/pnpm/store
+autoInstallPeers: true
+confirmModulesPurge: false
+# Fresh releases are still subject to a short pnpm cooldown. Exact alpha
+# releases are currently older than this window; the published digest remains
+# the reproducibility boundary.
+minimumReleaseAge: 60
+allowBuilds:
+  '@deepseek-ai/dsh-subprocess-local': true
+  koffi: true
+  node-pty: true
+  '@google/genai': false
+  protobufjs: false

@@ -33,7 +33,13 @@ is Apache-2.0; bundled upstream components keep their own licenses.
 | --- | --- | --- |
 | DeepSeek Harness | MIT | Host/manager/app-boot patched at build time; upstream notice retained |
 | DSH Market | MIT | Managed-runtime bridge patch applied |
-| `dsh-context` | Apache-2.0 | Web only; installed from npm `latest` at build time; packaged LICENSE retained |
+| `dsh-context` 0.78.1 | Apache-2.0 | Web only; packaged LICENSE retained |
+| `dsh-mnemon` 0.5.37 | MIT | Web only; packaged LICENSE retained |
+| `@mnemon-dev/mnemon` 0.2.13 CLI | Apache-2.0 | Web only; installed globally with its LICENSE |
+| `@michengai/dsh-automation` 1.0.13 | Apache-2.0 | Web only; packaged LICENSE retained |
+| `@xmanrui/dsh-im` 5.8.0 | MIT | Web only; packaged LICENSE retained |
+| `dsh-better-sidebar` 0.28.2 | MIT | Web only; packaged LICENSE retained |
+| `@linxin666/dsh-ssh` 0.4.12 | Apache-2.0 | Web only; packaged LICENSE retained |
 | Caveman skill | Apache-2.0 | Web only; fetched from the latest upstream GitHub release tag at build time (not `main`); `LICENSE` and `NOTICE` retained in the skill seed |
 | RTK OSS | Apache-2.0 | Web only; `rtk-oss-*` release asset only; the BUSL-1.1 edition is not bundled; LICENSE retained |
 | Tavern ecosystem packages | MIT | Installed in the Tavern image only |
@@ -43,9 +49,10 @@ is Apache-2.0; bundled upstream components keep their own licenses.
 Installed dependency trees retain their packaged license files. The root
 [NOTICE](../NOTICE) records the DSH, market, ecosystem, Tavern and inspiration
 notices. An OCI SBOM is an inventory, not a substitute for those licenses.
-The Web image retains the floating assets' upstream license/notice files:
-`dsh-context` under the writable Web profile `node_modules` seed, Caveman under
-the skill seed, and RTK under `/usr/local/share/rtk`. Tavern does not include them.
+The Web image retains the bundled plugins' license/notice files under the
+writable Web profile `node_modules` seed, the global Mnemon CLI package under
+`/usr/local/lib/node_modules/@mnemon-dev/mnemon`, Caveman under the skill seed,
+and RTK under `/usr/local/share/rtk`. Tavern does not include them.
 
 The distribution patches DSH Host/manager/app-boot and applies the recorded
 Tavern route/theme modifications. Those modifications are not upstream
@@ -78,13 +85,15 @@ Tavern AGPL license. See [Corresponding source](source-build.md).
 
 ## Reproducibility and attestations
 
-The build pins Node, pnpm, DSH/Tavern sources, patches, theme files and profile
-locks. The optional `dsh-context`, Caveman skill and RTK OSS binary are
-deliberately floating upstream inputs resolved at build time, so exact-bytes
-reproduction also requires the same upstream state or the published image
-digest. The current release index has no BuildKit provenance or SBOM attestation
-attached; verify deployments by digest and preserve the previous digest plus
-volume snapshots. Do not describe an unrun local build as a certified release.
+The build pins Node, pnpm, DSH/Tavern sources, patches, theme files and the
+Tavern profile/runtime locks. Web top-level plugin versions are exact pins in
+the profile recipe, but the Web runtime/profile has no lock, so transitive
+dependencies and the Caveman/RTK release tags are resolved at build time.
+Exact-bytes reproduction therefore requires the same upstream state or the
+published image digest; Tavern remains fully locked. The current release index
+has no BuildKit provenance or SBOM attestation attached; verify deployments by
+digest and preserve the previous digest plus volume snapshots. Do not describe
+an unrun local build as a certified release.
 
 ## Secrets and user data
 

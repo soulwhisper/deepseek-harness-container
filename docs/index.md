@@ -6,7 +6,7 @@ ships two OCI images, an independently maintained authentication gate, explicit
 state and backup boundaries, and no desktop stack.
 
 !!! warning "Developer preview"
-    DSH `0.2.1-rc.2` is a developer preview, not an audited production platform.
+    DSH `0.2.2-alpha.2` (Web) and `0.2.1-rc.2` (Tavern) are developer previews, not audited production platforms.
     A working login does not prove the edge, plugins, model credentials, backups
     or agent sandbox are safe. Never expose the native DSH listener directly.
 
@@ -14,7 +14,7 @@ state and backup boundaries, and no desktop stack.
 
 | Image | Release tag | Profile |
 | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2-r2` | `web-0.2.1-rc.2-r2` | DSH Web + `dshmarket` + `dsh-context` + required forward-auth |
+| `ghcr.io/soulwhisper/dsh-web:0.2.2-alpha.2-r1` | `web-0.2.2-alpha.2-r1` | DSH Web alpha + `dshmarket` + `dsh-context` + `dsh-mnemon` + automation/IM/sidebar/SSH + required forward-auth |
 | `ghcr.io/soulwhisper/dsh-tavern:3.1.3` | `tavern-3.1.3` | Custom Tavern workspace + forward-auth + bundled ecosystem |
 
 Web images use the distribution revision (`<dsh-version>-rN` when the image
@@ -48,7 +48,7 @@ for `linux/amd64` and `linux/arm64`; there is no QEMU fallback.
   launch-token URL as authentication.
 - Keep one live DSH writer per home. Do not scale a StatefulSet to two replicas
   or use shared RWX storage as hot failover.
-- Back up `/data/dsh`, `/data/home` and `/workspace` together. Backups contain
+- Back up `/data/dsh`, `/data/home`, `/data/memory` and `/workspace` together. Backups contain
   credentials, attachments and conversations; encrypt them.
 
 All admitted subjects share one DSH owner and its sessions, files, tools and

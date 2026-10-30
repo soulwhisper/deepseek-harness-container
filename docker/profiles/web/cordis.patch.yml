@@ -1,0 +1,15 @@
+# Web-only defaults. User settings are written to this same profile patch by
+# the native manager; keep these rows whole and do not copy bundle inserts.
+- id: mnemon
+  config:
+    storageScope: custom
+    dataDir: /data/memory/mnemon
+    runtimeUserScope: global
+    cliPath: /usr/local/bin/mnemon
+    remoteAccess: trusted-host
+    writeEnabled: true
+    tabEnabled: true
+    recallMode: guided
+    writebackMode: guided
+    embedding:
+      enabled: false

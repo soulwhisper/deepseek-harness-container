@@ -8,7 +8,19 @@
         "/(^|/)versions\\.json$/"
       ],
       "matchStrings": [
-        "\"dsh\": \\{\\s*\"version\": \"(?<currentValue>[^\"]+)\","
+        "\"dsh\": \\{\\s*\"version\": \"(?<currentValue>[^\"]+)\""
+      ],
+      "depNameTemplate": "@deepseek-ai/dsh",
+      "datasourceTemplate": "npm"
+    },
+    {
+      "customType": "regex",
+      "description": "Web DSH alpha version pinned in versions.json",
+      "managerFilePatterns": [
+        "/(^|/)versions\\.json$/"
+      ],
+      "matchStrings": [
+        "\"webDsh\": \\{\\s*\"version\": \"(?<currentValue>[^\"]+)\""
       ],
       "depNameTemplate": "@deepseek-ai/dsh",
       "datasourceTemplate": "npm"

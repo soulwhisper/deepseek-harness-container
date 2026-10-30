@@ -5,12 +5,14 @@ requires an explicit design review, tests and updated pins.
 
 ## Compatibility
 
-- DSH `0.2.1-rc.2` is a developer preview, not an audited production platform.
-- `versions.json`, committed runtime/profile locks and `docker/Dockerfile` are the
-  compatibility boundary. Do not assume every upstream RC or plugin combination
-  works.
+- DSH `0.2.2-alpha.2` (Web) and `0.2.1-rc.2` (Tavern) are developer previews, not audited production platforms.
+- `versions.json`, the pinned Tavern runtime/profile lock and the two independent
+  Dockerfiles are the compatibility boundary. The Web profile is build-resolved
+  and has no committed lock. Do not assume every upstream alpha/RC or plugin
+  combination works.
 - A version-only dependency bump is incomplete. A DSH or Tavern change also
-  updates source commits, exact patch hashes, locks, release tags and docs.
+  updates source commits, exact patch hashes, the Tavern lock, release tags and
+  docs.
 - The Web image follows DSH. The Tavern image follows dsh-tavern. They release
   independently and must never share a live DSH home.
 

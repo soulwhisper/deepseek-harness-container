@@ -51,8 +51,9 @@ is applied afterwards and may override them.
   DeepSeek API requests while `enabled` is `false`. Enable it in **Settings →
   General → Upload Session Log when using the official model API** if you want
   the upload; the switch persists an override in the active profile.
-- **The DeepSeek Platform account UI is disabled by default.** This hides the
-  account sign-in, billing and Feedback menu. API-key providers and model
+- **The DeepSeek Platform account UI, account login API and assistant-message
+  feedback surface are disabled by default.** This hides the account sign-in,
+  billing, Like/Dislike and `/feedback` paths. API-key providers and model
   settings remain available. This is not the Authentik/forward-auth edge: keep
   the forward-auth gate enabled; it is the access-control boundary.
 - **Skill roots are native by default.** The preset providers discover
@@ -75,6 +76,15 @@ restate every key the row owns:
     enabled: true
 - id: ui-settings-account
   name: '@deepseek-ai/dsh-client-ui-settings-account'
+  disabled: false
+- id: account-controller
+  name: '@deepseek-ai/dsh-api-account-controller'
+  disabled: false
+- id: message-feedback
+  name: '@deepseek-ai/dsh-message-feedback'
+  disabled: false
+- id: ui-message-feedback
+  name: '@deepseek-ai/dsh-client-ui-message-feedback'
   disabled: false
 ```
 

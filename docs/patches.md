@@ -8,8 +8,8 @@ anchor mismatch is a build failure.
 
 | Patch | Upstream pin | What it does |
 | --- | --- | --- |
-| `patches/dsh/patch-host.mjs` | DSH `0.2.1-rc.2` | Adds the mandatory pre-dispatch gate, startup-readiness marker and manager protection. Hashes four upstream files: host, types, manager and boot. |
-| `patches/market/patch-market.mjs` | dshmarket `1.66.47` | Gives the Web market an `OfficialDesktopRuntime` backed by `pluginManager`, so package operations use manager admission instead of the CLI path. |
+| `patches/dsh/patch-host.mjs` | DSH `0.2.1-rc.2` (Tavern) and `0.2.2-alpha.2` (Web) | Adds the mandatory pre-dispatch gate, startup-readiness marker and manager protection. Hashes four upstream files per release: host, types, manager and boot. |
+| `patches/market/patch-market.mjs` | dshmarket `1.73.5` | Gives the Web market an `OfficialDesktopRuntime` backed by `pluginManager`, so package operations use manager admission instead of the CLI path. |
 | `patches/tavern/patch-tavern.mjs` | Tavern commit `5deb1ef377240d0f41808a8e346040ff1def31d1` | Adds the exact public-Origin exception and applies the theme font-limit change. Verifies route and theme hashes. |
 | `patches/wrongbook/patch-all.mjs` | Tavern commit `5deb1ef377240d0f41808a8e346040ff1def31d1` | Applies the wrongbook host patches whose anchors still match the pinned source: MVU pure-API tests and timeout body retention. Other upstream wrongbook patches are reported as not applicable. |
 | Tavern profile patch | `dsh-better-sidebar@0.28.0` | Fixes the thread seed boundary so a resume does not drop pre-resume history. Applied by pnpm from the Tavern recipe and pinned by the lock's `patch_hash`. |
@@ -29,7 +29,7 @@ The Host patch adds that guarantee:
 - The gate runs before HTTP dispatch and before `upgrade`.
 - A missing gate or gate exception leaves the listener denied with 503.
 - Shutdown destroys tracked sockets.
-- App boot marks only `distribution-forward-auth` as required. Web floating
+- App boot marks only `distribution-forward-auth` as required. Web bundled
   plugins, including `dsh-market` and `dsh-context`, remain removable
   recommendations. If forward-auth never registers, the Host gate still denies
   all traffic.
@@ -98,7 +98,8 @@ migrated, custom copies are preserved, and runtime `--apply` is a no-op.
 3. Re-run `TAVERN_APP=/path/to/new/source node patches/wrongbook/patch-all.mjs --apply --strict`
    against the new source. Port or remove a patch when its anchor no longer
    matches; never weaken the anchor check.
-4. Update runtime/profile locks if the dependency graph changed.
+4. Update the Tavern runtime/profile locks if that dependency graph changed;
+   Web is build-resolved and has no committed lock.
 5. Rebuild both images and run `node scripts/verify.mjs`,
    `node --test test/*.test.mjs` and the final-image smoke.
 6. For Tavern, rebuild the source archive and verify the authenticated download

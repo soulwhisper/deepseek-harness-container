@@ -1,15 +1,16 @@
 # Build and release
 
-The build context is the repository root; the Dockerfile is
-`docker/Dockerfile`. Build-only inputs are separate from patches, the
-forward-auth plugin, tests and deploy examples.
+The build context is the repository root. Web and Tavern have independent,
+non-inheriting recipes: `docker/web.Dockerfile` and `docker/tavern.Dockerfile`.
+There is no shared `docker/Dockerfile`, no shared final stage, and no Web/Tavern
+multi-stage dependency.
 
 ## Build locally
 
 ```bash
-docker buildx build -f docker/Dockerfile --platform linux/amd64 --target web \
+docker buildx build -f docker/web.Dockerfile --platform linux/amd64 --target web \
   --build-arg IMAGE_REVISION="$(git rev-parse HEAD)" --load -t dsh-web:local .
-docker buildx build -f docker/Dockerfile --platform linux/amd64 --target tavern \
+docker buildx build -f docker/tavern.Dockerfile --platform linux/amd64 --target tavern \
   --build-arg IMAGE_REVISION="$(git rev-parse HEAD)" --load -t dsh-tavern:local .
 ```
 
@@ -20,12 +21,13 @@ Use the native architecture matching the runner or host. CI builds
 
 | Target | Result |
 | --- | --- |
-| `web` | Final Web image: DSH Web + dshmarket + dsh-context + required forward-auth |
+| `web` | Final Web image: DSH alpha + bundled Web plugins + required forward-auth |
 | `tavern` | Final Tavern image: pinned source workspace + pruned profile + ecosystem |
-| `application` | Shared final-stage base before a profile is selected |
-| `profile-locks` | Maintainer-only export of `docker/profiles/{web,tavern}/pnpm-lock.yaml` |
-| `runtime-build` | Patched runtime dependency closure |
-| `distribution-source` | Whitelisted build/source payload used by both images |
+| `web-application` | Web-only final-stage base; never shared with Tavern |
+| `tavern-application` | Tavern-only final-stage base; never shared with Web |
+| `profile-locks` | Maintainer-only Tavern lock export; the Web profile deliberately has no committed lock |
+| `runtime-build` | Patched runtime dependency closure; Web alpha and Tavern rc.2 are separate |
+| `distribution-source` | Image-specific whitelisted build/source payload |
 | `tavern-source` | Pinned Tavern checkout plus exact-hash and wrongbook host patches |
 
 ## Authentication variants
@@ -57,8 +59,8 @@ Both options are application forks, not configuration switches. See
 The final images do **not** copy the repository root. The
 `distribution-source` stage contains only:
 
-- `docker/` build inputs: Dockerfile, runtime manifest/workspace/lock, profile
-  workspaces and committed locks, distribution patch;
+- the selected Dockerfile, runtime manifest/workspace (and Tavern lock), the
+  selected profile workspace/config, distribution patch;
 - `patches/` exact-hash patch scripts;
 - `plugins/forward-auth/` own plugin and notices;
 - runtime/build scripts needed to reproduce or migrate the image;
@@ -92,58 +94,84 @@ the next explicit distribution migration. Do not use `README.md` in that
 directory because the provider treats top-level `.md` files as skill
 candidates.
 
-Bundled plugins that are part of the pinned distribution graph are not copied
-by the entrypoint. Add them to the profile recipe in
-`scripts/materialize-profiles.mjs` and the relevant `versions.json` pin,
-regenerate both committed profile locks through the documented bootstrap
-workflow, and bump the distribution identity. Existing state then adopts the
-new distribution through the explicit `DSH_STATE_MIGRATION=apply` migration,
-which merges managed bundles and dependencies while preserving user plugins.
-Automatic plugin migration is intentionally unsupported.
+Bundled Web plugins (`dshmarket`, `dsh-context`, `dsh-mnemon`,
+`@michengai/dsh-automation`, `@xmanrui/dsh-im`, `dsh-better-sidebar`,
+`@linxin666/dsh-ssh`) are added to the Web profile recipe and installed at
+image-build time. The Web runtime/profile has no committed lock: plugin updates
+are resolved at build and the published digest is the reproducibility boundary.
+Tavern remains pinned and manager-protected; only its lock is generated.
+Existing state adopts the new Web distribution through the explicit
+`DSH_STATE_MIGRATION=apply` migration, which merges managed bundles and
+dependencies while preserving user plugins. Automatic plugin migration is
+intentionally unsupported.
 
-### Floating optional assets
+### Plugin build scripts
 
-Three optional upstream assets are intentionally **not version-pinned** in
-`versions.json`, the committed profile locks or Renovate. They are resolved at
-image-build time and are tracked only by the published image digest:
+The Web profile seed approves only the native transport dependencies of the
+bundled SSH plugin (`ssh2`, `cpu-features`). pnpm blocks every other dependency
+lifecycle script by default; the market or `dsh plugin` reports blocked packages
+and the owner approves them per profile. A profile's existing `allowBuilds`
+entries are user state: a distribution migration preserves them and uses the
+seed as the lower-precedence default. Do not pre-approve a package just because
+a plugin is popular.
+
+Tavern's pinned ecosystem is separate and remains manager-protected. Do not
+pre-approve a package globally just because one plugin needs it: an
+`allowBuilds` key authorizes every plugin in that profile that depends on the
+same script owner.
+
+### Upstream tracking
+
+The Web image follows upstream DSH through Renovate's `dsh-web-upstream`
+group. A DSH bump remains a coupled change: update `versions.json`, the Web
+recipe/profile (and `webDsh`), exact-hash patch anchors and release
+documentation together. The Web runtime/profile is intentionally build-resolved;
+Tavern separately keeps its runtime/profile locks. Do not float DSH itself or
+weaken a patch hash to make a bump pass.
+The Tavern image follows `flizzywine/dsh-tavern` independently and keeps its
+pinned source/theme pins.
+
+Market-installed Web plugins are user-owned and track their upstream releases
+through the plugin manager; their reviewed build approvals are preserved as
+profile state. The Web plugin set is installed at image-build time.
+
+### Build-resolved Web inputs
+
+The Web runtime and profile deliberately have **no committed lock**. `versions.json`
+pins the Web DSH alpha and `dshmarket`; the plugin recipe pins the initial
+plugin releases used to build the image. Caveman and RTK are resolved from
+their latest release tags at build time:
 
 | Asset | Source | Build behavior |
 | --- | --- | --- |
-| `dsh-context` | npm `latest` dist-tag | **Web only.** Installed as a normal package in the Web seed profile, so the manager owns it and users may remove it; its `dsh.bundle` and current-DSH compatibility declaration are verified before the image is published |
-| Caveman skill | `JuliusBrussee/caveman` latest GitHub release tag, `skills/caveman/SKILL.md` | **Web only.** The tag is resolved at build time, then fetched into `/opt/dsh/seed/skills/caveman`; the upstream `LICENSE` and a `SOURCE` record are included. The moving `main` branch is not used |
-| RTK binary | `rtk-ai/rtk` latest release, **`rtk-oss-*` Apache-2.0 edition** | **Web only.** Checksum-verified and installed at `/usr/local/bin/rtk`; the normal BUSL-1.1 asset is never used |
+| Web plugins | npm releases pinned in the profile recipe | `dsh-context`, `dsh-mnemon`, automation, IM, sidebar and SSH are installed as normal profile packages; users may remove them through the manager |
+| Caveman skill | `JuliusBrussee/caveman` latest GitHub release tag, `skills/caveman/SKILL.md` | Web only. The tag is resolved at build time, then fetched into `/opt/dsh/seed/skills/caveman`; upstream `LICENSE` and a `SOURCE` record are included. The moving `main` branch is not used |
+| RTK binary | `rtk-ai/rtk` latest release, **`rtk-oss-*` Apache-2.0 edition** | Web only. Checksum-verified and installed at `/usr/local/bin/rtk`; the BUSL-1.1 asset is never used |
 
-The Web build installs `dsh-context` from npm `latest` as a normal dependency
-in the generated Web profile (`/opt/dsh/seed/profiles/web`), with immutable
-runtime peer links for `@deepseek-ai/dsh-session` and
-`@deepseek-ai/schemastery`. It leaves the committed profile lock unchanged and
-regenerates the in-image lock with `--no-frozen-lockfile`. The package is never
-installed into `/opt/dsh/runtime`, so host/manager patches are not rewritten and
-no repair step is needed. On first seed it is copied to
-`/data/dsh/profiles/web`, where the plugin manager owns it; users may remove it
-like any market-installed package. Only `@soulwhisper/dsh-forward-auth` remains
-manager-protected. A moved skill path, changed package identity, missing
-release asset, absent `dsh.bundle` or unsupported current-DSH declaration fails
-the build; it does not silently ship stale content. This is a deliberate
-upstream-tracking tradeoff: reproducing the *exact* optional bytes requires the
-same upstream state or the published digest, not just the repository commit.
+The Web runtime and profile use a `minimumReleaseAge: 60` cooldown; exact alpha
+and plugin releases are currently older than that window. Tavern keeps its
+established `0` because its runtime/profile locks are committed and only human
+lock updates change bytes; do not carry that exception into a floating profile.
+The published digest remains the boundary for the resolved Web tree.
 
-The RTK skill is maintained under `docker/skills/rtk/SKILL.md`. It tells the
-model when the proxy is appropriate and when to run the raw command. Neither
-RTK nor Caveman is installed as an automatic hook or shell replacement.
-
-Because the fetch and `latest` install are Docker layers, an ordinary repeated
-build may reuse a cached layer and keep older optional bytes. Use a clean
-builder or disable the cache for the `runtime-build` and `web-build` stages when
-you explicitly want to refresh these upstream assets. Release CI builds on
-clean runners, so the published digest reflects the resolutions of that run.
+The Web profile is generated at image build with `pnpm install
+--no-frozen-lockfile`; `/data/dsh` is the writable profile that manager operations
+update. The published digest is the reproducibility boundary. Plugin code is
+replaceable; `/data/memory` and the rest of `/data` are the durable boundary.
+The manager protects only `@soulwhisper/dsh-forward-auth` on Web. Tavern's
+pinned bundle set remains protected. `docker/profiles/web/compatibility.json`
+contains exact package@version -> DSH-version exemptions only where an upstream
+plugin still lacks an alpha release record; each exemption is a reviewed risk,
+not a wildcard. Because the Web install is a Docker layer,
+use a clean builder when you deliberately want to refresh build inputs; release
+CI builds on clean runners.
 
 The only required startup entry is `distribution-forward-auth`. On Tavern, the
 pinned ecosystem listed in `dshTavern.managedBundles` is immutable in the same
 sense as forward-auth: the manager refuses disable/remove operations and the
 startup materializer restores missing manifest entries and seed links. The
 pinned `dsh-tavern-knock-knock` package has no `dsh.bundle`; it remains an
-immutable dependency only. Web-only floating plugins and skills are removable
+immutable dependency only. Web-only bundled plugins and skills are removable
 and are not protected by the manager.
 
 The Tavern build also applies the supported `dsh-tavern-wrongbook` host patches
@@ -163,14 +191,15 @@ materializes that dependency as a symlink. The `runtime-build` stage removes
 only that generated `node_modules` link, copies the reviewed
 `plugins/forward-auth` bundle into its place, and asserts the expected patch
 rows. The source plugin directory is not removed, and this is build-stage only.
-Profile locks use absolute `link:/opt/dsh/runtime/...` specifiers. The build runs
-`scripts/normalize-locks.mjs` for generated locks and refuses relative link
-versions in committed locks.
+Tavern profile locks use absolute `link:/opt/dsh/runtime/...` specifiers. The build
+runs `scripts/normalize-locks.mjs` for generated locks and refuses relative link
+versions in committed locks. The Web lock is generated only inside the image.
 
-If a new profile recipe has no committed lock, a maintainer manually dispatches
-the **Bootstrap missing profile locks** workflow, downloads the `profile-locks`
-artifact, reviews both files, commits them under `docker/profiles/*`, and then
-rebuilds normally. Final CI deliberately fails until both locks are committed.
+Only the Tavern profile has a committed lock. If it is missing, a maintainer
+manually dispatches the **Bootstrap missing profile locks** workflow, downloads
+the `profile-locks` artifact, reviews the Tavern file, commits it under
+`docker/profiles/tavern/`, and rebuilds normally. The Web profile is generated
+at build time and must not acquire a committed lock.
 
 Tavern routes and theme files are pinned by SHA-256 in `versions.json`.
 `patches/tavern/patch-tavern.mjs` validates the theme package name/version and

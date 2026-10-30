@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url';
 import { join, relative } from 'node:path';
 import { parse } from 'yaml';
 import { relativeLinkCount } from './normalize-locks.mjs';
-import { floatingBundles } from './floating-bundles.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const text = path => readFile(join(root, path), 'utf8');
@@ -25,9 +24,13 @@ for (const [target, version] of Object.entries({ web: versions.distribution, tav
 assert.equal(versions.tavern.upstreamTag, `v${versions.tavern.version}`, 'Tavern upstream tag keeps its v prefix; release/image tags do not');
 assert.equal(versions.release.tavern.tag, `tavern-${versions.tavern.version}`, 'Tavern release tag matches the image version');
 assert.match(versions.node.image, new RegExp(`^node:${versions.node.version.replaceAll('.', '\\.')}-.+@sha256:[a-f0-9]{64}$`));
-assert.match(await text('docker/Dockerfile'), new RegExp(`org\\.opencontainers\\.image\\.version="${versions.distribution}"`, 'u'));
-assert.match(await text('docker/Dockerfile'), new RegExp(`org\\.opencontainers\\.image\\.version="${versions.tavern.version}"`, 'u'));
+const webDockerfile = await text('docker/web.Dockerfile');
+const tavernDockerfile = await text('docker/tavern.Dockerfile');
+assert.match(webDockerfile, new RegExp(`org\\.opencontainers\\.image\\.version="${versions.distribution}"`, 'u'));
+assert.match(tavernDockerfile, new RegExp(`org\\.opencontainers\\.image\\.version="${versions.tavern.version}"`, 'u'));
 assert.match(versions.dsh.commit, /^[a-f0-9]{40}$/u);
+assert.equal(versions.webDsh?.version, '0.2.2-alpha.2');
+assert.equal(versions.tavern.theme?.version, versions.dsh.version);
 assert.match(versions.tavern.commit, /^[a-f0-9]{40}$/u);
 assert.match(versions.tavern.routesSha256, /^[a-f0-9]{64}$/u);
 assert.equal(versions.tavern.theme?.package, '@deepseek-ai/dsh-client-ui-theme');
@@ -38,27 +41,32 @@ assert.match(versions.pnpm, /^\d+\.\d+\.\d+$/u);
 assert.equal(packageJson.packageManager, `pnpm@${versions.pnpm}`);
 const rootLock = parse(await text('pnpm-lock.yaml'));
 assert.ok(rootLock.importers?.['.'], 'Committed root dependency closure');
-const runtime = JSON.parse(await text('docker/runtime/package.json'));
-assert.equal(runtime.dependencies['@deepseek-ai/dsh'], versions.dsh.version);
-assert.equal(runtime.dependencies.dshmarket, versions.market);
-const runtimeLock = parse(await text('docker/runtime/pnpm-lock.yaml'));
-assert.ok(runtimeLock.importers?.['.'], 'Committed runtime dependency closure');
+const webRuntime = JSON.parse(await text('docker/runtime/web/package.json'));
+assert.equal(webRuntime.dependencies['@deepseek-ai/dsh'], versions.webDsh.version);
+assert.equal(webRuntime.dependencies.dshmarket, versions.market);
+assert.equal(await present('docker/runtime/web/pnpm-lock.yaml'), false,
+  'The Web runtime is resolved at image-build time; the published digest is the boundary');
+assert.ok(await present('docker/runtime/tavern/pnpm-lock.yaml'), 'The Tavern runtime lock remains committed');
+const tavernRuntime = JSON.parse(await text('docker/runtime/tavern/package.json'));
+assert.equal(tavernRuntime.dependencies['@deepseek-ai/dsh'], versions.dsh.version);
+const runtimeLock = parse(await text('docker/runtime/tavern/pnpm-lock.yaml'));
+assert.ok(runtimeLock.importers?.['.'], 'Committed Tavern runtime dependency closure');
 for (const [name, spec] of Object.entries(versions.ecosystem)) {
   assert.match(name, /^[a-z][a-z0-9-]*$/u);
   assert.match(spec, /^github:[^/]+\/[^#]+#[^#]+$/u);
 }
 assert.equal(Object.hasOwn(versions.ecosystem, 'dsh-tavern-comfy'), false,
   'Tavern image plugin is bundled with Tavern, not a profile dependency');
-assert.match(await text('docker/Dockerfile'), /scripts\/seed-tavern-plugins\.mjs/u,
+assert.match(tavernDockerfile, /scripts\/seed-tavern-plugins\.mjs/u,
   'Tavern bundled plugin seed script is shipped in the image');
-for (const profile of ['web', 'tavern']) {
-  const lockText = await text(`docker/profiles/${profile}/pnpm-lock.yaml`);
-  const lock = parse(lockText);
-  assert.ok(lock.importers?.['.'], `Committed ${profile} lock required; use explicit bootstrap workflow, review and commit its artifact`);
-  assert.equal(relativeLinkCount(lockText), 0, `${profile} lock link versions must be absolute; run scripts/normalize-locks.mjs`);
-  assert.doesNotMatch(lockText, /node-addon-system-(?:linux|darwin|win32)-/u,
-    `${profile} lock must not contain architecture-specific overrides`);
-}
+assert.equal(await present('docker/profiles/web/pnpm-lock.yaml'), false,
+  'The Web profile is mutable and has no committed lock');
+const tavernLockText = await text('docker/profiles/tavern/pnpm-lock.yaml');
+const tavernLock = parse(tavernLockText);
+assert.ok(tavernLock.importers?.['.'], 'Committed Tavern profile lock required; use explicit bootstrap workflow, review and commit its artifact');
+assert.equal(relativeLinkCount(tavernLockText), 0, 'Tavern lock link versions must be absolute; run scripts/normalize-locks.mjs');
+assert.doesNotMatch(tavernLockText, /node-addon-system-(?:linux|darwin|win32)-/u,
+  'Tavern lock must not contain architecture-specific overrides');
 // Keep local patches, the forward-auth plugin, image build, scaffold and
 // examples in separate trees so an upstream break stays local to its surface.
 async function present(path) { try { await access(join(root, path)); return true; } catch { return false; } }
@@ -67,7 +75,9 @@ assert.equal(forwardAuthManifest.license, 'Apache-2.0', 'forward-auth is an orig
 assert.ok(!forwardAuthManifest.files.includes('upstream-MIT-LICENSE'), 'forward-auth must not package upstream DSH licensing as its own');
 assert.equal(await present('plugins/forward-auth/upstream-MIT-LICENSE'), false, 'Upstream DSH MIT notice belongs under patches/dsh');
 assert.ok(await present('patches/dsh/upstream-MIT-LICENSE'), 'Patched upstream DSH notice must remain in the distribution');
-for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/profiles/web/pnpm-lock.yaml',
+for (const path of ['docker/web.Dockerfile', 'docker/tavern.Dockerfile',
+  'docker/runtime/web/package.json', 'docker/runtime/tavern/package.json',
+  'docker/profiles/web/cordis.patch.yml', 'docker/profiles/web/compatibility.json',
   'docker/skills/README', 'docker/skills/rtk/SKILL.md',
   'patches/dsh/patch-host.mjs', 'patches/market/patch-market.mjs', 'patches/tavern/patch-tavern.mjs',
   'patches/wrongbook/patch-all.mjs', 'patches/wrongbook/patch-mvu-api.mjs',
@@ -75,9 +85,9 @@ for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/
   'plugins/forward-auth/index.mjs', 'scripts/normalize-locks.mjs', 'scripts/floating-bundles.mjs',
   'scripts/seed-tavern-plugins.mjs', 'scripts/seed-tavern-tools.mjs',
   'scripts/field-test.mjs', 'test/packaging.test.mjs',
-  'deploy/docker/compose.yaml', 'deploy/kubernetes/dsh-web.yaml',
+  'deploy/docker/compose.yaml', 'deploy/docker/cordis.patch.mcp.example.yml', 'deploy/kubernetes/dsh-web.yaml',
   'docs/index.md', 'docs/architecture.md', 'docs/constraints.md', 'docs/build.md', 'docs/deploy.md',
-  'docs/operations.md', 'docs/data-layout.md', 'docs/patches.md', 'docs/source-build.md',
+  'docs/operations.md', 'docs/data-layout.md', 'docs/browser.md', 'docs/patches.md', 'docs/source-build.md',
   'docs/regulations.md', 'docs/forward-auth.md', 'mkdocs.yml',
   '.github/workflows/docs.yaml',
   '.github/CODEOWNERS', '.github/PULL_REQUEST_TEMPLATE.md', '.github/labels.yaml',
@@ -86,12 +96,12 @@ for (const path of ['docker/Dockerfile', 'docker/runtime/package.json', 'docker/
   '.github/workflows/schedule-cleanup.yaml', '.github/workflows/field-test.yaml', '.coderabbit.yaml', 'renovate.json']) {
   assert.ok(await present(path), `Repository layout requires ${path}`);
 }
-for (const legacy of ['Dockerfile', 'profiles', 'runtime', 'docker/README.md', 'deploy/README.md',
+for (const legacy of ['Dockerfile', 'profiles', 'runtime', 'docker/Dockerfile', 'docker/runtime/package.json', 'docker/profiles/web/pnpm-lock.yaml', 'docker/README.md', 'deploy/README.md',
   'patches/README.md', 'docker/profiles/tavern/SOURCE-BUILD.txt']) {
   assert.equal(await present(legacy), false, `Repository layout: move ${legacy} out of the category tree`);
 }
 assert.equal(await present('.github/actions/validate/action.yaml'), false, 'The custom composite validator is gone');
-const dockerfile = await text('docker/Dockerfile');
+const dockerfile = `${webDockerfile}\n${tavernDockerfile}`;
 assert.doesNotMatch(dockerfile, /COPY \. /u, 'Final images must not copy the whole repository context');
 assert.match(dockerfile, /FROM scratch AS distribution-source/u, 'Explicit source payload stage');
 assert.match(dockerfile, /COPY --from=distribution-source/u, 'Final image uses the source payload stage');
@@ -120,32 +130,41 @@ for (const path of ['patches/wrongbook/patch-all.mjs', 'patches/wrongbook/patch-
 }
 assert.match(await text('.agents/skills/dsh-maintainer/SKILL.md'), /patches\/wrongbook\/patch-all\.mjs/u,
   'Maintainer skill records the wrongbook patch upgrade check');
-assert.match(dockerfile, /floating-bundles\.mjs add web/u, 'Web build adds the profile-owned dsh-context bundle');
-assert.match(dockerfile, /pnpm --dir \/opt\/dsh\/seed\/profiles\/web install --no-frozen-lockfile/u,
-  'The profile-owned dsh-context gets a generated profile lock, not a stale committed pin');
+assert.match(await text('scripts/materialize-profiles.mjs'), /dependencies\['dsh-context'\] = '0\.78\.1'/u,
+  'Web bundles a known dsh-context release');
+assert.match(webDockerfile, /pnpm --dir \/opt\/dsh\/seed\/profiles\/web install --no-frozen-lockfile/u,
+  'The Web profile is resolved at build time; its digest is the reproducibility boundary');
 assert.match(dockerfile, /JuliusBrussee\/caveman\/releases\/latest/u, 'Caveman skill resolves the latest release tag');
 assert.match(dockerfile, /skills\/caveman\/SKILL\.md/u, 'Caveman skill is fetched from the resolved release');
 assert.doesNotMatch(dockerfile, /caveman\/main\//u, 'Caveman skill must not follow the moving main branch');
 assert.match(dockerfile, /rtk-oss-/u, 'Only the Apache-2.0 RTK OSS asset may be bundled');
 assert.equal((dockerfile.match(/COPY docker\/skills\/ \/opt\/dsh\/seed\/skills\//gu) ?? []).length, 1,
   'Only one final stage may receive the optional skill seed');
-const webStage = dockerfile.slice(dockerfile.indexOf('FROM application AS web'), dockerfile.indexOf('FROM application AS tavern'));
-const tavernStage = dockerfile.slice(dockerfile.indexOf('FROM application AS tavern'));
+assert.doesNotMatch(dockerfile, /FROM application AS/u,
+  'Web and Tavern must not share one final application base');
+assert.match(dockerfile, /FROM tools AS web-application/u, 'Web has its own final base');
+assert.match(dockerfile, /FROM tools AS tavern-application/u, 'Tavern has its own final base');
+const webStage = webDockerfile.slice(webDockerfile.indexOf('FROM web-application AS web'));
+const tavernStage = tavernDockerfile.slice(tavernDockerfile.indexOf('FROM tavern-application AS tavern'));
 assert.match(webStage, /usr\/local\/bin\/rtk/u, 'Web image receives the RTK binary');
 assert.match(webStage, /distribution-source\/docker\/skills/u, 'Web source payload retains its skill sources');
 assert.match(await text('.dockerignore'), /^\.agents$/mu, 'Maintainer-only .agents skill is excluded from build context');
 assert.doesNotMatch(tavernStage, /rtk|caveman|dsh-context|docker\/skills/iu, 'Tavern must not receive optional Web assets or their source payload');
 assert.doesNotMatch(JSON.stringify(versions), /dsh-context|caveman|rtk/iu,
   'Floating assets are not version-pinned in versions.json');
-assert.deepEqual([...floatingBundles.web], ['dsh-context'], 'Only dsh-context is a floating web bundle');
-const floatingText = await text('scripts/floating-bundles.mjs');
-assert.match(floatingText, /runtimeLinks/u, 'dsh-context runtime peers stay immutable links');
-assert.match(floatingText, /manifest\.dependencies\[name\] = 'latest'/u, 'dsh-context remains a latest profile package');
-assert.match(floatingText, /dsh\.bundle/u, 'Build verification rejects an upstream package without a bundle patch');
+assert.doesNotMatch(webDockerfile, /floating-bundles\.mjs add web/u,
+  'Web plugins are bundled from the manifest, not a floating build-time add');
+assert.match(webDockerfile, /dsh-mnemon|seed\/skills\/caveman/u,
+  'Web image carries the bundled plugin and skill profile');
 assert.match(await text('patches/dsh/patch-host.mjs'), /dshTavern\?\.managedBundles/u,
   'Manager protects the pinned Tavern bundle set');
 assert.match(await text('scripts/materialize-state.mjs'), /managedDependencies/u,
   'State materialization restores pinned Tavern dependencies');
+assert.match(await text('scripts/materialize-state.mjs'),
+  /allowBuilds: \{ \.\.\.seedWorkspace\.allowBuilds, \.\.\.previousWorkspace\?\.allowBuilds \}/u,
+  'User-approved plugin build scripts must override seed defaults');
+assert.doesNotMatch(await text('docker/profiles/web/pnpm-workspace.yaml'), /node-pty:\s*false/u,
+  'The Web seed must not deny a package the owner may later approve');
 assert.match(await text('scripts/materialize-state.mjs'), /managedLinks\(target/u,
   'Tavern restart restores managed seed links');
 const ignore = await text('.gitignore');
@@ -227,6 +246,10 @@ const customManagers = JSON.parse(await text(fragmentPaths[0])).customManagers;
 const groupRules = JSON.parse(await text(fragmentPaths[1])).packageRules;
 const packageRules = JSON.parse(await text(fragmentPaths[2])).packageRules;
 assert.equal([...groupRules, ...packageRules].some(rule => rule.automerge === true), false, 'Renovate must never automerge');
+const buildxRule = packageRules.find(rule => rule.matchDepNames?.includes('buildx'));
+assert.ok(buildxRule, 'Renovate has a Buildx with.version rule');
+assert.deepEqual(buildxRule.matchManagers, ['github-actions'], 'Buildx rule is scoped to GitHub Actions');
+assert.equal(buildxRule.pinDigests, false, 'Renovate must not digest-pin the Buildx with.version input');
 assert.ok(packageRules.some(rule => rule.addLabels?.includes('review/required')), 'Renovate PRs require human review');
 for (const dep of ['@deepseek-ai/dsh', 'flizzywine/dsh-tavern']) {
   assert.ok(customManagers.some(manager => manager.depNameTemplate === dep), `Renovate must track ${dep}`);

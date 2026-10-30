@@ -45,6 +45,9 @@ async function browserSmoke(authority, restart) {
   let browser;
   let stage = 'launch';
   let boot = 0;
+  let lastStatus = 0;
+  let lastJavascript = 0;
+  let lastErrors = 0;
   try {
     browser = await chromium.launch({ headless: true, args: [
       '--host-resolver-rules=MAP dsh.smoke.test 127.0.0.1', '--no-proxy-server',
@@ -90,11 +93,17 @@ async function browserSmoke(authority, restart) {
       }
       javascript = 0;
       pageErrors = 0;
+      lastStatus = 0;
+      lastJavascript = 0;
+      lastErrors = 0;
       stage = 'navigation';
       // Subscribe before navigation, including after a real container restart.
       const connected = waitConnected();
       const navigation = page.goto(`http://${authority}/`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
       const [response] = await Promise.all([navigation, connected]);
+      lastStatus = response?.status() ?? 0;
+      lastJavascript = javascript;
+      lastErrors = pageErrors;
       stage = 'client-boot';
       if (response?.status() !== 200 || javascript === 0 || pageErrors !== 0) throw new Error('Client boot failed');
       if (new URL(page.url()).searchParams.has('token')) throw new Error('Token escaped to browser URL');
@@ -113,7 +122,7 @@ async function browserSmoke(authority, restart) {
       if ((await page.locator('body').innerText()).includes('[dsh-better-sidebar]')) throw new Error('Sidebar mount error');
     }
   } catch {
-    throw new Error(`Real browser client boot/native-cookie/mux check failed at ${stage} (boot ${boot + 1}); raw browser output withheld`);
+    throw new Error(`Real browser client boot/native-cookie/mux check failed at ${stage} (boot ${boot + 1}, status ${lastStatus}, scripts ${lastJavascript}, pageerrors ${lastErrors}); raw browser output withheld`);
   } finally {
     await browser?.close();
   }

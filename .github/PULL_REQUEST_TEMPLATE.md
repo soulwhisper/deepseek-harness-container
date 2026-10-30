@@ -25,8 +25,8 @@ availability. -->
 - [ ] `node scripts/verify.mjs`
 - [ ] `node --test test/*.test.mjs`
 - [ ] `node scripts/smoke.mjs dsh-web:local dsh-tavern:local` (when runtime, image, patch or dependency pins changed; mount `/data`, `/workspace`, `/cache`, `/logs` and `/backups` as in `docs/data-layout.md`)
-- [ ] `docker buildx build -f docker/Dockerfile --target web ...` and `--target tavern` (when build inputs changed)
-- [ ] Profile locks were generated, normalized and reviewed — never hand-edited (when dependency pins changed)
+- [ ] `docker buildx build -f docker/web.Dockerfile --target web ...` and `-f docker/tavern.Dockerfile --target tavern ...` (when build inputs changed)
+- [ ] Tavern profile lock was generated, normalized and reviewed — never hand-edited (Web has no committed lock; publish its digest)
 
 ## Release impact
 

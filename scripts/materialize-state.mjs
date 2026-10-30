@@ -1,4 +1,4 @@
-import { cp, mkdir, readdir, readFile, writeFile, rename, rm, lstat, symlink, chmod, readlink, realpath } from 'node:fs/promises';
+import { access, constants, cp, mkdir, readdir, readFile, writeFile, rename, rm, lstat, symlink, chmod, readlink, realpath } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
@@ -147,6 +147,44 @@ async function managedLinks(target, source, seed, install, workspace = {}) {
       }
     }
   }
+}
+
+async function mergeProfileDefaults(target, source, YAML) {
+  if (!await exists(source)) return;
+  const seed = YAML.parse(await readFile(source, 'utf8')) ?? [];
+  if (!Array.isArray(seed)) throw new Error('Seed profile patch must be a YAML list');
+  const text = await exists(target) ? await readFile(target, 'utf8') : '';
+  const doc = YAML.parseDocument(text || '[]');
+  if (doc.errors.length > 0) throw new Error(`Existing profile patch is invalid YAML: ${doc.errors[0].message}`);
+  if (!YAML.isSeq(doc.contents)) {
+    if (doc.contents !== null) throw new Error('Existing profile patch must be a YAML list');
+    doc.contents = doc.createNode([]);
+  }
+  const current = doc.toJS() ?? [];
+  const ids = new Set(current.filter(row => row && typeof row === 'object' && typeof row.id === 'string').map(row => row.id));
+  const additions = seed.filter(row => row && typeof row === 'object' && typeof row.id === 'string' && !ids.has(row.id));
+  if (additions.length === 0) return;
+  const seedDoc = YAML.parseDocument(YAML.stringify(additions));
+  if (!YAML.isSeq(seedDoc.contents)) throw new Error('Seed profile additions must be a YAML list');
+  // Edit the parsed document in place. This preserves owner comments, flow/block
+  // style, anchors and !!js expressions instead of re-serializing from JS values.
+  for (const item of seedDoc.contents.items) doc.contents.items.push(item);
+  await writeFile(target, String(doc));
+}
+
+async function mergeCompatibilityDefaults(target, source) {
+  if (!await exists(source)) return;
+  const seed = await json(source);
+  if (!seed || typeof seed !== 'object' || Array.isArray(seed)) throw new Error('Seed compatibility file must be an object');
+  const current = await exists(target) ? await json(target) : {};
+  if (!current || typeof current !== 'object' || Array.isArray(current)) throw new Error('Existing compatibility file must be an object');
+  let changed = false;
+  for (const [key, value] of Object.entries(seed)) {
+    if (Object.hasOwn(current, key)) continue;
+    current[key] = value;
+    changed = true;
+  }
+  if (changed || !await exists(target)) await writeFile(target, `${JSON.stringify(current, null, 2)}\n`);
 }
 
 export function mergeManifest(previous, seed, home, profile, workspace = {}) {
@@ -301,7 +339,9 @@ export async function materializeState(options = {}) {
     await writeFile(workspace, YAML.stringify({
       ...previousWorkspace,
       ...seedWorkspace,
-      allowBuilds: { ...previousWorkspace?.allowBuilds, ...seedWorkspace.allowBuilds },
+      // User-approved build scripts are profile state, not image policy.
+      // Seed defaults apply first; an existing approval must survive migration.
+      allowBuilds: { ...seedWorkspace.allowBuilds, ...previousWorkspace?.allowBuilds },
       patchedDependencies: { ...previousWorkspace?.patchedDependencies, ...seedWorkspace.patchedDependencies },
       overrides: { ...previousOverrides, ...seedWorkspace.overrides },
     }));
@@ -314,9 +354,28 @@ export async function materializeState(options = {}) {
     // other rows/configuration and credential/account data in place.
     for (const overlay of [join(home, 'cordis.patch.yml'), join(target, 'cordis.patch.yml')]) {
       if (!await exists(overlay)) continue;
-      await writeFile(overlay, YAML.stringify(migrateOverlay(YAML.parse(await readFile(overlay, 'utf8')), home)));
+      const text = await readFile(overlay, 'utf8');
+      const before = YAML.parse(text);
+      const after = migrateOverlay(before, home);
+      // Skip unchanged overlays entirely. Re-serializing would drop comments
+      // and !!js expressions even when no obsolete row is present.
+      if (YAML.stringify(before) === YAML.stringify(after)) continue;
+      try {
+        await access(overlay, constants.W_OK);
+      } catch (error) {
+        // Deployment-injected overlays may be read-only. Leave them untouched;
+        // the migration of writable profile state must still complete. A real
+        // permission error must not silently preserve obsolete rows.
+        if (error.code !== 'EROFS') throw error;
+        continue;
+      }
+      if (/!!js|(^|\n)\s*#/u.test(text)) {
+        throw new Error(`Overlay ${overlay} needs migration but contains comments or !!js expressions; edit it manually`);
+      }
+      await writeFile(overlay, YAML.stringify(after));
     }
-    if (!await exists(join(target, 'cordis.patch.yml'))) await cp(join(source, 'cordis.patch.yml'), join(target, 'cordis.patch.yml'));
+    await mergeProfileDefaults(join(target, 'cordis.patch.yml'), join(source, 'cordis.patch.yml'), YAML);
+    await mergeCompatibilityDefaults(join(target, 'compatibility.json'), join(source, 'compatibility.json'));
     await seedSkills(seed, home);
     if (await exists(join(home, '.credentials.yaml'))) await chmod(join(home, '.credentials.yaml'), 0o600);
     await writeFile(join(home, 'BUNDLED_VERSIONS'), bundled);

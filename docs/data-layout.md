@@ -6,11 +6,11 @@ rollback copies and scratch have dedicated roots.
 
 ## Backup in one glance
 
-**Back up together:** `/data/dsh`, `/data/home`, `/workspace`.
+**Back up together:** `/data/dsh`, `/data/home`, `/data/memory`, `/workspace`.
 
 **Never include:** `/cache`, `/logs`, `/backups`, `/tmp`.
 
-Use a filesystem snapshot or stop DSH before tar/rsync. The three roots must be
+Use a filesystem snapshot or stop DSH before tar/rsync. The four roots must be
 captured at one consistent point. Encrypt the archive and restrict access.
 
 ## Layout
@@ -19,6 +19,7 @@ captured at one consistent point. Encrypt the archive and restrict access.
 | --- | --- | --- | --- | --- |
 | `/data/dsh` | Durable state | Profiles, sessions, storages, attachments, `.credentials.yaml`, anonymous ID, Tavern `profile-data`, distribution marker | **Required, encrypted** | No |
 | `/data/home` | Durable state/config | `HOME`, XDG config/data, pnpm home, shell/tool config | Required | No |
+| `/data/memory` | Durable user memory | Mnemon spaces, `MEMORY.md`, memory indexes and skills | **Required, encrypted** | No |
 | `/workspace` | Durable user data | User projects, generated files, shell cwd content | **Required, consistent with `/data/dsh`** | No |
 | `/cache` | Rebuildable cache | `XDG_CACHE_HOME`, npm cache, DSH cache via `$DSH_HOME/cache` symlink | No | Yes; emptyDir or separate cache volume |
 | `/logs` | Diagnostics | DSH startup reports via `$DSH_HOME/logs` symlink | No | Yes if retention is handled elsewhere; content is sensitive |
@@ -49,6 +50,21 @@ The legacy `/data/dsh-migrations` path is retained only as the default fallback
 for non-image callers/tests. In the image, `DSH_BACKUP_ROOT=/backups` is
 explicit, and `scripts/materialize-state.mjs` rejects a backup root inside
 `DSH_HOME`.
+
+## Memory
+
+The bundled `dsh-mnemon` profile defaults to `storageScope: custom` with
+`dataDir: /data/memory/mnemon`. A profile overlay replaces the whole Mnemon
+configuration, so keep `dataDir` under `/data` if you override it; otherwise
+memory can fall outside the backup. Memory is durable user data inside `/data`,
+not plugin code. Back it up with
+`/data/dsh` and `/workspace` at the same point. `remoteAccess: trusted-host`
+is set in the Web profile so a trusted-edge session can manage memory; it does
+not replace forward-auth.
+
+Do not place `/data/memory` on an `emptyDir`, and do not treat the profile
+package directory as memory storage. Plugin upgrades may replace code and
+package state; the memory directory is the stable boundary.
 
 ## Workspace and HOME
 

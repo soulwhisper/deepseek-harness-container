@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { readFile, mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -11,13 +11,14 @@ import { connect } from 'node:net';
 import { once } from 'node:events';
 import { EventEmitter } from 'node:events';
 import { configuration, externalIdentity, identityFailure, createAdmission } from '../plugins/forward-auth/admission.mjs';
-import { patchSource } from '../patches/dsh/patch-host.mjs';
+import { injectSourceNotice, sourceMarker, sourceNotice } from '../plugins/forward-auth/source.mjs';
+import { patchInstallation, patchSource } from '../patches/dsh/patch-host.mjs';
 
 const rootRequire = createRequire(import.meta.url);
 function resolvePackage(name) {
   try { return rootRequire.resolve(name); } catch (error) {
     if (error.code !== 'MODULE_NOT_FOUND') throw error;
-    const anchor = process.env.DSH_TEST_RUNTIME ? pathToFileURL(process.env.DSH_TEST_RUNTIME + '/package.json') : new URL('../docker/runtime/package.json', import.meta.url);
+    const anchor = process.env.DSH_TEST_RUNTIME ? pathToFileURL(process.env.DSH_TEST_RUNTIME + '/package.json') : new URL('../docker/runtime/tavern/package.json', import.meta.url);
     return createRequire(anchor).resolve(name);
   }
 }
@@ -98,6 +99,23 @@ test('configuration requires header, subjects, trust CIDRs and bounded timers', 
   for (const value of ['', '0', '-1', '1.5', '2147484']) assert.throws(() => configuration({ ...baseEnvironment, DSH_FORWARD_AUTH_MAX_CONNECTION_SECONDS: value }));
   assert.equal(configuration(baseEnvironment).header, AUTH_HEADER);
   assert.equal(configuration(baseEnvironment).maxConnectionMilliseconds, 900000);
+});
+
+test('source notice relocates before body/html and is idempotent', () => {
+  const notice = sourceNotice(new URL('https://example.test/tree/abc'));
+  assert.match(notice, new RegExp(sourceMarker, 'u'));
+  const body = injectSourceNotice('<html><body>app</body></html>', notice);
+  assert.match(body, /app<aside data-dsh-distribution-source/u);
+  assert.match(body, /<\/aside><\/body><\/html>$/u);
+  const noBody = injectSourceNotice('<html><main>app</main></html>', notice);
+  assert.match(noBody, /<\/aside><\/html>$/u);
+  const uppercase = injectSourceNotice('<HTML><BODY>app</BODY></HTML>', notice);
+  assert.match(uppercase, /<\/aside><\/BODY><\/HTML>$/u);
+  const bare = injectSourceNotice('app', notice);
+  assert.match(bare, /app<aside data-dsh-distribution-source/u);
+  assert.equal(injectSourceNotice(body, notice), body);
+  const upperMarker = `<aside DATA-DSH-DISTRIBUTION-SOURCE>existing</aside>`;
+  assert.equal(injectSourceNotice(upperMarker, notice), upperMarker);
 });
 
 test('generic forward-auth headers and upstream launch-token URLs', () => {
@@ -340,4 +358,18 @@ test('real Cordis readiness waits for the startup audit, disappears on unload an
   await replacement.await();
   assert.equal((await get(port)).status, 403);
   await replacement.dispose();
+});
+
+test('host patch installer rejects mixed DSH runtime versions', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-mixed-runtime-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const [name, version] of [
+    ['dsh-host-webserver', '0.2.1-rc.2'],
+    ['dsh-plugin-manager', '0.2.2-alpha.2'],
+  ]) {
+    const dir = join(root, 'node_modules/@deepseek-ai', name);
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, 'package.json'), JSON.stringify({ name: `@deepseek-ai/${name}`, version }));
+  }
+  await assert.rejects(patchInstallation(root), /one DSH runtime version/u);
 });

@@ -5,6 +5,12 @@ storeDir: /cache/pnpm/store
 autoInstallPeers: false
 confirmModulesPurge: false
 ignorePnpmfile: true
-minimumReleaseAge: 0
+# Fresh releases are still subject to a short pnpm cooldown.
+minimumReleaseAge: 60
+# Only bundled SSH transport builds are pre-approved. Owner approvals through
+# the market remain additive; do not pre-approve unrelated packages.
 allowBuilds:
-  node-pty: false
+  # Native transport for the bundled SSH plugin. Owner approvals still merge
+  # over these seed defaults in materialize-state.
+  ssh2: true
+  cpu-features: true

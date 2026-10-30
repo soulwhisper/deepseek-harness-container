@@ -51,22 +51,36 @@ jobs:
       - name: Install native build prerequisites
         run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends build-essential python3
 
-      - name: Install production runtime closure
+      - name: Install production runtime closures
         shell: bash
         run: |
           set -euo pipefail
           npm install --global --ignore-scripts pnpm@11.25.0
-          pnpm --dir docker/runtime install --frozen-lockfile --prod --store-dir /tmp/pnpm-store
+          # The image places each runtime beside /opt/dsh/plugins. The checkout
+          # has one extra directory level, so provide the same relative link
+          # for these direct-environment installs only.
+          ln -s ../plugins docker/plugins
+          pnpm --dir docker/runtime/web install --no-frozen-lockfile --prod --store-dir /tmp/pnpm-store
+          pnpm --dir docker/runtime/tavern install --frozen-lockfile --prod --store-dir /tmp/pnpm-store
 
       - name: Apply exact-hash patches
         shell: bash
         run: |
           set -euo pipefail
-          node patches/dsh/patch-host.mjs docker/runtime
-          node patches/market/patch-market.mjs docker/runtime/node_modules/dshmarket
+          node patches/dsh/patch-host.mjs docker/runtime/web
+          node patches/market/patch-market.mjs docker/runtime/web/node_modules/dshmarket
+          node patches/dsh/patch-host.mjs docker/runtime/tavern
 
-      - name: Run direct field test
+      - name: Run direct field test — Web
         env:
           EXPECTED_ARCH: ${{ matrix.arch }}
           NARB_DISABLE_NATIVE_CACHE: "1"
+          DSH_FIELD_TARGET: web
+        run: node scripts/field-test.mjs
+
+      - name: Run direct field test — Tavern
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch }}
+          NARB_DISABLE_NATIVE_CACHE: "1"
+          DSH_FIELD_TARGET: tavern
         run: node scripts/field-test.mjs

@@ -16,11 +16,11 @@ tavern.tar.gz
     patches in tavern-plugin/lib/domain/tavern-helper-scripts.js and
     tavern-plugin/lib/domain/card-response-test.js)
   distribution/
-    docker/Dockerfile
-    docker/runtime/ (manifest, workspace, lock)
-    docker/profiles/ (web/tavern workspaces and committed locks,
-                      distribution.patch.yml)
-    patches/dsh/ patches/market/ patches/tavern/ patches/wrongbook/
+    docker/tavern.Dockerfile
+    docker/runtime/tavern/ (manifest, workspace, lock)
+    docker/profiles/tavern/ (workspace and committed lock)
+    docker/profiles/distribution.patch.yml
+    patches/dsh/ patches/tavern/ patches/wrongbook/
     plugins/forward-auth/ (source, notices, licenses)
     scripts/entrypoint.sh, materialize-state.mjs, normalize-locks.mjs,
             materialize-profiles.mjs, floating-bundles.mjs, readiness.mjs,
@@ -40,23 +40,18 @@ checkout at `/opt/apps/dsh-tavern` and the distribution inputs at
 `/distribution/source.tar.gz` and `DSH_SOURCE_URL` identifies the distribution
 commit.
 
-The optional `dsh-context`, Caveman skill and RTK OSS binary are deliberately
-floating upstream assets resolved only when building the **Web** image. Their
-exact bytes are not pinned in this archive; the build recipe, upstream URLs and
-the licenses retained in the Web image are included. Reproducing those exact
-bytes requires the same upstream state or the published image digest. Tavern
-does not activate or seed these optional assets; its archive keeps the shared
-distribution build recipe only. See
-[Build](build.md#floating-optional-assets).
+The archive is Tavern-only and deliberately omits the Web recipe, Web runtime,
+Web profile/plugins, `docker/skills/`, Caveman and RTK. Those are resolved only
+when building the independent Web image; use the published Web digest or the
+Web build recipe in the repository for that release. See [Build](build.md).
 
 ## Rebuild from the archive
 
 The pinned DSH/Tavern source graph is reproducible from the distribution commit
-identified by `DSH_SOURCE_URL`; the three floating optional assets additionally
-require their upstream state to be unchanged, or use the published digest:
+identified by `DSH_SOURCE_URL`; rebuild it from the independent Tavern recipe:
 
 ```bash
-docker buildx build -f docker/Dockerfile --target tavern \
+docker buildx build -f docker/tavern.Dockerfile --target tavern \
   --build-arg IMAGE_REVISION=<that-40-hex-commit> .
 ```
 
@@ -88,14 +83,14 @@ image archive.
 For deliberate dependency changes, regenerate the runtime lock with Node 24:
 
 ```bash
-pnpm --dir docker/runtime install --lockfile-only --ignore-scripts
+pnpm --dir docker/runtime/tavern install --lockfile-only --ignore-scripts
 ```
 
 Regenerate profile locks from the exact in-image absolute source paths:
 
 ```bash
-docker buildx build -f docker/Dockerfile \
-  --target profile-locks --output type=local,dest=. .
+docker buildx build -f docker/tavern.Dockerfile \
+  --target profile-locks --output type=local,dest=docker .
 ```
 
 Review and commit every changed lock before rebuilding. Startup performs no

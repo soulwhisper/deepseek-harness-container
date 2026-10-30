@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, writeFile, readdir, lstat, readlink, rm, symlink } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, readFile, writeFile, readdir, lstat, readlink, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -89,6 +89,41 @@ test('new state is seeded once, then user mutations remain untouched', async t =
   const before = await readFile(patch, 'utf8');
   assert.equal((await materializeState(options)).action, 'unchanged');
   assert.equal(await readFile(patch, 'utf8'), before);
+});
+
+test('migration adds new Web profile defaults without overwriting user rows', async t => {
+  const options = await fixture(t);
+  await writeFile(join(options.seed, 'profiles/web/cordis.patch.yml'),
+    '- id: mnemon\n  config:\n    dataDir: /data/memory/mnemon\n');
+  await writeFile(join(options.seed, 'profiles/web/compatibility.json'),
+    JSON.stringify({ 'dsh-context@0.78.1': ['0.2.2-alpha.2'] }));
+  assert.equal((await materializeState(options)).action, 'seeded');
+  const patch = join(options.home, 'profiles/web/cordis.patch.yml');
+  const compatibility = join(options.home, 'profiles/web/compatibility.json');
+  await writeFile(patch, '[ { id: user, config: { keep: true, expr: !!js process.env.OWNER_EXPR } } ]\n');
+  await writeFile(compatibility, JSON.stringify({ 'owner-plugin@1.0.0': ['0.2.2-alpha.2'] }));
+  await writeFile(join(options.home, '.distribution-state.json'),
+    JSON.stringify({ schema: 1, distribution: 'old', profile: 'web' }));
+  assert.equal((await materializeState({ ...options, action: 'apply' })).action, 'migrated');
+  const rows = YAML.parse(await readFile(patch, 'utf8'));
+  assert.ok(rows.some(row => row.id === 'user'));
+  assert.ok(rows.some(row => row.id === 'mnemon'));
+  assert.match(await readFile(patch, 'utf8'), /!!js process\.env\.OWNER_EXPR/u);
+  const merged = JSON.parse(await readFile(compatibility, 'utf8'));
+  assert.deepEqual(merged['owner-plugin@1.0.0'], ['0.2.2-alpha.2']);
+  assert.deepEqual(merged['dsh-context@0.78.1'], ['0.2.2-alpha.2']);
+});
+
+test('migration refuses a permission-denied overlay that still needs cleanup', async t => {
+  if (process.getuid?.() === 0) return t.skip('root bypasses write-permission checks');
+  const options = await fixture(t);
+  assert.equal((await materializeState(options)).action, 'seeded');
+  const overlay = join(options.home, 'cordis.patch.yml');
+  await writeFile(overlay, '- id: legacy\n  name: dsh-ui-auth\n');
+  await chmod(overlay, 0o444);
+  await writeFile(join(options.home, '.distribution-state.json'),
+    JSON.stringify({ schema: 1, distribution: 'old', profile: 'web' }));
+  await assert.rejects(materializeState({ ...options, action: 'apply' }), /EACCES|permission denied/iu);
 });
 
 test('injected config mounts do not block the initial seed', async t => {
@@ -275,6 +310,10 @@ test('explicit migration preserves user graph, credentials and workspace, remove
   lock.packages = { 'user-plugin@2.3.4': { resolution: { integrity: 'sha512-test-fixture' } }, 'dsh-ui-auth@0.7.1': {} };
   lock.snapshots = { 'user-plugin@2.3.4': {}, 'dsh-ui-auth@0.7.1': {} };
   await writeFile(join(profile, 'pnpm-lock.yaml'), YAML.stringify(lock));
+  await writeFile(join(profile, 'pnpm-workspace.yaml'), YAML.stringify({
+    ...makeWorkspace(),
+    allowBuilds: { 'node-pty': true, 'better-sqlite3': true },
+  }));
   await writeFile(join(profile, 'cordis.patch.yml'), '- name: dsh-ui-auth\n  id: legacy-auth\n- id: user\n  config: {path: /home/node/.dsh/profile-data/web}\n');
   await writeFile(join(options.home, 'cordis.patch.yml'), '- id: group\n  name: group\n  children:\n    - name: dsh-ui-auth\n    - name: user-plugin\n');
   const result = await materializeState({ ...options, action: 'apply' });
@@ -294,6 +333,8 @@ test('explicit migration preserves user graph, credentials and workspace, remove
   const migratedLock = YAML.parse(await readFile(join(profile, 'pnpm-lock.yaml'), 'utf8'));
   assert.deepEqual(migratedLock.packages['user-plugin@2.3.4'], lock.packages['user-plugin@2.3.4']);
   assert.equal(migratedLock.packages['dsh-ui-auth@0.7.1'], undefined);
+  const workspaceConfig = YAML.parse(await readFile(join(profile, 'pnpm-workspace.yaml'), 'utf8'));
+  assert.deepEqual(workspaceConfig.allowBuilds, { 'node-pty': true, 'better-sqlite3': true });
   const overlay = YAML.parse(await readFile(join(profile, 'cordis.patch.yml'), 'utf8'));
   assert.deepEqual(overlay, [{ id: 'user', config: { path: join(options.home, 'profile-data/web') } }]);
   assert.deepEqual(YAML.parse(await readFile(join(options.home, 'cordis.patch.yml'), 'utf8'))[0].children, [{ name: 'user-plugin' }]);
@@ -508,6 +549,12 @@ test('forward-auth bundle keeps privacy defaults and exposes optional skill root
   assert.equal(entry('session-log-deepseek')?.config?.enabled, false);
   assert.equal(entry('ui-settings-account')?.name, '@deepseek-ai/dsh-client-ui-settings-account');
   assert.equal(entry('ui-settings-account')?.disabled, true);
+  assert.equal(entry('account-controller')?.name, '@deepseek-ai/dsh-api-account-controller');
+  assert.equal(entry('account-controller')?.disabled, true);
+  assert.equal(entry('message-feedback')?.name, '@deepseek-ai/dsh-message-feedback');
+  assert.equal(entry('message-feedback')?.disabled, true);
+  assert.equal(entry('ui-message-feedback')?.name, '@deepseek-ai/dsh-client-ui-message-feedback');
+  assert.equal(entry('ui-message-feedback')?.disabled, true);
   assert.equal(entry('ui-settings-models')?.config?.credentialOnboarding, false);
   const skills = entry('skill-filesystem');
   assert.equal(skills?.name, '@deepseek-ai/dsh-skill-filesystem');

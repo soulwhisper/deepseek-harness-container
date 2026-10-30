@@ -22,7 +22,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if test -s docker/profiles/web/pnpm-lock.yaml && test -s docker/profiles/tavern/pnpm-lock.yaml; then
+          if test -s docker/profiles/tavern/pnpm-lock.yaml; then
             echo 'generate=false' >> "$GITHUB_OUTPUT"
           else
             echo 'generate=true' >> "$GITHUB_OUTPUT"
@@ -37,7 +37,7 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
-          file: docker/Dockerfile
+          file: docker/tavern.Dockerfile
           target: profile-locks
           platforms: linux/amd64
           outputs: type=local,dest=profile-lock-export
@@ -51,4 +51,4 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       # No branch writes, PR creation, auto-merge, final-image build or publication.
-      # Final CI deliberately rejects missing committed profile locks.
+      # Final CI deliberately rejects a missing committed Tavern profile lock; Web is build-resolved.

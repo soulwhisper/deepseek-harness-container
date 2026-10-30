@@ -1,5 +1,9 @@
 # Build and release
 
+`docker/plugins` is a repository-only symlink to `../plugins`. It mirrors the
+image's `/opt/dsh/plugins` path so pnpm can regenerate the Tavern runtime lock
+from the checkout; the Dockerfiles still copy `plugins/forward-auth` explicitly.
+
 The build context is the repository root. Web and Tavern have independent,
 non-inheriting recipes: `docker/web.Dockerfile` and `docker/tavern.Dockerfile`.
 There is no shared `docker/Dockerfile`, no shared final stage, and no Web/Tavern

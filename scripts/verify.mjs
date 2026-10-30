@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import { access, readFile, readdir } from 'node:fs/promises';
+import { access, lstat, readFile, readdir, readlink } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { join, relative } from 'node:path';
@@ -75,8 +75,13 @@ assert.equal(forwardAuthManifest.license, 'Apache-2.0', 'forward-auth is an orig
 assert.ok(!forwardAuthManifest.files.includes('upstream-MIT-LICENSE'), 'forward-auth must not package upstream DSH licensing as its own');
 assert.equal(await present('plugins/forward-auth/upstream-MIT-LICENSE'), false, 'Upstream DSH MIT notice belongs under patches/dsh');
 assert.ok(await present('patches/dsh/upstream-MIT-LICENSE'), 'Patched upstream DSH notice must remain in the distribution');
+const pluginLink = await lstat(join(root, 'docker/plugins'));
+assert.ok(pluginLink.isSymbolicLink(), 'docker/plugins must be a repository-only symlink');
+assert.equal(await readlink(join(root, 'docker/plugins')), '../plugins', 'docker/plugins points at the root plugins tree');
+
 for (const path of ['docker/web.Dockerfile', 'docker/tavern.Dockerfile',
   'docker/runtime/web/package.json', 'docker/runtime/tavern/package.json',
+  'docker/plugins/forward-auth/package.json',
   'docker/profiles/web/cordis.patch.yml', 'docker/profiles/web/compatibility.json',
   'docker/skills/README', 'docker/skills/rtk/SKILL.md',
   'patches/dsh/patch-host.mjs', 'patches/market/patch-market.mjs', 'patches/tavern/patch-tavern.mjs',

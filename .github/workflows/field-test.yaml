@@ -56,6 +56,10 @@ jobs:
         run: |
           set -euo pipefail
           npm install --global --ignore-scripts pnpm@11.25.0
+          # The image places the runtime beside /opt/dsh/plugins. The checkout
+          # has one extra directory level, so provide the same relative link
+          # for this direct-environment install only.
+          ln -s ../plugins docker/plugins
           pnpm --dir docker/runtime/web install --no-frozen-lockfile --prod --store-dir /tmp/pnpm-store
 
       - name: Apply exact-hash patches

@@ -148,10 +148,10 @@ their latest release tags at build time:
 | Caveman skill | `JuliusBrussee/caveman` latest GitHub release tag, `skills/caveman/SKILL.md` | Web only. The tag is resolved at build time, then fetched into `/opt/dsh/seed/skills/caveman`; upstream `LICENSE` and a `SOURCE` record are included. The moving `main` branch is not used |
 | RTK binary | `rtk-ai/rtk` latest release, **`rtk-oss-*` Apache-2.0 edition** | Web only. Checksum-verified and installed at `/usr/local/bin/rtk`; the BUSL-1.1 asset is never used |
 
-The Web runtime sets `minimumReleaseAge: 0` because the alpha line and its
-exact plugin releases can be younger than a normal cooldown. This is an
-alpha-only exception; do not copy it to a stable profile. The published digest
-is the boundary for the resolved tree.
+The Web runtime and profile use a `minimumReleaseAge: 60` cooldown. Exact alpha
+and plugin releases are currently older than that window; if an intentional
+fresh-release override is ever needed, scope it and record the reason. The
+published digest remains the boundary for the resolved tree.
 
 The Web profile is generated at image build with `pnpm install
 --no-frozen-lockfile`; `/data/dsh` is the writable profile that manager operations

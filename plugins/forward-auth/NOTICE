@@ -100,7 +100,8 @@ Tavern corresponding source
 When DSH_SOURCE_ARCHIVE=/opt/dsh/source/tavern.tar.gz and DSH_SOURCE_URL names
 the public HTTPS revision of this distribution, startup validates the archive.
 The exact GET/HEAD /distribution/source.tar.gz route streams that immutable
-archive behind the same mandatory guard (other methods 405). tapIndex adds
-visible Tavern AGPL source-download and distribution-revision links. No source
-route or notice is registered when neither variable is configured. The archive
-is provided by immutable packaging; persistent user data is never archived.
+archive behind the same mandatory guard (other methods 405). tapIndex adds a
+marked source notice before the document body or html close, with visible
+Tavern AGPL source-download and distribution-revision links. No source route or
+notice is registered when neither variable is configured. The archive is
+provided by immutable packaging; persistent user data is never archived.

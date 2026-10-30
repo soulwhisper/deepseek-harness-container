@@ -11,6 +11,7 @@ import { connect } from 'node:net';
 import { once } from 'node:events';
 import { EventEmitter } from 'node:events';
 import { configuration, externalIdentity, identityFailure, createAdmission } from '../plugins/forward-auth/admission.mjs';
+import { injectSourceNotice, sourceMarker, sourceNotice } from '../plugins/forward-auth/source.mjs';
 import { patchSource } from '../patches/dsh/patch-host.mjs';
 
 const rootRequire = createRequire(import.meta.url);
@@ -98,6 +99,21 @@ test('configuration requires header, subjects, trust CIDRs and bounded timers', 
   for (const value of ['', '0', '-1', '1.5', '2147484']) assert.throws(() => configuration({ ...baseEnvironment, DSH_FORWARD_AUTH_MAX_CONNECTION_SECONDS: value }));
   assert.equal(configuration(baseEnvironment).header, AUTH_HEADER);
   assert.equal(configuration(baseEnvironment).maxConnectionMilliseconds, 900000);
+});
+
+test('source notice relocates before body/html and is idempotent', () => {
+  const notice = sourceNotice(new URL('https://example.test/tree/abc'));
+  assert.match(notice, new RegExp(sourceMarker, 'u'));
+  const body = injectSourceNotice('<html><body>app</body></html>', notice);
+  assert.match(body, /app<aside data-dsh-distribution-source/u);
+  assert.match(body, /<\/aside><\/body><\/html>$/u);
+  const noBody = injectSourceNotice('<html><main>app</main></html>', notice);
+  assert.match(noBody, /<\/aside><\/html>$/u);
+  const uppercase = injectSourceNotice('<HTML><BODY>app</BODY></HTML>', notice);
+  assert.match(uppercase, /<\/aside><\/BODY><\/HTML>$/u);
+  const bare = injectSourceNotice('app', notice);
+  assert.match(bare, /app<aside data-dsh-distribution-source/u);
+  assert.equal(injectSourceNotice(body, notice), body);
 });
 
 test('generic forward-auth headers and upstream launch-token URLs', () => {

@@ -8,14 +8,24 @@
 # so these rows exist; the active profile's own patch is applied afterwards and
 # may override them. Keep the official-API Session-log upload opt-in: the
 # dsh_session_log request field is only contributed when enabled. The account
-# UI carries the DeepSeek Platform sign-in, billing and feedback surfaces; the
-# API-key provider remains available without it.
+# UI, account controller and assistant-message feedback surface are disabled:
+# no DeepSeek Platform sign-in, billing or feedback path is exposed. The
+# API-key provider remains available without them.
 - id: session-log-deepseek
   name: '@deepseek-ai/dsh-session-log-deepseek'
   config:
     enabled: false
+- id: message-feedback
+  name: '@deepseek-ai/dsh-message-feedback'
+  disabled: true
+- id: ui-message-feedback
+  name: '@deepseek-ai/dsh-client-ui-message-feedback'
+  disabled: true
 - id: ui-settings-account
   name: '@deepseek-ai/dsh-client-ui-settings-account'
+  disabled: true
+- id: account-controller
+  name: '@deepseek-ai/dsh-api-account-controller'
   disabled: true
 - id: ui-settings-models
   name: '@deepseek-ai/dsh-client-ui-settings-models'

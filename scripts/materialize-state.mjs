@@ -301,7 +301,9 @@ export async function materializeState(options = {}) {
     await writeFile(workspace, YAML.stringify({
       ...previousWorkspace,
       ...seedWorkspace,
-      allowBuilds: { ...previousWorkspace?.allowBuilds, ...seedWorkspace.allowBuilds },
+      // User-approved build scripts are profile state, not image policy.
+      // Seed defaults apply first; an existing approval must survive migration.
+      allowBuilds: { ...seedWorkspace.allowBuilds, ...previousWorkspace?.allowBuilds },
       patchedDependencies: { ...previousWorkspace?.patchedDependencies, ...seedWorkspace.patchedDependencies },
       overrides: { ...previousOverrides, ...seedWorkspace.overrides },
     }));

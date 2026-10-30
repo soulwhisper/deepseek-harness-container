@@ -275,6 +275,10 @@ test('explicit migration preserves user graph, credentials and workspace, remove
   lock.packages = { 'user-plugin@2.3.4': { resolution: { integrity: 'sha512-test-fixture' } }, 'dsh-ui-auth@0.7.1': {} };
   lock.snapshots = { 'user-plugin@2.3.4': {}, 'dsh-ui-auth@0.7.1': {} };
   await writeFile(join(profile, 'pnpm-lock.yaml'), YAML.stringify(lock));
+  await writeFile(join(profile, 'pnpm-workspace.yaml'), YAML.stringify({
+    ...makeWorkspace(),
+    allowBuilds: { 'node-pty': true, 'better-sqlite3': true },
+  }));
   await writeFile(join(profile, 'cordis.patch.yml'), '- name: dsh-ui-auth\n  id: legacy-auth\n- id: user\n  config: {path: /home/node/.dsh/profile-data/web}\n');
   await writeFile(join(options.home, 'cordis.patch.yml'), '- id: group\n  name: group\n  children:\n    - name: dsh-ui-auth\n    - name: user-plugin\n');
   const result = await materializeState({ ...options, action: 'apply' });
@@ -294,6 +298,8 @@ test('explicit migration preserves user graph, credentials and workspace, remove
   const migratedLock = YAML.parse(await readFile(join(profile, 'pnpm-lock.yaml'), 'utf8'));
   assert.deepEqual(migratedLock.packages['user-plugin@2.3.4'], lock.packages['user-plugin@2.3.4']);
   assert.equal(migratedLock.packages['dsh-ui-auth@0.7.1'], undefined);
+  const workspaceConfig = YAML.parse(await readFile(join(profile, 'pnpm-workspace.yaml'), 'utf8'));
+  assert.deepEqual(workspaceConfig.allowBuilds, { 'node-pty': true, 'better-sqlite3': true });
   const overlay = YAML.parse(await readFile(join(profile, 'cordis.patch.yml'), 'utf8'));
   assert.deepEqual(overlay, [{ id: 'user', config: { path: join(options.home, 'profile-data/web') } }]);
   assert.deepEqual(YAML.parse(await readFile(join(options.home, 'cordis.patch.yml'), 'utf8'))[0].children, [{ name: 'user-plugin' }]);
@@ -508,6 +514,12 @@ test('forward-auth bundle keeps privacy defaults and exposes optional skill root
   assert.equal(entry('session-log-deepseek')?.config?.enabled, false);
   assert.equal(entry('ui-settings-account')?.name, '@deepseek-ai/dsh-client-ui-settings-account');
   assert.equal(entry('ui-settings-account')?.disabled, true);
+  assert.equal(entry('account-controller')?.name, '@deepseek-ai/dsh-api-account-controller');
+  assert.equal(entry('account-controller')?.disabled, true);
+  assert.equal(entry('message-feedback')?.name, '@deepseek-ai/dsh-message-feedback');
+  assert.equal(entry('message-feedback')?.disabled, true);
+  assert.equal(entry('ui-message-feedback')?.name, '@deepseek-ai/dsh-client-ui-message-feedback');
+  assert.equal(entry('ui-message-feedback')?.disabled, true);
   assert.equal(entry('ui-settings-models')?.config?.credentialOnboarding, false);
   const skills = entry('skill-filesystem');
   assert.equal(skills?.name, '@deepseek-ai/dsh-skill-filesystem');

@@ -6,5 +6,6 @@ autoInstallPeers: false
 confirmModulesPurge: false
 ignorePnpmfile: true
 minimumReleaseAge: 0
-allowBuilds:
-  node-pty: false
+# Build-script approvals are added by the owner through the market. Leave the
+# seed empty: an explicit false would override the owner's later approval.
+allowBuilds: {}

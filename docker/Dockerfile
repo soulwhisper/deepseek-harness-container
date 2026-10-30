@@ -196,7 +196,10 @@ RUN tar --exclude=.git --exclude=node_modules -czf /opt/dsh/source/tavern.tar.gz
       -C /opt/dsh/source distribution -C /opt/apps dsh-tavern \
     && rm -rf /opt/dsh/source/distribution
 
-FROM tools AS application
+# Each release owns its final application base. Do not reintroduce a shared
+# `application` stage: a Web-only base change must not rebuild or re-label the
+# Tavern release, and vice versa.
+FROM tools AS web-application
 ENV DSH_HOME=/data/dsh \
     HOME=/data/home \
     DSH_AGENTS_HOME=/data/home/.agents \
@@ -220,7 +223,31 @@ LABEL org.opencontainers.image.source="https://github.com/soulwhisper/deepseek-h
       org.opencontainers.image.vendor="soulwhisper" \
       io.github.soulwhisper.distribution.version="0.2.1-rc.2-r2"
 
-FROM application AS web
+FROM tools AS tavern-application
+ENV DSH_HOME=/data/dsh \
+    HOME=/data/home \
+    DSH_AGENTS_HOME=/data/home/.agents \
+    DSH_BACKUP_ROOT=/backups \
+    XDG_CACHE_HOME=/cache \
+    XDG_CONFIG_HOME=/data/home/.config \
+    XDG_DATA_HOME=/data/home/.local/share \
+    npm_config_cache=/cache/npm \
+    PNPM_HOME=/data/home/.local/share/pnpm \
+    NARB_DISABLE_NATIVE_CACHE=1 \
+    DSH_PORT=3080 \
+    TMPDIR=/tmp
+WORKDIR /workspace
+# Exact build/patch inputs, not the repository's test and deploy trees.
+COPY --from=distribution-source / /opt/dsh/distribution-source
+EXPOSE 3080
+USER 1000:1000
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 CMD ["node", "/opt/dsh/scripts/readiness.mjs"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/opt/dsh/scripts/entrypoint.sh"]
+LABEL org.opencontainers.image.source="https://github.com/soulwhisper/deepseek-harness-container" \
+      org.opencontainers.image.vendor="soulwhisper" \
+      io.github.soulwhisper.distribution.version="0.2.1-rc.2-r2"
+
+FROM web-application AS web
 ENV DSH_PROFILE=web
 COPY --from=web-build /opt/dsh /opt/dsh
 # Restore Web-only skill sources into the Web source payload. Tavern never
@@ -234,7 +261,7 @@ LABEL org.opencontainers.image.title="DeepSeek Harness Web with dshmarket, dsh-c
       org.opencontainers.image.version="0.2.1-rc.2-r2" \
       org.opencontainers.image.licenses="Apache-2.0 AND MIT"
 
-FROM application AS tavern
+FROM tavern-application AS tavern
 ARG IMAGE_REVISION
 ENV DSH_PROFILE=tavern \
     DSH_SOURCE_ARCHIVE=/opt/dsh/source/tavern.tar.gz \

@@ -129,8 +129,12 @@ assert.doesNotMatch(dockerfile, /caveman\/main\//u, 'Caveman skill must not foll
 assert.match(dockerfile, /rtk-oss-/u, 'Only the Apache-2.0 RTK OSS asset may be bundled');
 assert.equal((dockerfile.match(/COPY docker\/skills\/ \/opt\/dsh\/seed\/skills\//gu) ?? []).length, 1,
   'Only one final stage may receive the optional skill seed');
-const webStage = dockerfile.slice(dockerfile.indexOf('FROM application AS web'), dockerfile.indexOf('FROM application AS tavern'));
-const tavernStage = dockerfile.slice(dockerfile.indexOf('FROM application AS tavern'));
+assert.doesNotMatch(dockerfile, /FROM application AS/u,
+  'Web and Tavern must not share one final application base');
+assert.match(dockerfile, /FROM tools AS web-application/u, 'Web has its own final base');
+assert.match(dockerfile, /FROM tools AS tavern-application/u, 'Tavern has its own final base');
+const webStage = dockerfile.slice(dockerfile.indexOf('FROM web-application AS web'), dockerfile.indexOf('FROM tavern-application AS tavern'));
+const tavernStage = dockerfile.slice(dockerfile.indexOf('FROM tavern-application AS tavern'));
 assert.match(webStage, /usr\/local\/bin\/rtk/u, 'Web image receives the RTK binary');
 assert.match(webStage, /distribution-source\/docker\/skills/u, 'Web source payload retains its skill sources');
 assert.match(await text('.dockerignore'), /^\.agents$/mu, 'Maintainer-only .agents skill is excluded from build context');
@@ -146,6 +150,11 @@ assert.match(await text('patches/dsh/patch-host.mjs'), /dshTavern\?\.managedBund
   'Manager protects the pinned Tavern bundle set');
 assert.match(await text('scripts/materialize-state.mjs'), /managedDependencies/u,
   'State materialization restores pinned Tavern dependencies');
+assert.match(await text('scripts/materialize-state.mjs'),
+  /allowBuilds: \{ \.\.\.seedWorkspace\.allowBuilds, \.\.\.previousWorkspace\?\.allowBuilds \}/u,
+  'User-approved plugin build scripts must override seed defaults');
+assert.doesNotMatch(await text('docker/profiles/web/pnpm-workspace.yaml'), /node-pty:\s*false/u,
+  'The Web seed must not deny a package the owner may later approve');
 assert.match(await text('scripts/materialize-state.mjs'), /managedLinks\(target/u,
   'Tavern restart restores managed seed links');
 const ignore = await text('.gitignore');

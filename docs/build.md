@@ -22,7 +22,8 @@ Use the native architecture matching the runner or host. CI builds
 | --- | --- |
 | `web` | Final Web image: DSH Web + dshmarket + dsh-context + required forward-auth |
 | `tavern` | Final Tavern image: pinned source workspace + pruned profile + ecosystem |
-| `application` | Shared final-stage base before a profile is selected |
+| `web-application` | Web-only final-stage base; never shared with Tavern |
+| `tavern-application` | Tavern-only final-stage base; never shared with Web |
 | `profile-locks` | Maintainer-only export of `docker/profiles/{web,tavern}/pnpm-lock.yaml` |
 | `runtime-build` | Patched runtime dependency closure |
 | `distribution-source` | Whitelisted build/source payload used by both images |
@@ -100,6 +101,35 @@ workflow, and bump the distribution identity. Existing state then adopts the
 new distribution through the explicit `DSH_STATE_MIGRATION=apply` migration,
 which merges managed bundles and dependencies while preserving user plugins.
 Automatic plugin migration is intentionally unsupported.
+
+### Plugin build scripts
+
+The Web profile seed deliberately has an empty `allowBuilds` map. pnpm's
+default is to block dependency lifecycle scripts; the market or `dsh plugin`
+reports the blocked packages, and the owner approves them per profile. A
+profile's existing `allowBuilds` entries are user state: a distribution
+migration preserves them and only uses the seed as the lower-precedence
+default. This allows any number of reviewed plugins to build without baking a
+plugin-specific approval list into the image.
+
+Tavern's pinned ecosystem is separate and remains manager-protected. Do not
+pre-approve a package globally just because one plugin needs it: an
+`allowBuilds` key authorizes every plugin in that profile that depends on the
+same script owner.
+
+### Upstream tracking
+
+The Web image follows upstream DSH through Renovate's `dsh-web-upstream`
+group. A DSH bump remains a coupled change: update `versions.json`, the runtime
+lock, exact-hash patch anchors, profile locks and release documentation
+together. Do not float DSH itself or weaken a patch hash to make a bump pass.
+The Tavern image follows `flizzywine/dsh-tavern` independently and keeps its
+pinned source/theme pins.
+
+Market-installed Web plugins are user-owned and track their upstream releases
+through the plugin manager; their reviewed build approvals are preserved as
+profile state. The three optional assets below are resolved from upstream at
+image-build time.
 
 ### Floating optional assets
 

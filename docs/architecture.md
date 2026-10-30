@@ -12,7 +12,9 @@ boundary, and which repository changes are allowed to affect which upstream.
 
 Both images use Node 24/glibc, UID/GID `1000:1000`, `tini`, a read-only root
 filesystem, and a native DSH listener on port `3080`. They are built natively for
-`linux/amd64` and `linux/arm64`; there is no QEMU path.
+`linux/amd64` and `linux/arm64`; there is no QEMU path. Each final image has its
+own `web-application` or `tavern-application` base; the two releases do not
+share a final application stage.
 
 The Tavern image additionally retains the complete modified Tavern source at
 `/opt/apps/dsh-tavern` and an authenticated corresponding-source archive at

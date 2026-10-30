@@ -62,6 +62,16 @@ directory is seeded into the Web image as user-facing skills.
   - RTK OSS binary and RTK skill seed
 - The Tavern image owns none of those floating assets. Its profile keeps the
   pinned Tavern distribution and ecosystem only.
+- Web and Tavern have independent final application stages
+  (`web-application`, `tavern-application`). Do not reintroduce a shared
+  `application` stage; a Web base change must not re-label or rebuild Tavern.
+- The Web profile seed keeps `allowBuilds` empty. Owner-approved plugin build
+  scripts are profile state: `materialize-state` must let existing approvals
+  override seed defaults. Do not pre-approve a dependency just because a
+  plugin is popular; one key authorizes every dependent plugin in that profile.
+- The distribution patch disables the account UI, account controller and
+  assistant-message feedback rows. Keep them disabled by default; the edge
+  remains Authentik/forward-auth, not a local login.
 - Tavern pinned ecosystem is immutable like forward-auth:
   - `versions.json` + committed lock pin the packages
   - the package set is installed into the immutable seed profile
@@ -71,6 +81,10 @@ directory is seeded into the Web image as user-facing skills.
   - `dsh-tavern-knock-knock` has no `dsh.bundle`; it is dependency-only
 - `scripts/verify-runtime.mjs` must keep asserting the Tavern absences, the
   protected pinned bundles, and the Web assets.
+- The source notice is injected before `</body>` or `</html>` and carries the
+  `data-dsh-distribution-source` marker. Do not go back to appending after
+  `</html>` or relying on the first literal `</body>` only; built indexes may
+  be uppercase or omit the body close.
 - The base `distribution-source` payload excludes `docker/skills/`. The Web
   final stage adds those sources only to the Web payload; Tavern has neither
   active skills nor skill source files.

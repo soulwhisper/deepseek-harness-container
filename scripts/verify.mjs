@@ -77,6 +77,7 @@ assert.equal(await present('plugins/forward-auth/upstream-MIT-LICENSE'), false, 
 assert.ok(await present('patches/dsh/upstream-MIT-LICENSE'), 'Patched upstream DSH notice must remain in the distribution');
 for (const path of ['docker/web.Dockerfile', 'docker/tavern.Dockerfile',
   'docker/runtime/web/package.json', 'docker/runtime/tavern/package.json',
+  'docker/plugins/forward-auth/package.json',
   'docker/profiles/web/cordis.patch.yml', 'docker/profiles/web/compatibility.json',
   'docker/skills/README', 'docker/skills/rtk/SKILL.md',
   'patches/dsh/patch-host.mjs', 'patches/market/patch-market.mjs', 'patches/tavern/patch-tavern.mjs',

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, writeFile, readdir, lstat, readlink, rm, symlink } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, readFile, writeFile, readdir, lstat, readlink, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -112,6 +112,18 @@ test('migration adds new Web profile defaults without overwriting user rows', as
   const merged = JSON.parse(await readFile(compatibility, 'utf8'));
   assert.deepEqual(merged['owner-plugin@1.0.0'], ['0.2.2-alpha.2']);
   assert.deepEqual(merged['dsh-context@0.78.1'], ['0.2.2-alpha.2']);
+});
+
+test('migration refuses a permission-denied overlay that still needs cleanup', async t => {
+  if (process.getuid?.() === 0) return t.skip('root bypasses write-permission checks');
+  const options = await fixture(t);
+  assert.equal((await materializeState(options)).action, 'seeded');
+  const overlay = join(options.home, 'cordis.patch.yml');
+  await writeFile(overlay, '- id: legacy\n  name: dsh-ui-auth\n');
+  await chmod(overlay, 0o444);
+  await writeFile(join(options.home, '.distribution-state.json'),
+    JSON.stringify({ schema: 1, distribution: 'old', profile: 'web' }));
+  await assert.rejects(materializeState({ ...options, action: 'apply' }), /EACCES|permission denied/iu);
 });
 
 test('injected config mounts do not block the initial seed', async t => {

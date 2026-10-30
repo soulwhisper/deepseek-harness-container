@@ -148,3 +148,34 @@ All admitted subjects are the same DSH owner and share files, tools, model
 credentials and history. This is not multi-user isolation. A single DSH instance
 has no per-user session ownership; use one instance per mutually untrusted owner
 if isolation is required.
+
+## Caddy basic_auth as an edge
+
+A generic user/password login belongs at a trusted edge, not in the DSH image.
+Caddy can be that edge when it terminates TLS, enforces `basic_auth`, and
+injects the configured subject header. This is single-owner HTTP Basic auth: it
+is not multi-user isolation, MFA or a replacement for Authentik/Tailscale.
+
+```caddyfile
+dsh.example.net {
+    basic_auth {
+        owner $2a$14$<bcrypt-hash>
+    }
+    reverse_proxy 172.30.80.3:3080 {
+        header_up Host {host}
+        header_up X-Authentik-Uid {http.auth.user.id}
+    }
+}
+```
+
+Set `DSH_FORWARD_AUTH_HEADER=x-authentik-uid`,
+`DSH_FORWARD_AUTH_ALLOWED_SUBJECTS=owner`, and
+`DSH_FORWARD_AUTH_TRUSTED_PROXY_CIDRS` to the CIDR that actually contains
+Caddy's peer address (`127.0.0.1/32` only if DSH and Caddy truly share loopback,
+otherwise the bridge/edge address). `header_up` must overwrite, not append, any
+client-supplied identity header. Exact proxy semantics vary by Caddy version;
+inspect the upstream request before exposing the listener.
+
+Do not add a local password file, login page, query token or fallback route to
+the DSH image. If the Caddy edge cannot provide a stable subject or is not the
+only network peer, use Authentik or another verified forward-auth edge.

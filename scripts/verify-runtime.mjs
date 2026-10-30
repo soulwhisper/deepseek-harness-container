@@ -213,7 +213,7 @@ async function manager() {
   if (process.env.DSH_PROFILE === 'web') {
     const status = await request('/dsh-market/status', headers, 'GET', undefined, 30_000);
     const state = JSON.parse(status.text);
-    check(status.status === 200 && state.version === '1.66.47' && state.pnpm === true
+    check(status.status === 200 && state.version === '1.73.5' && state.pnpm === true
       && state.agentGuardAvailable === true, 'Real market/native-manager availability');
     const forbidden = await request('/dsh-market/uninstall', headers, 'POST', JSON.stringify({ name: protectedName }), 180_000);
     const refusal = JSON.parse(forbidden.text);
@@ -362,9 +362,15 @@ async function runtime() {
   const manifestPath = `/data/dsh/profiles/${profile}/package.json`;
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const profileRequire = createRequire(manifestPath);
-  const expected = profile === 'web' ? ['@soulwhisper/dsh-forward-auth', 'dshmarket', 'dsh-context']
+  const expected = profile === 'web' ? ['@soulwhisper/dsh-forward-auth', 'dshmarket', 'dsh-context', 'dsh-mnemon', '@michengai/dsh-automation', '@xmanrui/dsh-im', 'dsh-better-sidebar', '@linxin666/dsh-ssh']
     : ['@soulwhisper/dsh-forward-auth', 'dsh-tavern-wrongbook', 'dsh-tavern-knock-knock', 'narrative-anchor'];
   for (const name of expected) check(Object.hasOwn(manifest.dependencies, name), 'Required profile package');
+  if (profile === 'web') {
+    check(manifest.dependencies['dsh-context'] === '0.78.1', 'Bundled dsh-context release');
+    check(manifest.dependencies['@linxin666/dsh-ssh'] === '0.4.12', 'Bundled SSH plugin');
+    check((await stat('/data/memory')).isDirectory(), 'Durable memory root exists');
+    check((await stat('/usr/local/bin/mnemon')).isFile(), 'Bundled Mnemon CLI');
+  }
   if (profile === 'tavern') {
     check(!Object.hasOwn(manifest.dependencies, 'dsh-tavern-comfy'), 'Legacy Tavern image package removed');
   }
@@ -415,7 +421,7 @@ async function runtime() {
     const archive = spawnSync('tar', ['-tzf', process.env.DSH_SOURCE_ARCHIVE], { encoding: 'utf8' });
     check(archive.status === 0 && archive.stdout.includes('dsh-tavern/LICENSE')
       && archive.stdout.includes('dsh-tavern/tavern-plugin/src/')
-      && archive.stdout.includes('distribution/docker/Dockerfile')
+      && archive.stdout.includes('distribution/docker/tavern.Dockerfile')
       && archive.stdout.includes('distribution/docs/source-build.md')
       && archive.stdout.includes('distribution/docs/regulations.md')
       && archive.stdout.includes('distribution/patches/dsh/patch-host.mjs')

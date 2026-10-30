@@ -2,7 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "packageRules": [
     {
-      "description": "DSH Web upstream: versions.json, source commit, release tag, runtime lock and docs move together. Human merges.",
+      "description": "DSH Web upstream: versions.json, source, Web recipe/profile and docs move together. Human merges.",
       "matchPackageNames": [
         "/^@deepseek-ai\\//"
       ],

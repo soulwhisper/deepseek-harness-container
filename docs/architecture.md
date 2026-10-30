@@ -7,14 +7,14 @@ boundary, and which repository changes are allowed to affect which upstream.
 
 | Image | Release tag | Profile | Purpose |
 | --- | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2-r2` | `web-0.2.1-rc.2-r2` | DSH Web, `dshmarket`, `dsh-context`, required forward-auth | General DSH Web with owner-approved community plugins |
+| `ghcr.io/soulwhisper/dsh-web:0.2.2-alpha.2-r1` | `web-0.2.2-alpha.2-r1` | DSH Web alpha, `dshmarket`, `dsh-context`, `dsh-mnemon`, automation/IM/sidebar/SSH, required forward-auth | General DSH Web with owner-approved community plugins |
 | `ghcr.io/soulwhisper/dsh-tavern:3.1.3` | `tavern-3.1.3` | Custom Tavern workspace, forward-auth, ecosystem | Dedicated Tavern instance |
 
 Both images use Node 24/glibc, UID/GID `1000:1000`, `tini`, a read-only root
 filesystem, and a native DSH listener on port `3080`. They are built natively for
 `linux/amd64` and `linux/arm64`; there is no QEMU path. Each final image has its
-own `web-application` or `tavern-application` base; the two releases do not
-share a final application stage.
+own Dockerfile (`web.Dockerfile` / `tavern.Dockerfile`), own runtime closure and
+own final application base; the two recipes do not inherit one another.
 
 The Tavern image additionally retains the complete modified Tavern source at
 `/opt/apps/dsh-tavern` and an authenticated corresponding-source archive at
@@ -60,7 +60,7 @@ surface.
 | `patches/tavern/` | Tavern Origin fence and theme limit | Tavern route/theme sources; route and theme hashes |
 | `patches/wrongbook/` | Supported wrongbook host patches and status runner | Tavern helper/card-response sources; patch anchors |
 | `plugins/forward-auth/` | Own authentication plugin, notices, native Connection exchange | This package's API contract and DSH Connection APIs |
-| `docker/` | Dockerfile, runtime closure, profile workspaces/locks | Build graph, Node/native ABI, pnpm lock format |
+| `docker/` | Independent Web/Tavern Dockerfiles, runtime closures and profile workspaces; only Tavern has a committed lock | Build graph, Node/native ABI, pnpm lock format |
 | `scripts/` | Build, state migration, readiness and verification | Maintenance tooling; not a separate runtime |
 | `test/` | Behavioral and packaging regressions | Test harness only |
 | `docs/` | Durable contracts, plans and source/license text | Documentation and compliance wording |
@@ -78,6 +78,7 @@ documentation trees are not copied into either image.
 | Immutable image | `/opt/dsh/runtime`, `/opt/dsh/seed`, `/opt/dsh/profiles`, `/opt/apps/dsh-tavern`, `/opt/dsh/source` | Read-only, replaced by image |
 | Durable DSH state | `/data/dsh` profiles, sessions, storages, attachments, credentials | Back up encrypted |
 | Durable home | `/data/home` HOME, XDG config/data, pnpm home | Back up |
+| Durable memory | `/data/memory` (`mnemon`, MEMORY.md) | Back up encrypted |
 | Durable projects | `/workspace` | Back up consistently with DSH state |
 | Rebuildable cache | `/cache` and `$DSH_HOME/cache` symlink | May be lost |
 | Diagnostics | `/logs` and `$DSH_HOME/logs` symlink | Sensitive, not authoritative |
@@ -93,13 +94,14 @@ in [State and backup](data-layout.md).
 
 Neither final image contains Chromium, a GUI, X11, VNC, a TCP relay, a local
 password database, a bootstrap admin, an OIDC client or a replacement mux server.
-Browsers are CI test dependencies only.
+Browsers are CI test dependencies only. Browser automation attaches to a host
+browser; see [Host browser](browser.md).
 
 ## Release identity
 
 Only `web-<distribution>` and `tavern-<version>` tags publish. The tag must match
 `versions.json`, point into `main`, and pass native amd64 and arm64 builds plus
 final-image smoke. The combine job creates one multi-arch index. There is no
-floating `latest` image tag and no branch candidate image; the three optional
-upstream assets are build-time floats, not image tags. Deploy the resulting
-digest, not a mutable tag. See [Build and release](build.md).
+floating `latest` image tag and no branch candidate image. Web plugin/skill inputs
+are build-time inputs, not image tags. Deploy the resulting digest, not a mutable
+tag. See [Build and release](build.md).

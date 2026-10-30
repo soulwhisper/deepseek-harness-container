@@ -1,0 +1,32 @@
+# Mount this reviewed file read-only at /data/dsh/cordis.patch.yml.
+# Replace every placeholder with a secret value supplied by your orchestrator;
+# do not commit credentials. Ids must be unique and must not duplicate bundle
+# inserts (for example, dsh-mnemon supplies id: mnemon).
+- insert:
+    - id: mcp-search
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: search
+        transport: streamable-http
+        url: http://agentgateway-proxy.networking-system.svc.cluster.local:80/mcp/search
+        headers:
+          Authorization: "Bearer <mcp-search-token>"
+        failOnStartupError: false
+    - id: mcp-cluster
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: cluster
+        transport: streamable-http
+        url: http://agentgateway-proxy.networking-system.svc.cluster.local:80/mcp/cluster
+        headers:
+          Authorization: "Bearer <mcp-cluster-token>"
+        failOnStartupError: false
+    - id: mcp-home
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: home
+        transport: streamable-http
+        url: http://agentgateway-proxy.networking-system.svc.cluster.local:80/mcp/home
+        headers:
+          Authorization: "Bearer <mcp-home-token>"
+        failOnStartupError: false

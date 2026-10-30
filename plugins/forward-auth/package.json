@@ -1,14 +1,37 @@
 {
   "name": "@soulwhisper/dsh-forward-auth",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Required trusted-edge forward-auth gate for the self-packaged DSH Host",
   "type": "module",
   "license": "Apache-2.0",
   "main": "index.mjs",
-  "exports": { ".": "./index.mjs", "./cordis.patch.yml": "./cordis.patch.yml", "./package.json": "./package.json" },
-  "files": ["*.mjs", "*.yml", "LICENSE", "NOTICE"],
-  "dsh": { "bundle": { "patch": ["./cordis.patch.yml"] } },
-  "dependencies": { "ipaddr.js": "2.5.0" },
-  "peerDependencies": { "@deepseek-ai/cordis": "~4.0.5", "@deepseek-ai/dsh-host-webserver": "0.2.1-rc.2", "@deepseek-ai/dsh-client-connection": "0.2.1-rc.2" },
-  "engines": { "node": ">=24" }
+  "exports": {
+    ".": "./index.mjs",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "*.mjs",
+    "*.yml",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": [
+        "./cordis.patch.yml"
+      ]
+    }
+  },
+  "dependencies": {
+    "ipaddr.js": "2.5.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "~4.0.5 || ~4.0.6-alpha.1",
+    "@deepseek-ai/dsh-host-webserver": "0.2.1-rc.2 || 0.2.2-alpha.2",
+    "@deepseek-ai/dsh-client-connection": "0.2.1-rc.2 || 0.2.2-alpha.2"
+  },
+  "engines": {
+    "node": ">=24"
+  }
 }

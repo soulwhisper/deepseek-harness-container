@@ -3,7 +3,7 @@ name: dsh-maintainer
 description: >
   Use when changing, building, verifying or releasing this DeepSeek Harness
   container distribution. Records the Web/Tavern optional-asset boundary,
-  user-removable plugin ownership, floating upstream inputs and CI verification.
+  user-removable plugin ownership, build-resolved Web inputs and CI verification.
 ---
 # DSH distribution maintenance
 
@@ -56,19 +56,20 @@ directory is seeded into the Web image as user-facing skills.
 
 ## Web and Tavern boundary
 
-- The Web image owns all **floating** optional assets:
-  - `dsh-context`
-  - Caveman skill seed
-  - RTK OSS binary and RTK skill seed
-- The Tavern image owns none of those floating assets. Its profile keeps the
-  pinned Tavern distribution and ecosystem only.
-- Web and Tavern have independent final application stages
+- The Web image owns the **bundled** Web assets: `dsh-context`, `dsh-mnemon`,
+  automation, IM, sidebar and SSH plugins, plus the Caveman skill seed and RTK
+  OSS binary. `/data/memory` is durable user memory.
+- The Tavern image owns none of those Web assets. Its profile keeps the pinned
+  Tavern distribution and ecosystem only.
+- Web and Tavern have independent Dockerfiles (`web.Dockerfile`,
+  `tavern.Dockerfile`), runtime closures and final application stages
   (`web-application`, `tavern-application`). Do not reintroduce a shared
-  `application` stage; a Web base change must not re-label or rebuild Tavern.
-- The Web profile seed keeps `allowBuilds` empty. Owner-approved plugin build
-  scripts are profile state: `materialize-state` must let existing approvals
-  override seed defaults. Do not pre-approve a dependency just because a
-  plugin is popular; one key authorizes every dependent plugin in that profile.
+  Dockerfile, shared runtime/profile, or shared final stage.
+- The Web profile seed approves only `ssh2` and `cpu-features` for the bundled
+  SSH plugin. Owner-approved plugin build scripts are profile state:
+  `materialize-state` must let existing approvals override seed defaults. Do
+  not pre-approve a dependency just because a plugin is popular; one key
+  authorizes every dependent plugin in that profile.
 - The distribution patch disables the account UI, account controller and
   assistant-message feedback rows. Keep them disabled by default; the edge
   remains Authentik/forward-auth, not a local login.
@@ -120,7 +121,7 @@ pinned commit; update this note and `NOTICE` when it changes.
 
 Bundle IDs are unique. Keep the bundle order stable, especially around
 `dsh-better-sidebar` and aggregate bundles. Do not move these packages to the
-Web floating path or into the writable market set.
+Web bundled path or into the writable market set.
 
 ## Tavern version bumps and Renovate PRs
 
@@ -148,7 +149,7 @@ intentionally incomplete and must not be merged.
 4. Update every coupled surface:
    - `versions.json`: `release.tavern.tag`, `tavern.version`, `commit`,
      `routesSha256`, `upstreamTag`
-   - `docker/Dockerfile`: both commit checks, both OCI labels, and the
+   - `docker/tavern.Dockerfile`: Tavern commit check, OCI label, and the
      `patches/wrongbook` invocation
    - `NOTICE`: Tavern version/source commit, bundled scene-image version and
      the vendored wrongbook patch notice
@@ -210,42 +211,40 @@ Vendored subset: `patches/wrongbook/` from wrongbook v1.33.0 `debug/`.
   ship a guessed anchor. Update `patches/wrongbook/SOURCE`, `NOTICE` and
   `docs/patches.md` when the subset changes.
 
-## Floating optional assets
+## Build-resolved Web inputs
 
-Only the Web image has these; they are deliberately **not version-pinned** in
-this repository:
+Only the Web image has these. The Web runtime/profile has **no committed lock**:
 
 | Asset | Source | Resolution |
 | --- | --- | --- |
-| `dsh-context` | npm `latest` | Installed as a normal package in the generated Web profile; runtime peers stay immutable links |
+| Web plugins | npm releases pinned in `scripts/materialize-profiles.mjs` | Installed as normal profile packages; manager may remove them |
 | Caveman skill | `JuliusBrussee/caveman` latest GitHub release tag | Resolve the tag, then fetch into the Web seed; upstream LICENSE and NOTICE retained |
 | RTK | `rtk-ai/rtk` latest release, `rtk-oss-*` only | Verified and installed into the Web image |
 
 Rules:
 
-- Do not add versions for these three to `versions.json` or Renovate.
-- Do not add `latest` image tags. The image digest is the reproducibility
-  boundary for the floating bytes.
-- Do not add these to committed profile locks; the Web build regenerates the
-  in-image profile lock with `--no-frozen-lockfile`.
+- Do not add `latest` image tags. The published Web digest is the
+  reproducibility boundary.
+- Do not add a committed Web profile/runtime lock; the Web build resolves the
+  profile with pnpm.
+- Keep the Tavern runtime and profile locks pinned and reviewed.
 - Docker layers may cache old upstream bytes. Use a clean runner or bypass the
   relevant build cache when an explicit refresh is required.
 
 ## dsh-context ownership
 
-- Install `dsh-context` from npm `latest` as a normal dependency in the
-  generated Web profile, not in `/opt/dsh/runtime`.
-- Add it to `dsh.profile.bundles`.
-- Keep its `@deepseek-ai/dsh-session` and `@deepseek-ai/schemastery` peers as
-  immutable runtime links.
+- Install `dsh-context` as a normal dependency in the generated Web profile,
+  not in `/opt/dsh/runtime`.
+- Add it to `dsh.profile.bundles` and the Web profile compatibility exemption
+  where its upstream `compatibility.dshReleases` map lacks the current alpha.
+- Keep its runtime peers as immutable links.
 - Verify the installed package still declares `dsh.bundle` and a compatible
   current DSH release.
 - The manager must report `dsh-context` as `availability: profile`,
   `installed: true`, and `removable: true`.
 - Only `@soulwhisper/dsh-forward-auth` and the Tavern
-  `dshTavern.managedBundles` set are manager-protected. Do not add Web floating
-  plugin installs to the runtime and do not reintroduce
-  `patch-host.mjs --repair` just to support one.
+  `dshTavern.managedBundles` set are manager-protected. Do not add Web plugin
+  installs to the runtime and do not reintroduce `patch-host.mjs --repair`.
 - Removal by the user is intended and must persist across restarts.
 
 ## Caveman skill

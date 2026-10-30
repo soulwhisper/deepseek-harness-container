@@ -4,16 +4,16 @@
 
 面向 **已验证 forward-auth 入口之后的单一共享 owner**，自行打包的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 发行版。提供两个 OCI 镜像、独立维护的 forward-auth gate、明确的状态/备份边界，不包含桌面栈。
 
-> DSH `0.2.1-rc.2` 仍是 developer preview，不是经过安全审计的生产平台。登录成功不代表入口、插件、模型凭据、备份或 Agent 沙箱已安全。不要直接暴露原生监听端口。
+> DSH `0.2.2-alpha.2`（Web）与 `0.2.1-rc.2`（Tavern）仍是 developer preview，不是经过安全审计的生产平台。登录成功不代表入口、插件、模型凭据、备份或 Agent 沙箱已安全。不要直接暴露原生监听端口。
 
 ## 镜像
 
 | 镜像 | Release 标签 | Profile |
 | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2-r2` | `web-0.2.1-rc.2-r2` | DSH Web + `dshmarket` + `dsh-context` + 必需 forward-auth |
+| `ghcr.io/soulwhisper/dsh-web:0.2.2-alpha.2-r1` | `web-0.2.2-alpha.2-r1` | DSH Web alpha + `dshmarket` + `dsh-context` + `dsh-mnemon` + 自动化/IM/侧栏/SSH + 必需 forward-auth |
 | `ghcr.io/soulwhisper/dsh-tavern:3.1.3` | `tavern-3.1.3` | 自定义 Tavern workspace + forward-auth + 固定且受 manager 保护的配套插件 |
 
-Web 镜像使用 distribution revision（DSH 版本不变时以 `-rN` 区分镜像变更），Tavern 跟随 dsh-tavern；两者独立发版。镜像使用 Node 24/glibc、UID/GID `1000:1000`、单一具体 IP 的 `3080` 监听和只读根文件系统。Web 镜像会 seed 可选的 Caveman、RTK skill，安装 RTK OSS binary，并在可移除的 Web profile 中 seed `dsh-context`；forward-auth bundle 与 Tavern 固定管理的 bundle 受 manager 保护，Web 浮动插件仍可移除。Tavern 镜像刻意不包含这些浮动资产。这三项上游资产在 Web 镜像构建时取各自最新状态，不在仓库中锁定版本，也不由 Renovate 跟踪；因此部署应使用发布 digest，不能假设从 `latest` 重建完全可复现。详见 [build](docs/build.md#floating-optional-assets)。CI 在原生 `linux/amd64` 与 `linux/arm64` runner 上构建，不使用 QEMU。镜像不包含 Chromium、GUI、X11、VNC、本地密码库、OIDC 客户端或替代 mux 服务。
+Web 镜像使用 distribution revision（DSH 版本不变时以 `-rN` 区分镜像变更），Tavern 跟随 dsh-tavern；两者独立发版。镜像使用 Node 24/glibc、UID/GID `1000:1000`、单一具体 IP 的 `3080` 监听和只读根文件系统。Web 镜像会 seed Caveman、RTK skill，安装 RTK OSS binary，并在可写的 Web profile 中打包 `dsh-context`、`dsh-mnemon`、自动化、IM、侧栏与 SSH 插件。`/data/memory` 是持久记忆目录；插件代码与 `/data/dsh` profile 可替换。Tavern 使用独立、不继承 Web 的配方，完全不接收这些资产。forward-auth bundle 与 Tavern 固定管理的 bundle 受 manager 保护。Web 不提交 runtime/profile lock，部署应使用发布 digest；Tavern 仍保持固定。详见 [build](docs/build.md)。
 
 ## 文档
 
@@ -25,7 +25,8 @@ Web 镜像使用 distribution revision（DSH 版本不变时以 `-rN` 区分镜�
 | [Build](docs/build.md) | Docker target、源码载荷、锁文件 |
 | [Deploy](docs/deploy.md) | Compose 与 Kubernetes 示例 |
 | [Operations](docs/operations.md) | 启动、迁移、备份、回滚 |
-| [Data layout](docs/data-layout.md) | 持久状态与 cache/logs/backup/tmp 边界 |
+| [Data layout](docs/data-layout.md) | 持久状态、memory 与 cache/logs/backup/tmp 边界 |
+| [Host browser](docs/browser.md) | 不打包 Chromium 的 BrowserSkill 主机接入 |
 | [Patches](docs/patches.md) | 精确哈希上游补丁 |
 | [Source build](docs/source-build.md) | Tavern 对应源码与重建配方 |
 | [Licensing](docs/regulations.md) | Apache/MIT/AGPL 义务 |
@@ -35,13 +36,13 @@ Web 镜像使用 distribution revision（DSH 版本不变时以 `-rN` 区分镜�
 
 ## 构建
 
-Build context 是仓库根目录，Dockerfile 为 `docker/Dockerfile`。
+Build context 是仓库根目录。Web 与 Tavern 使用互不继承的独立配方：`docker/web.Dockerfile` 与 `docker/tavern.Dockerfile`。
 
 ```bash
 # arm64 主机请把 linux/amd64 换成 linux/arm64。
-docker buildx build -f docker/Dockerfile --platform linux/amd64 --target web \
+docker buildx build -f docker/web.Dockerfile --platform linux/amd64 --target web \
   --build-arg IMAGE_REVISION="$(git rev-parse HEAD)" --load -t dsh-web:local .
-docker buildx build -f docker/Dockerfile --platform linux/amd64 --target tavern \
+docker buildx build -f docker/tavern.Dockerfile --platform linux/amd64 --target tavern \
   --build-arg IMAGE_REVISION="$(git rev-parse HEAD)" --load -t dsh-tavern:local .
 ```
 
@@ -59,7 +60,7 @@ docker volume create dsh-web-cache
 docker volume create dsh-web-logs
 docker volume create dsh-web-backups
 
-export IMAGE=ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2-r2
+export IMAGE=ghcr.io/soulwhisper/dsh-web:0.2.2-alpha.2-r1
 export ALLOWED_SUBJECTS='your-stable-owner-id'
 
 docker run --detach --name dsh-web --restart unless-stopped \
@@ -108,9 +109,9 @@ gate 还会拒绝任何查询字符串包含 `token` 的请求，包括 upstream
 
 ## 发布与自动化
 
-只有 `web-<distribution>` 与 `tavern-<version>` 标签会发布。标签必须匹配 `versions.json`、位于 `main`，在原生 amd64/arm64 runner 上构建并 smoke，再合并为一个多架构 index。没有 `latest` 镜像标签、分支发布或 candidate `sha-` 镜像；`dsh-context`、Caveman、RTK 是构建时浮动上游资产，不是发布标签。PR 始终运行必需的静态检查与测试；只有影响镜像/构建输入时才运行原生镜像 smoke；不获取仓库 secrets。同仓库 PR labeler 与定时 label sync 只使用 job 级默认 token（`pull-requests: write` / `issues: write`）；registry push 使用 job 级 `GITHUB_TOKEN` + `packages: write`，release notes 与 cleanup 使用 GitHub App。构建/测试 job 不获取 App 凭据。
+只有 `web-<distribution>` 与 `tavern-<version>` 标签会发布。标签必须匹配 `versions.json`、位于 `main`，在原生 amd64/arm64 runner 上构建并 smoke，再合并为一个多架构 index。没有 `latest` 镜像标签、分支发布或 candidate `sha-` 镜像；Web 插件集与 Caveman/RTK 是构建输入，不是发布标签。PR 始终运行必需的静态检查与测试；只有影响镜像/构建输入时才运行原生镜像 smoke；不获取仓库 secrets。同仓库 PR labeler 与定时 label sync 只使用 job 级默认 token（`pull-requests: write` / `issues: write`）；registry push 使用 job 级 `GITHUB_TOKEN` + `packages: write`，release notes 与 cleanup 使用 GitHub App。构建/测试 job 不获取 App 凭据。
 
-Renovate 仅提供提示，从不自动合并。源码 commit、精确补丁/主题哈希、锁和 release tag 必须由人工一起更新。
+Renovate 仅提供提示，从不自动合并。源码 commit、精确补丁/主题哈希、Tavern 锁和 release tag 必须由人工一起更新。
 
 ## HA 限制
 

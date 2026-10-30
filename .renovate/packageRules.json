@@ -16,7 +16,8 @@
     {
       "description": "Node digest, pnpm and Dockerfile syntax are coupled build pins. Update deliberately with the image and locks.",
       "matchFileNames": [
-        "docker/Dockerfile"
+        "docker/web.Dockerfile",
+        "docker/tavern.Dockerfile"
       ],
       "enabled": false
     },
@@ -41,6 +42,6 @@
     }
   ],
   "prBodyNotes": [
-    "DSH is a developer preview. Verify that the version change also updates the source commit, exact-hash patch anchors, locks, release tag and documentation. A version-only update is not mergeable."
+    "DSH is a developer preview. Verify that a version change updates the source recipe, exact-hash patch anchors, the Tavern lock where applicable, release tag and documentation. A version-only update is not mergeable."
   ]
 }

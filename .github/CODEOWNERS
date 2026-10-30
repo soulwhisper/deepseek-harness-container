@@ -7,8 +7,10 @@
 /patches/dsh/                  @soulwhisper
 /patches/market/               @soulwhisper
 /patches/tavern/               @soulwhisper
-/docker/Dockerfile             @soulwhisper
+/docker/web.Dockerfile         @soulwhisper
+/docker/tavern.Dockerfile      @soulwhisper
 /docker/runtime/               @soulwhisper
+/docker/profiles/web/          @soulwhisper
 /versions.json                 @soulwhisper
 /.github/workflows/            @soulwhisper
 /renovate.json                 @soulwhisper

@@ -6,6 +6,10 @@ autoInstallPeers: false
 confirmModulesPurge: false
 ignorePnpmfile: true
 minimumReleaseAge: 0
-# Build-script approvals are added by the owner through the market. Leave the
-# seed empty: an explicit false would override the owner's later approval.
-allowBuilds: {}
+# Only bundled SSH transport builds are pre-approved. Owner approvals through
+# the market remain additive; do not pre-approve unrelated packages.
+allowBuilds:
+  # Native transport for the bundled SSH plugin. Owner approvals still merge
+  # over these seed defaults in materialize-state.
+  ssh2: true
+  cpu-features: true

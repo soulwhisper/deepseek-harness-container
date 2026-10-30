@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const runtimeManifest = new URL('../docker/runtime/package.json', import.meta.url);
+const runtimeManifest = new URL('../docker/runtime/web/package.json', import.meta.url);
 const require = createRequire(runtimeManifest);
 const expectedArch = process.env.EXPECTED_ARCH;
 if (expectedArch) assert.equal(process.arch, expectedArch, `Expected ${expectedArch}, got ${process.arch}`);

@@ -4,13 +4,13 @@ English | [简体中文](README.zh-CN.md)
 
 An independent, self-packaged [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) distribution for a **single shared owner behind a verified forward-auth edge**. It ships two OCI images, an independently maintained forward-auth gate, explicit state and backup boundaries, and no desktop stack.
 
-> DSH `0.2.1-rc.2` is a developer preview, not an audited production platform. A working login does not prove the edge, plugins, model credentials, backups or agent sandbox are safe. Never expose the native listener directly.
+> DSH `0.2.2-alpha.2` (Web) and `0.2.1-rc.2` (Tavern) are developer previews, not audited production platforms. A working login does not prove the edge, plugins, model credentials, backups or agent sandbox are safe. Never expose the native listener directly.
 
 ## Images
 
 | Image | Release tag | Profile |
 | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2-r2` | `web-0.2.1-rc.2-r2` | DSH Web + `dshmarket` + `dsh-context` + required forward-auth |
+| `ghcr.io/soulwhisper/dsh-web:0.2.2-alpha.2-r1` | `web-0.2.2-alpha.2-r1` | DSH Web alpha + `dshmarket` + `dsh-context` + `dsh-mnemon` + automation/IM/sidebar/SSH + required forward-auth |
 | `ghcr.io/soulwhisper/dsh-tavern:3.1.3` | `tavern-3.1.3` | Custom Tavern workspace + forward-auth + pinned manager-protected ecosystem |
 
 Web images use the distribution revision (`<dsh-version>-rN` when the image
@@ -21,15 +21,14 @@ Both are built natively for `linux/amd64` and `linux/arm64` (no QEMU). The
 images contain no Chromium, GUI, X11, VNC, local password database, OIDC client
 or replacement mux server.
 
-The Web image seeds the optional Caveman and RTK skills, installs the RTK OSS
-binary and seeds `dsh-context` in the removable Web profile. Tavern
-intentionally includes none of these floating assets. The forward-auth bundle
-and Tavern's pinned managed bundles are manager-protected; the Web floating
-plugins remain removable. The three upstream inputs are resolved at Web
-image-build time from their latest upstream state; they are not pinned or
-tracked by Renovate, so deploy the published digest rather than expecting a
-reproducible rebuild from `latest`. See
-[build](docs/build.md#floating-optional-assets).
+The Web image seeds the Caveman and RTK skills, installs the RTK OSS binary,
+and bundles `dsh-context`, `dsh-mnemon`, automation, IM, sidebar and SSH
+plugins in the writable Web profile. `/data/memory` is durable memory; the
+plugin code and `/data/dsh` profile remain replaceable. Tavern is a separate,
+non-inheriting recipe and receives none of these Web assets. The forward-auth
+bundle and Tavern's pinned managed bundles are manager-protected. Web has no
+committed runtime/profile lock, so deploy its published digest; Tavern remains
+pinned. See [build](docs/build.md).
 
 ## Documentation
 
@@ -52,13 +51,13 @@ localized entry point, not a second docs tree.
 
 ## Build
 
-Build context is the repository root; the Dockerfile is `docker/Dockerfile`.
+Build context is the repository root. Web and Tavern use separate, non-inheriting recipes: `docker/web.Dockerfile` and `docker/tavern.Dockerfile`.
 
 ```bash
 # Use linux/arm64 instead on an arm64 host.
-docker buildx build -f docker/Dockerfile --platform linux/amd64 --target web \
+docker buildx build -f docker/web.Dockerfile --platform linux/amd64 --target web \
   --build-arg IMAGE_REVISION="$(git rev-parse HEAD)" --load -t dsh-web:local .
-docker buildx build -f docker/Dockerfile --platform linux/amd64 --target tavern \
+docker buildx build -f docker/tavern.Dockerfile --platform linux/amd64 --target tavern \
   --build-arg IMAGE_REVISION="$(git rev-parse HEAD)" --load -t dsh-tavern:local .
 ```
 
@@ -80,7 +79,7 @@ docker volume create dsh-web-cache
 docker volume create dsh-web-logs
 docker volume create dsh-web-backups
 
-export IMAGE=ghcr.io/soulwhisper/dsh-web:0.2.1-rc.2-r2
+export IMAGE=ghcr.io/soulwhisper/dsh-web:0.2.2-alpha.2-r1
 export ALLOWED_SUBJECTS='your-stable-owner-id'
 
 docker run --detach --name dsh-web --restart unless-stopped \
@@ -152,9 +151,8 @@ that token; treat logs as sensitive. Status logs report `waiting-for-edge`,
 Only `web-<distribution>` and `tavern-<version>` tags publish. Each tag must match
 `versions.json`, point into `main`, is built and smoked on native amd64/arm64
 runners, and is combined into one multi-arch index. There is no `latest` image
-tag, no branch publication and no candidate `sha-` image; the optional
-`dsh-context`, Caveman and RTK inputs are floating build-time upstream assets,
-not release tags. PRs always run the required static checks and tests; native
+tag, no branch publication and no candidate `sha-` image; the Web plugin set and Caveman/RTK inputs are build-time inputs, not release
+tags. PRs always run the required static checks and tests; native
 image smoke runs when image/build inputs change. Pull requests receive no
 repository secrets. The same-repo PR
 labeler and scheduled label sync use job-scoped default tokens with only
@@ -162,8 +160,8 @@ labeler and scheduled label sync use job-scoped default tokens with only
 `GITHUB_TOKEN` with `packages: write`; release notes and cleanup use the GitHub
 App. Build/test jobs never receive App credentials.
 
-Renovate is advisory and never auto-merges. Coupled pins (source commits, exact
-patch hashes, theme hashes, locks and release tags) must be updated by a human.
+Renovate is advisory and never auto-merges. Coupled pins (source commits, exact patch hashes, theme hashes, Tavern locks and
+release tags) must be updated by a human.
 
 ## HA limitation
 

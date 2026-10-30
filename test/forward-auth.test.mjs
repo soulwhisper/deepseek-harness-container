@@ -18,7 +18,7 @@ const rootRequire = createRequire(import.meta.url);
 function resolvePackage(name) {
   try { return rootRequire.resolve(name); } catch (error) {
     if (error.code !== 'MODULE_NOT_FOUND') throw error;
-    const anchor = process.env.DSH_TEST_RUNTIME ? pathToFileURL(process.env.DSH_TEST_RUNTIME + '/package.json') : new URL('../docker/runtime/package.json', import.meta.url);
+    const anchor = process.env.DSH_TEST_RUNTIME ? pathToFileURL(process.env.DSH_TEST_RUNTIME + '/package.json') : new URL('../docker/runtime/tavern/package.json', import.meta.url);
     return createRequire(anchor).resolve(name);
   }
 }

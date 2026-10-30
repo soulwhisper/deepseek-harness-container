@@ -33,7 +33,7 @@ is Apache-2.0; bundled upstream components keep their own licenses.
 | --- | --- | --- |
 | DeepSeek Harness | MIT | Host/manager/app-boot patched at build time; upstream notice retained |
 | DSH Market | MIT | Managed-runtime bridge patch applied |
-| `dsh-context` | Apache-2.0 | Web only; installed from npm `latest` at build time; packaged LICENSE retained |
+| `dsh-context`, `dsh-mnemon`, automation/IM/sidebar/SSH plugins | Per-package | Web only; installed from their npm releases at build time; packaged LICENSE retained |
 | Caveman skill | Apache-2.0 | Web only; fetched from the latest upstream GitHub release tag at build time (not `main`); `LICENSE` and `NOTICE` retained in the skill seed |
 | RTK OSS | Apache-2.0 | Web only; `rtk-oss-*` release asset only; the BUSL-1.1 edition is not bundled; LICENSE retained |
 | Tavern ecosystem packages | MIT | Installed in the Tavern image only |
@@ -43,9 +43,9 @@ is Apache-2.0; bundled upstream components keep their own licenses.
 Installed dependency trees retain their packaged license files. The root
 [NOTICE](../NOTICE) records the DSH, market, ecosystem, Tavern and inspiration
 notices. An OCI SBOM is an inventory, not a substitute for those licenses.
-The Web image retains the floating assets' upstream license/notice files:
-`dsh-context` under the writable Web profile `node_modules` seed, Caveman under
-the skill seed, and RTK under `/usr/local/share/rtk`. Tavern does not include them.
+The Web image retains the bundled plugins' license/notice files under the
+writable Web profile `node_modules` seed, Caveman under the skill seed, and RTK
+under `/usr/local/share/rtk`. Tavern does not include them.
 
 The distribution patches DSH Host/manager/app-boot and applies the recorded
 Tavern route/theme modifications. Those modifications are not upstream
@@ -79,10 +79,9 @@ Tavern AGPL license. See [Corresponding source](source-build.md).
 ## Reproducibility and attestations
 
 The build pins Node, pnpm, DSH/Tavern sources, patches, theme files and profile
-locks. The optional `dsh-context`, Caveman skill and RTK OSS binary are
-deliberately floating upstream inputs resolved at build time, so exact-bytes
-reproduction also requires the same upstream state or the published image
-digest. The current release index has no BuildKit provenance or SBOM attestation
+locks. The Web plugin set, Caveman skill and RTK OSS binary are resolved at
+build time, so exact-bytes reproduction also requires the same upstream state
+or the published image digest; Tavern remains locked. The current release index has no BuildKit provenance or SBOM attestation
 attached; verify deployments by digest and preserve the previous digest plus
 volume snapshots. Do not describe an unrun local build as a certified release.
 

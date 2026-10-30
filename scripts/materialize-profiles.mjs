@@ -36,8 +36,15 @@ for (const profile of ['web', 'tavern'].filter(name => !process.env.DSH_BUILD_PR
   workspace.overrides = overrides;
   if (profile === 'web') {
     dependencies.dshmarket = link('dshmarket');
-    bundles.push('dshmarket');
-    await writeFile(join(dir, 'cordis.patch.yml'), '[]\n');
+    dependencies['dsh-context'] = '0.78.1';
+    dependencies['dsh-mnemon'] = '0.5.37';
+    dependencies['@michengai/dsh-automation'] = '1.0.13';
+    dependencies['@xmanrui/dsh-im'] = '5.8.0';
+    dependencies['dsh-better-sidebar'] = '0.28.2';
+    dependencies['@linxin666/dsh-ssh'] = '0.4.12';
+    bundles.push('dshmarket', 'dsh-context', 'dsh-mnemon', '@michengai/dsh-automation', '@xmanrui/dsh-im', 'dsh-better-sidebar', '@linxin666/dsh-ssh');
+    await cp(`${root}profiles/web/cordis.patch.yml`, join(dir, 'cordis.patch.yml'));
+    await cp(`${root}profiles/web/compatibility.json`, join(dir, 'compatibility.json'));
   } else {
     dependencies['dsh-better-sidebar'] = '0.28.0';
     dependencies['dsh-dream-skin'] = `link:${source}/tavern-plugin/packages/dsh-dream-skin`;

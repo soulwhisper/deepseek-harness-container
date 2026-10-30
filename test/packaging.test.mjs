@@ -100,7 +100,7 @@ test('migration adds new Web profile defaults without overwriting user rows', as
   assert.equal((await materializeState(options)).action, 'seeded');
   const patch = join(options.home, 'profiles/web/cordis.patch.yml');
   const compatibility = join(options.home, 'profiles/web/compatibility.json');
-  await writeFile(patch, '- id: user\n  config:\n    keep: true\n    expr: !!js process.env.OWNER_EXPR\n');
+  await writeFile(patch, '[ { id: user, config: { keep: true, expr: !!js process.env.OWNER_EXPR } } ]\n');
   await writeFile(compatibility, JSON.stringify({ 'owner-plugin@1.0.0': ['0.2.2-alpha.2'] }));
   await writeFile(join(options.home, '.distribution-state.json'),
     JSON.stringify({ schema: 1, distribution: 'old', profile: 'web' }));

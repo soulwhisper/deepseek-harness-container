@@ -42,8 +42,8 @@ test('Web profile bundles memory and integration plugins without a committed loc
 });
 
 test('deployment examples carry the memory root and MCP mount shape', async () => {
-  assert.match(await read('deploy/docker/compose.yaml'), /dsh-web-data:\/data/u);
-  assert.match(await read('deploy/kubernetes/dsh-web.yaml'), /mountPath: \/data/u);
+  assert.match(await read('deploy/docker/compose.yaml'), /- dsh-web-data:\/data/u);
+  assert.match(await read('deploy/kubernetes/dsh-web.yaml'), /- name: data\n\s+mountPath: \/data/u);
   const mcp = await read('deploy/docker/cordis.patch.mcp.example.yml');
   for (const id of ['mcp-search', 'mcp-cluster', 'mcp-home']) assert.match(mcp, new RegExp(`id: ${id}`, 'u'));
   assert.match(mcp, /Authorization: "Bearer </u);

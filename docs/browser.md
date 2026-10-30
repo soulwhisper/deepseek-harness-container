@@ -2,7 +2,8 @@
 
 DSH Web has **no Chromium, Playwright browser, X11, VNC or desktop** in either
 image. Browser automation is an operator-supplied plugin plus a browser
-extension outside the container.
+extension outside the container. Do not mount `/dev/dri`, an X11 socket, a VNC
+port or a browser profile into the DSH container for this purpose.
 
 ## Install the plugin
 

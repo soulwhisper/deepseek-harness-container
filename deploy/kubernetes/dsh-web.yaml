@@ -110,6 +110,11 @@ spec:
               mountPath: /logs
             - name: backups
               mountPath: /backups
+            # Optional reviewed profile patch (MCP servers, defaults).
+            # - name: profile-patch
+            #   mountPath: /data/dsh/cordis.patch.yml
+            #   subPath: cordis.patch.yml
+            #   readOnly: true
             - name: tmp
               mountPath: /tmp
       volumes:
@@ -124,6 +129,11 @@ spec:
         - name: backups
           emptyDir:
             sizeLimit: 10Gi
+        # Optional reviewed profile patch. Create the Secret first.
+        # - name: profile-patch
+        #   secret:
+        #     secretName: dsh-web-profile-patch
+        #     optional: true
         - name: tmp
           emptyDir:
             medium: Memory

@@ -80,6 +80,15 @@ separate profile dependency)
 Copyright (c) 2026 dsh-tavern-image contributors
 https://github.com/weixinlll/dsh-tavern-image
 
+Tavern — AGPL-3.0-only
+Source: https://github.com/flizzywine/dsh-tavern/tree/5deb1ef377240d0f41808a8e346040ff1def31d1
+Copyright (c) 2026 flizzywine and dsh-tavern contributors
+The Tavern image contains the modified Tavern source and build recipe at
+/opt/apps/dsh-tavern and /opt/dsh/source/tavern.tar.gz. The authenticated
+corresponding-source download is /distribution/source.tar.gz. Retain the AGPL
+license, notices, complete corresponding source, build recipe and visible source
+offer when redistributing Tavern.
+
 MIT permission and warranty notice applicable to the MIT components above:
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

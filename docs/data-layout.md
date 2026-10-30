@@ -53,10 +53,11 @@ explicit, and `scripts/materialize-state.mjs` rejects a backup root inside
 
 ## Memory
 
-The bundled `dsh-mnemon` profile uses `storageScope: custom` with
-`dataDir: /data/memory/mnemon`. The path is fixed in the seed, so a deployment
-cannot accidentally point Mnemon somewhere outside the `/data` backup. Memory
-is durable user data inside `/data`, not plugin code. Back it up with
+The bundled `dsh-mnemon` profile defaults to `storageScope: custom` with
+`dataDir: /data/memory/mnemon`. A profile overlay replaces the whole Mnemon
+configuration, so keep `dataDir` under `/data` if you override it; otherwise
+memory can fall outside the backup. Memory is durable user data inside `/data`,
+not plugin code. Back it up with
 `/data/dsh` and `/workspace` at the same point. `remoteAccess: trusted-host`
 is set in the Web profile so a trusted-edge session can manage memory; it does
 not replace forward-auth.

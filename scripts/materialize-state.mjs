@@ -1,4 +1,4 @@
-import { cp, mkdir, readdir, readFile, writeFile, rename, rm, lstat, symlink, chmod, readlink, realpath } from 'node:fs/promises';
+import { access, constants, cp, mkdir, readdir, readFile, writeFile, rename, rm, lstat, symlink, chmod, readlink, realpath } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
@@ -154,15 +154,22 @@ async function mergeProfileDefaults(target, source, YAML) {
   const seed = YAML.parse(await readFile(source, 'utf8')) ?? [];
   if (!Array.isArray(seed)) throw new Error('Seed profile patch must be a YAML list');
   const text = await exists(target) ? await readFile(target, 'utf8') : '';
-  const current = text.trim() === '' ? [] : (YAML.parse(text) ?? []);
-  if (!Array.isArray(current)) throw new Error('Existing profile patch must be a YAML list');
+  const doc = YAML.parseDocument(text || '[]');
+  if (doc.errors.length > 0) throw new Error(`Existing profile patch is invalid YAML: ${doc.errors[0].message}`);
+  if (!YAML.isSeq(doc.contents)) {
+    if (doc.contents !== null) throw new Error('Existing profile patch must be a YAML list');
+    doc.contents = doc.createNode([]);
+  }
+  const current = doc.toJS() ?? [];
   const ids = new Set(current.filter(row => row && typeof row === 'object' && typeof row.id === 'string').map(row => row.id));
   const additions = seed.filter(row => row && typeof row === 'object' && typeof row.id === 'string' && !ids.has(row.id));
   if (additions.length === 0) return;
-  const block = YAML.stringify(additions).trimEnd();
-  // Append instead of re-serializing the owner's file, so existing comments and
-  // !!js expressions are not converted into quoted plain scalars.
-  await writeFile(target, current.length === 0 ? `${block}\n` : `${text.trimEnd()}\n${block}\n`);
+  const seedDoc = YAML.parseDocument(YAML.stringify(additions));
+  if (!YAML.isSeq(seedDoc.contents)) throw new Error('Seed profile additions must be a YAML list');
+  // Edit the parsed document in place. This preserves owner comments, flow/block
+  // style, anchors and !!js expressions instead of re-serializing from JS values.
+  for (const item of seedDoc.contents.items) doc.contents.items.push(item);
+  await writeFile(target, String(doc));
 }
 
 async function mergeCompatibilityDefaults(target, source) {
@@ -347,19 +354,23 @@ export async function materializeState(options = {}) {
     // other rows/configuration and credential/account data in place.
     for (const overlay of [join(home, 'cordis.patch.yml'), join(target, 'cordis.patch.yml')]) {
       if (!await exists(overlay)) continue;
+      const text = await readFile(overlay, 'utf8');
+      const before = YAML.parse(text);
+      const after = migrateOverlay(before, home);
+      // Skip unchanged overlays entirely. Re-serializing would drop comments
+      // and !!js expressions even when no obsolete row is present.
+      if (YAML.stringify(before) === YAML.stringify(after)) continue;
       try {
-        const before = YAML.parse(await readFile(overlay, 'utf8'));
-        const after = migrateOverlay(before, home);
-        // Skip unchanged overlays entirely. Parsing and re-serializing an
-        // unchanged file would drop comments and !!js expressions.
-        if (YAML.stringify(before) !== YAML.stringify(after)) {
-          await writeFile(overlay, YAML.stringify(after));
-        }
-      } catch (error) {
-        // Deployment-injected overlays may be read-only. It is safe to leave
-        // such a file untouched; the migration must still complete.
-        if (error.code !== 'EROFS') throw error;
+        await access(overlay, constants.W_OK);
+      } catch {
+        // Deployment-injected overlays may be read-only. Leave them untouched;
+        // the migration of writable profile state must still complete.
+        continue;
       }
+      if (/!!js|(^|\n)\s*#/u.test(text)) {
+        throw new Error(`Overlay ${overlay} needs migration but contains comments or !!js expressions; edit it manually`);
+      }
+      await writeFile(overlay, YAML.stringify(after));
     }
     await mergeProfileDefaults(join(target, 'cordis.patch.yml'), join(source, 'cordis.patch.yml'), YAML);
     await mergeCompatibilityDefaults(join(target, 'compatibility.json'), join(source, 'compatibility.json'));

@@ -9,7 +9,7 @@ Bundled upstream components retain their own licenses and copyright notices.
 The complete installed dependency trees retain their packaged license files.
 The OCI SBOM is an inventory, not a substitute for those licenses.
 
-DeepSeek Harness 0.2.1-rc.2
+DeepSeek Harness 0.2.1-rc.2 (Tavern image)
 Source: https://github.com/deepseek-ai/deepseek-harness/tree/687f282e8625c6b8d11ff58211a90524be2e4317
 MIT License
 Copyright (c) 2026 DeepSeek
@@ -17,28 +17,47 @@ The distribution applies an exact-hash host-webserver pre-dispatch gate and
 plugin-manager policy patch; these changes are not upstream endorsements.
 patches/dsh/upstream-MIT-LICENSE preserves the upstream license text.
 
-DSH Market 1.66.47
-Source: https://github.com/dsh-market/dsh-market/tree/f2667a0992578a50cf19c34b24acd199ac7cefe2
+DeepSeek Harness 0.2.2-alpha.2 (Web image)
+Source: https://www.npmjs.com/package/@deepseek-ai/dsh/v/0.2.2-alpha.2
+MIT License
+Copyright (c) 2026 DeepSeek
+The Web image applies the same exact-hash host/manager/boot gate for the alpha
+runtime. The npm package and its dependency tree retain their upstream license
+files.
+
+DSH Market 1.73.5
+Source: https://github.com/dsh-market/dsh-market/tree/d797f38834c53a97a5827651f60ab35a461b44d3
 MIT License
 Copyright (c) 2026 fkysly and dsh-market contributors
+patches/market/patch-market.mjs records the reviewed artifact hashes.
 
-Optional floating components (resolved from upstream at image-build time;
-their version is not pinned in this repository)
-dsh-context — Apache License 2.0
+Bundled Web profile components (Web image only; installed package LICENSE files
+are retained in the writable profile):
+dsh-context 0.78.1 — Apache License 2.0
 Source: https://github.com/bowenliang123/dsh-context
-Web image only. The installed package retains its LICENSE.
+dsh-mnemon 0.5.37 — MIT License
+Source: https://github.com/mnemon-dev/mnemon
+@mnemon-dev/mnemon 0.2.13 — Apache License 2.0
+Source: https://www.npmjs.com/package/@mnemon-dev/mnemon
+@michengai/dsh-automation 1.0.13 — Apache License 2.0
+Source: https://www.npmjs.com/package/@michengai/dsh-automation
+@xmanrui/dsh-im 5.8.0 — MIT License
+Source: https://www.npmjs.com/package/@xmanrui/dsh-im
+dsh-better-sidebar 0.28.2 — MIT License
+Source: https://github.com/omdsh-dev/DSH-better-sidebar
+@linxin666/dsh-ssh 0.4.12 — Apache License 2.0
+Source: https://www.npmjs.com/package/@linxin666/dsh-ssh
 
 Caveman skill — Apache License 2.0
 Source: https://github.com/JuliusBrussee/caveman
-Web image only. The skill seed retains the upstream LICENSE and NOTICE.
+The skill seed retains the upstream LICENSE and NOTICE.
 
 RTK OSS — Apache License 2.0
 Source: https://github.com/rtk-ai/rtk
-Web image only. The image uses the rtk-oss release asset and retains its
-LICENSE at /usr/local/share/rtk/LICENSE. The BUSL-1.1 rtk release is not
-bundled.
+The image uses the rtk-oss release asset and retains its LICENSE at
+/usr/local/share/rtk/LICENSE. The BUSL-1.1 rtk release is not bundled.
 
-Tavern ecosystem (tavern image only)
+Tavern ecosystem (Tavern image only)
 dsh-tavern-wrongbook v1.33.0 — MIT License
 Copyright (c) 2026 XGUIMAX
 https://github.com/XGUIMAX/dsh-tavern-wrongbook/tree/v1.33.0
@@ -80,23 +99,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-DSH Tavern v3.1.3 is AGPL-3.0-only, NOT Apache-2.0 or MIT.
-Source: https://github.com/flizzywine/dsh-tavern/tree/5deb1ef377240d0f41808a8e346040ff1def31d1
-Its original complete LICENSE and source remain at
-/opt/apps/dsh-tavern in the tavern image.
-Container-specific modifications: pinned-source custom workspace build,
-pruned profile installation, stable absolute links and the recorded Tavern
-patches. The modifications and build recipe are present in this repository
-and in /opt/dsh/distribution-source. See docs/source-build.md (also retained
-at /opt/dsh/distribution-source/docs/source-build.md).
-The complete modified Tavern source plus distribution build inputs, excluding
-.git and installed node_modules, is /opt/dsh/source/tavern.tar.gz. Authenticated
-users can download it at /distribution/source.tar.gz from the Tavern UI source
-link. Keep this source offer accessible to the users of your deployed Tavern;
-redistributors and operators must satisfy the applicable AGPL obligations.
-
-This project is an independent community distribution, not an official image
-or an endorsement by DeepSeek, Authentik, Tavern or plugin maintainers.
-README organization was inspired by runzhliu/deepseek-harness-docker and other
-community distributions; no desktop/browser/noVNC implementation is included.

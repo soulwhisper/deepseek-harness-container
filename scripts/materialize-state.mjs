@@ -149,6 +149,37 @@ async function managedLinks(target, source, seed, install, workspace = {}) {
   }
 }
 
+async function mergeProfileDefaults(target, source, YAML) {
+  if (!await exists(source)) return;
+  const seed = YAML.parse(await readFile(source, 'utf8')) ?? [];
+  if (!Array.isArray(seed)) throw new Error('Seed profile patch must be a YAML list');
+  const text = await exists(target) ? await readFile(target, 'utf8') : '';
+  const current = text.trim() === '' ? [] : (YAML.parse(text) ?? []);
+  if (!Array.isArray(current)) throw new Error('Existing profile patch must be a YAML list');
+  const ids = new Set(current.filter(row => row && typeof row === 'object' && typeof row.id === 'string').map(row => row.id));
+  const additions = seed.filter(row => row && typeof row === 'object' && typeof row.id === 'string' && !ids.has(row.id));
+  if (additions.length === 0) return;
+  const block = YAML.stringify(additions).trimEnd();
+  // Append instead of re-serializing the owner's file, so existing comments and
+  // !!js expressions are not converted into quoted plain scalars.
+  await writeFile(target, current.length === 0 ? `${block}\n` : `${text.trimEnd()}\n${block}\n`);
+}
+
+async function mergeCompatibilityDefaults(target, source) {
+  if (!await exists(source)) return;
+  const seed = await json(source);
+  if (!seed || typeof seed !== 'object' || Array.isArray(seed)) throw new Error('Seed compatibility file must be an object');
+  const current = await exists(target) ? await json(target) : {};
+  if (!current || typeof current !== 'object' || Array.isArray(current)) throw new Error('Existing compatibility file must be an object');
+  let changed = false;
+  for (const [key, value] of Object.entries(seed)) {
+    if (Object.hasOwn(current, key)) continue;
+    current[key] = value;
+    changed = true;
+  }
+  if (changed || !await exists(target)) await writeFile(target, `${JSON.stringify(current, null, 2)}\n`);
+}
+
 export function mergeManifest(previous, seed, home, profile, workspace = {}) {
   const next = structuredClone(previous);
   for (const kind of ['dependencies', 'devDependencies', 'optionalDependencies']) {
@@ -316,9 +347,22 @@ export async function materializeState(options = {}) {
     // other rows/configuration and credential/account data in place.
     for (const overlay of [join(home, 'cordis.patch.yml'), join(target, 'cordis.patch.yml')]) {
       if (!await exists(overlay)) continue;
-      await writeFile(overlay, YAML.stringify(migrateOverlay(YAML.parse(await readFile(overlay, 'utf8')), home)));
+      try {
+        const before = YAML.parse(await readFile(overlay, 'utf8'));
+        const after = migrateOverlay(before, home);
+        // Skip unchanged overlays entirely. Parsing and re-serializing an
+        // unchanged file would drop comments and !!js expressions.
+        if (YAML.stringify(before) !== YAML.stringify(after)) {
+          await writeFile(overlay, YAML.stringify(after));
+        }
+      } catch (error) {
+        // Deployment-injected overlays may be read-only. It is safe to leave
+        // such a file untouched; the migration must still complete.
+        if (error.code !== 'EROFS') throw error;
+      }
     }
-    if (!await exists(join(target, 'cordis.patch.yml'))) await cp(join(source, 'cordis.patch.yml'), join(target, 'cordis.patch.yml'));
+    await mergeProfileDefaults(join(target, 'cordis.patch.yml'), join(source, 'cordis.patch.yml'), YAML);
+    await mergeCompatibilityDefaults(join(target, 'compatibility.json'), join(source, 'compatibility.json'));
     await seedSkills(seed, home);
     if (await exists(join(home, '.credentials.yaml'))) await chmod(join(home, '.credentials.yaml'), 0o600);
     await writeFile(join(home, 'BUNDLED_VERSIONS'), bundled);

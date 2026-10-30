@@ -48,7 +48,7 @@ for `linux/amd64` and `linux/arm64`; there is no QEMU fallback.
   launch-token URL as authentication.
 - Keep one live DSH writer per home. Do not scale a StatefulSet to two replicas
   or use shared RWX storage as hot failover.
-- Back up `/data/dsh`, `/data/home` and `/workspace` together. Backups contain
+- Back up `/data/dsh`, `/data/home`, `/data/memory` and `/workspace` together. Backups contain
   credentials, attachments and conversations; encrypt them.
 
 All admitted subjects share one DSH owner and its sessions, files, tools and

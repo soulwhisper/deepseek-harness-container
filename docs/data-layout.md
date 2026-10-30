@@ -10,7 +10,7 @@ rollback copies and scratch have dedicated roots.
 
 **Never include:** `/cache`, `/logs`, `/backups`, `/tmp`.
 
-Use a filesystem snapshot or stop DSH before tar/rsync. The three roots must be
+Use a filesystem snapshot or stop DSH before tar/rsync. The four roots must be
 captured at one consistent point. Encrypt the archive and restrict access.
 
 ## Layout
@@ -53,9 +53,10 @@ explicit, and `scripts/materialize-state.mjs` rejects a backup root inside
 
 ## Memory
 
-`DSH_MEMORY_ROOT` defaults to `/data/memory`. The bundled `dsh-mnemon`
-profile uses `storageScope: custom` with `dataDir: /data/memory/mnemon`, so
-memory is durable user data inside `/data`, not plugin code. Back it up with
+The bundled `dsh-mnemon` profile uses `storageScope: custom` with
+`dataDir: /data/memory/mnemon`. The path is fixed in the seed, so a deployment
+cannot accidentally point Mnemon somewhere outside the `/data` backup. Memory
+is durable user data inside `/data`, not plugin code. Back it up with
 `/data/dsh` and `/workspace` at the same point. `remoteAccess: trusted-host`
 is set in the Web profile so a trusted-edge session can manage memory; it does
 not replace forward-auth.

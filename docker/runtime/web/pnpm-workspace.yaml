@@ -4,6 +4,8 @@ nodeLinker: hoisted
 storeDir: /cache/pnpm/store
 autoInstallPeers: true
 confirmModulesPurge: false
+# The Web runtime intentionally resolves alpha releases without a cooldown.
+# This is an alpha-only exception; the published image digest is the boundary.
 minimumReleaseAge: 0
 allowBuilds:
   '@deepseek-ai/dsh-subprocess-local': true

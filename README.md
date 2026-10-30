@@ -112,6 +112,7 @@ Tavern. Compose and Kubernetes examples are in
 | --- | --- |
 | `/data/dsh` | Durable profiles, sessions, storages, attachments and credentials. Back up encrypted. |
 | `/data/home` | Durable HOME/XDG/tool state. Back up. |
+| `/data/memory` | Durable Mnemon memory. Required encrypted backup. |
 | `/workspace` | Durable user projects. Snapshot consistently with `/data/dsh`. |
 | `/cache` | Rebuildable cache; `$DSH_HOME/cache` is a symlink here. May be lost. |
 | `/logs` | DSH startup diagnostics; `$DSH_HOME/logs` is a symlink here. Sensitive, non-authoritative. |

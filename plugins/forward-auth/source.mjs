@@ -14,7 +14,7 @@ export function sourceNotice(sourceURL) {
 // repeated tapIndex transforms idempotent and lets tests locate the notice
 // without relying on a wrapper element.
 export function injectSourceNotice(html, notice) {
-  if (html.includes(sourceMarker)) return html;
+  if (new RegExp(sourceMarker, 'i').test(html)) return html;
   const body = /<\/body\s*>/iu;
   if (body.test(html)) return html.replace(body, match => notice + match);
   const htmlEnd = /<\/html\s*>/iu;

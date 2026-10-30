@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { readFile, mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,7 +12,7 @@ import { once } from 'node:events';
 import { EventEmitter } from 'node:events';
 import { configuration, externalIdentity, identityFailure, createAdmission } from '../plugins/forward-auth/admission.mjs';
 import { injectSourceNotice, sourceMarker, sourceNotice } from '../plugins/forward-auth/source.mjs';
-import { patchSource } from '../patches/dsh/patch-host.mjs';
+import { patchInstallation, patchSource } from '../patches/dsh/patch-host.mjs';
 
 const rootRequire = createRequire(import.meta.url);
 function resolvePackage(name) {
@@ -114,6 +114,8 @@ test('source notice relocates before body/html and is idempotent', () => {
   const bare = injectSourceNotice('app', notice);
   assert.match(bare, /app<aside data-dsh-distribution-source/u);
   assert.equal(injectSourceNotice(body, notice), body);
+  const upperMarker = `<aside DATA-DSH-DISTRIBUTION-SOURCE>existing</aside>`;
+  assert.equal(injectSourceNotice(upperMarker, notice), upperMarker);
 });
 
 test('generic forward-auth headers and upstream launch-token URLs', () => {
@@ -356,4 +358,18 @@ test('real Cordis readiness waits for the startup audit, disappears on unload an
   await replacement.await();
   assert.equal((await get(port)).status, 403);
   await replacement.dispose();
+});
+
+test('host patch installer rejects mixed DSH runtime versions', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-mixed-runtime-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const [name, version] of [
+    ['dsh-host-webserver', '0.2.1-rc.2'],
+    ['dsh-plugin-manager', '0.2.2-alpha.2'],
+  ]) {
+    const dir = join(root, 'node_modules/@deepseek-ai', name);
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, 'package.json'), JSON.stringify({ name: `@deepseek-ai/${name}`, version }));
+  }
+  await assert.rejects(patchInstallation(root), /one DSH runtime version/u);
 });

@@ -2,6 +2,9 @@
 # Replace every placeholder with a secret value supplied by your orchestrator;
 # do not commit credentials. Ids must be unique and must not duplicate bundle
 # inserts (for example, dsh-mnemon supplies id: mnemon).
+# This example uses cluster-internal HTTP. Keep that hop on a trusted network or
+# service mesh with encryption/mTLS; for an endpoint with TLS use https:// and
+# the gateway's HTTPS port. Never expose these tokens to the public Internet.
 - insert:
     - id: mcp-search
       name: '@deepseek-ai/dsh-mcp-client'

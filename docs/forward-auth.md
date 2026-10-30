@@ -152,8 +152,9 @@ if isolation is required.
 ## Caddy basic_auth as an edge
 
 A generic user/password login belongs at a trusted edge, not in the DSH image.
-Caddy can be that edge when it terminates TLS, enforces `basic_auth`, and
-injects the configured subject header. This is single-owner HTTP Basic auth: it
+Caddy 2.8.0 or newer can be that edge when it terminates TLS, enforces
+`basic_auth`, and injects the configured subject header. Caddy 2.7 and older
+use the legacy `basicauth` directive. This is single-owner HTTP Basic auth: it
 is not multi-user isolation, MFA or a replacement for Authentik/Tailscale.
 
 ```caddyfile

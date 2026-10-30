@@ -28,7 +28,7 @@ function replaceOnce(source, before, after) {
   return source.replace(before, after);
 }
 function patchManagerAlpha(source) {
-  source = replaceOnce(source, '\t\t\tthis.profile = ctx.profileContext;', '\t\t\tthis.profile = ctx.profileContext;\n\t\t\tPROTECTED_PLUGINS.add("@soulwhisper/dsh-forward-auth");\n\t\t\tfor (const name of readProfileManifest("dsh", this.profile.dir).dshTavern?.managedDependencies ?? []) PROTECTED_PLUGINS.add(name);');
+  source = replaceOnce(source, '\t\t\tthis.profile = ctx.profileContext;', '\t\t\tthis.profile = ctx.profileContext;\n\t\t\tPROTECTED_PLUGINS.add("@soulwhisper/dsh-forward-auth");\n\t\t\tPROTECTED_PLUGINS.add("@deepseek-ai/dsh-app-boot");\n\t\t\tfor (const name of readProfileManifest("dsh", this.profile.dir).dshTavern?.managedDependencies ?? []) PROTECTED_PLUGINS.add(name);');
   source = replaceOnce(source, '\t\tprotectsManager(name) {', '\t\tprotectsManager(name) {\n\t\t\tif (name === "@soulwhisper/dsh-forward-auth") return true;\n\t\t\tconst tavernBundles = readProfileManifest("dsh", this.profile.dir).dshTavern?.managedBundles;\n\t\t\tif (Array.isArray(tavernBundles) && tavernBundles.includes(name)) return true;');
   source = replaceOnce(source, 'const known = specPackageName(spec, before, this.profile.dir);', 'const known = specPackageName(spec, before, this.profile.dir);\n\t\t\t\tif (known !== undefined && this.protectsManager(known)) throw new ManagementFailure("management-required");');
   return source;
@@ -89,17 +89,24 @@ async function packageRoots(nodeModules, found = new Set(), seen = new Set()) {
 export async function patchInstallation(runtime) {
   const pending = [];
   const counts = { host: 0, manager: 0, boot: 0 };
+  const versions = new Set();
+  const selected = [];
   for (const root of await packageRoots(join(resolve(runtime), 'node_modules'))) {
     const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
     const kind = manifest.name === '@deepseek-ai/dsh-host-webserver' ? 'host' : manifest.name === '@deepseek-ai/dsh-plugin-manager' ? 'manager' : manifest.name === '@deepseek-ai/dsh-app-boot' ? 'boot' : undefined;
     if (!kind) continue;
     if (!hashSets[manifest.version]) throw new Error(`forward-auth patch: unsupported ${manifest.name} version ${manifest.version}`);
+    versions.add(manifest.version);
+    if (versions.size > 1) throw new Error('forward-auth patch: host, manager and app-boot must come from one DSH runtime version');
+    selected.push({ manifest, kind, root });
+  }
+  if (!selected.some(item => item.kind === 'host') || !selected.some(item => item.kind === 'manager') || !selected.some(item => item.kind === 'boot')) throw new Error('forward-auth patch: required host/manager/app-boot packages not found');
+  for (const { manifest, kind, root } of selected) {
     counts[kind]++;
     for (const [fileKind, path] of [[kind, join(root, 'lib/index.js')], ...(kind === 'host' ? [['types', join(root, 'lib/types/index.d.ts')]] : [])]) {
       pending.push([path, patchSource(fileKind, await readFile(path, 'utf8'), manifest.version)]);
     }
   }
-  if (!counts.host || !counts.manager || !counts.boot) throw new Error('forward-auth patch: required host/manager/app-boot packages not found');
   // Validate every package before writing any package. Never accept an unknown/already patched input.
   for (const [path, content] of pending) await writeFile(path, content);
   return counts;

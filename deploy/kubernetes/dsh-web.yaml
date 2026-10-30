@@ -59,8 +59,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-            - name: DSH_MEMORY_ROOT
-              value: /data/memory
             - name: DSH_PUBLIC_URL
               value: https://dsh.example.net
             - name: DSH_TRUSTED_HOSTS

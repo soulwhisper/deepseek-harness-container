@@ -10,16 +10,15 @@ umask 077
 : "${HOME:=/data/home}"
 : "${DSH_AGENTS_HOME:=$HOME/.agents}"
 : "${DSH_BACKUP_ROOT:=/backups}"
-: "${DSH_MEMORY_ROOT:=/data/memory}"
 : "${XDG_CACHE_HOME:=/cache}"
 : "${DSH_PROFILE:=web}"
-export DSH_HOME HOME DSH_AGENTS_HOME DSH_BACKUP_ROOT DSH_MEMORY_ROOT XDG_CACHE_HOME
+export DSH_HOME HOME DSH_AGENTS_HOME DSH_BACKUP_ROOT XDG_CACHE_HOME
 node --input-type=module -e 'import { isIP } from "node:net"; const host = process.env.DSH_HOST; if (!isIP(host) || host === "0.0.0.0" || host === "::") throw new Error("DSH_HOST must be a concrete local IP, never a wildcard");'
 if [ -n "${DSH_TLS_CERT:-}" ] || [ -n "${DSH_TLS_KEY:-}" ]; then
   : "${DSH_TLS_CERT:?DSH_TLS_CERT and DSH_TLS_KEY must be supplied together}"
   : "${DSH_TLS_KEY:?DSH_TLS_CERT and DSH_TLS_KEY must be supplied together}"
 fi
-mkdir -p "$HOME" "$DSH_AGENTS_HOME" "$XDG_CACHE_HOME" "$DSH_HOME" "$DSH_MEMORY_ROOT" /logs "$DSH_BACKUP_ROOT" /workspace
+mkdir -p "$HOME" "$DSH_AGENTS_HOME" "$XDG_CACHE_HOME" "$DSH_HOME" /data/memory /logs "$DSH_BACKUP_ROOT" /workspace
 node /opt/dsh/scripts/materialize-state.mjs
 if [ "$DSH_PROFILE" = tavern ]; then
   node /opt/dsh/scripts/seed-tavern-plugins.mjs

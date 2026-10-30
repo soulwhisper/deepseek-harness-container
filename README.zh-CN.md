@@ -90,6 +90,7 @@ docker run --detach --name dsh-web --restart unless-stopped \
 | --- | --- |
 | `/data/dsh` | 持久 Profile、sessions、storages、attachments、凭据；加密备份 |
 | `/data/home` | 持久 HOME/XDG/工具状态；备份 |
+| `/data/memory` | 持久 Mnemon 记忆；必须加密备份 |
 | `/workspace` | 持久用户项目；与 `/data/dsh` 一致快照 |
 | `/cache` | 可重建缓存；`$DSH_HOME/cache` 指向这里，可丢 |
 | `/logs` | DSH 启动诊断；`$DSH_HOME/logs` 指向这里，敏感且非权威 |

@@ -90,7 +90,7 @@ Regenerate profile locks from the exact in-image absolute source paths:
 
 ```bash
 docker buildx build -f docker/tavern.Dockerfile \
-  --target profile-locks --output type=local,dest=. .
+  --target profile-locks --output type=local,dest=docker .
 ```
 
 Review and commit every changed lock before rebuilding. Startup performs no

@@ -93,6 +93,9 @@ async function browserSmoke(authority, restart) {
       }
       javascript = 0;
       pageErrors = 0;
+      lastStatus = 0;
+      lastJavascript = 0;
+      lastErrors = 0;
       stage = 'navigation';
       // Subscribe before navigation, including after a real container restart.
       const connected = waitConnected();

@@ -81,17 +81,23 @@ rebuilding the image. The state materializer treats that path as an injected
 config mount and does not overwrite it; user settings saved later remain in the
 writable profile.
 
+During an explicit `DSH_STATE_MIGRATION=apply`, a read-only injected overlay
+is left byte-for-byte untouched. The migration still completes; if it needed to
+remove a legacy auth row, update and remount the reviewed patch yourself.
+
 `deploy/docker/cordis.patch.mcp.example.yml` is a complete shape for
 `mcp-search`, `mcp-cluster` and `mcp-home` through the guarded agent gateway.
 The `home` endpoint already includes Hindsight home memory; use the same mount
 to add separate Hindsight MCP endpoints if your gateway exposes them. Do not
 put secrets in the image or ConfigMap; use Secret-backed values and replace all
-placeholders. The existing Kubernetes example mounts a Secret at this exact
-path. The example is Web-only and is not copied into Tavern.
+placeholders. The shipped Kubernetes example reads forward-auth values from a Secret but does
+not mount a profile patch by default. Add a Secret volume at this exact path
+if you use a reviewed patch. The example is Web-only and is not copied into
+Tavern.
 
 The Web profile itself is intentionally small; the market owns later plugin
 installs. `/data/memory` is durable memory under the `/data` volume, not a
-separate container or a plugin directory. Back it up with `/data/dsh`.
+separate container or a plugin directory. Back it up with `/data/dsh`, `/data/home`, `/data/memory` and `/workspace` at the same point.
 
 The image owns state seeding and its default environment. A deployment supplies
 the listener identity, public URL, trusted hosts, forward-auth, persistence and

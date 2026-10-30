@@ -91,6 +91,29 @@ test('new state is seeded once, then user mutations remain untouched', async t =
   assert.equal(await readFile(patch, 'utf8'), before);
 });
 
+test('migration adds new Web profile defaults without overwriting user rows', async t => {
+  const options = await fixture(t);
+  await writeFile(join(options.seed, 'profiles/web/cordis.patch.yml'),
+    '- id: mnemon\n  config:\n    dataDir: /data/memory/mnemon\n');
+  await writeFile(join(options.seed, 'profiles/web/compatibility.json'),
+    JSON.stringify({ 'dsh-context@0.78.1': ['0.2.2-alpha.2'] }));
+  assert.equal((await materializeState(options)).action, 'seeded');
+  const patch = join(options.home, 'profiles/web/cordis.patch.yml');
+  const compatibility = join(options.home, 'profiles/web/compatibility.json');
+  await writeFile(patch, '- id: user\n  config:\n    keep: true\n    expr: !!js process.env.OWNER_EXPR\n');
+  await writeFile(compatibility, JSON.stringify({ 'owner-plugin@1.0.0': ['0.2.2-alpha.2'] }));
+  await writeFile(join(options.home, '.distribution-state.json'),
+    JSON.stringify({ schema: 1, distribution: 'old', profile: 'web' }));
+  assert.equal((await materializeState({ ...options, action: 'apply' })).action, 'migrated');
+  const rows = YAML.parse(await readFile(patch, 'utf8'));
+  assert.ok(rows.some(row => row.id === 'user'));
+  assert.ok(rows.some(row => row.id === 'mnemon'));
+  assert.match(await readFile(patch, 'utf8'), /!!js process\.env\.OWNER_EXPR/u);
+  const merged = JSON.parse(await readFile(compatibility, 'utf8'));
+  assert.deepEqual(merged['owner-plugin@1.0.0'], ['0.2.2-alpha.2']);
+  assert.deepEqual(merged['dsh-context@0.78.1'], ['0.2.2-alpha.2']);
+});
+
 test('injected config mounts do not block the initial seed', async t => {
   const options = await fixture(t);
   const skill = join(options.home, 'skills', 'demo', 'SKILL.md');

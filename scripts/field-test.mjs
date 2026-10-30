@@ -7,7 +7,9 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const runtimeManifest = new URL('../docker/runtime/web/package.json', import.meta.url);
+const target = process.env.DSH_FIELD_TARGET ?? 'web';
+if (!['web', 'tavern'].includes(target)) throw new Error(`Unknown field-test target: ${target}`);
+const runtimeManifest = new URL(`../docker/runtime/${target}/package.json`, import.meta.url);
 const require = createRequire(runtimeManifest);
 const expectedArch = process.env.EXPECTED_ARCH;
 if (expectedArch) assert.equal(process.arch, expectedArch, `Expected ${expectedArch}, got ${process.arch}`);
@@ -32,7 +34,7 @@ assert.match(manager, /@deepseek-ai\/dsh-app-boot/u, 'Patched manager protects a
 assert.match(boot, /distribution-forward-auth/u, 'Patched startup requires forward-auth');
 assert.doesNotMatch(boot, /"dsh-market"/u, 'Web market remains optional, not required');
 assert.match(boot, /distributionStartupReady/u, 'Patched startup readiness audit');
-assert.match(market, /createOfficialDesktopRuntime/u, 'Patched market uses native manager');
+if (target === 'web') assert.match(market, /createOfficialDesktopRuntime/u, 'Patched market uses native manager');
 
 const subprocessRequire = createRequire(require.resolve('@deepseek-ai/dsh-subprocess-local'));
 const pty = subprocessRequire('node-pty');
@@ -49,4 +51,4 @@ await new Promise((resolve, reject) => {
     else reject(new Error('Field-test PTY failed'));
   });
 });
-console.log(`PASS field-test: ${process.arch}, patched host/manager/boot/market-optional, native PTY`);
+console.log(`PASS field-test: ${target}/${process.arch}, patched host/manager/boot${target === 'web' ? '/market' : ''}, native PTY`);

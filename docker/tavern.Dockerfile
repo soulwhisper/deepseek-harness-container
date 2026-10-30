@@ -48,7 +48,7 @@ RUN pnpm install --frozen-lockfile --prod \
     && grep -q "session-log-deepseek" /opt/dsh/docker/runtime/node_modules/@soulwhisper/dsh-forward-auth/cordis.patch.yml \
     && grep -q "message-feedback" /opt/dsh/docker/runtime/node_modules/@soulwhisper/dsh-forward-auth/cordis.patch.yml \
     && node /opt/dsh/patches/dsh/patch-host.mjs /opt/dsh/docker/runtime \
-    && ln -s docker/runtime /opt/dsh/runtime
+    && ln -s /opt/dsh/docker/runtime /opt/dsh/runtime
 RUN node -e "const {createRequire}=require('node:module'); const r=createRequire('/opt/dsh/docker/runtime/package.json'); const name='node-addon-require-builtin-linux-'+(process.arch==='arm64'?'arm64':'x64')+'-gnu'; require(r.resolve(name));"
 COPY versions.json /opt/dsh/versions.json
 COPY scripts/entrypoint.sh scripts/materialize-state.mjs scripts/normalize-locks.mjs \

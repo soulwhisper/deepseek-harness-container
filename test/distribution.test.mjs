@@ -25,23 +25,25 @@ test('Web and Tavern recipes are independent and do not leak assets', async () =
 
 test('Web profile bundles memory and integration plugins without a committed lock', async () => {
   const recipe = await read('scripts/materialize-profiles.mjs');
+  const webRecipe = recipe.slice(recipe.indexOf("if (profile === 'web')"), recipe.indexOf('} else {', recipe.indexOf("if (profile === 'web')")));
   for (const name of ['dsh-context', 'dsh-mnemon', '@michengai/dsh-automation',
     '@xmanrui/dsh-im', 'dsh-better-sidebar', '@linxin666/dsh-ssh']) {
-    assert.ok(recipe.includes(`'${name}'`), `Web recipe includes ${name}`);
+    assert.ok(webRecipe.includes(`'${name}'`), `Web recipe includes ${name}`);
   }
-  assert.match(await read('scripts/entrypoint.sh'), /DSH_MEMORY_ROOT/u);
+  const pin = name => webRecipe.match(new RegExp(`dependencies\\['${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\] = '([^']+)'`))?.[1];
+  assert.match(await read('scripts/entrypoint.sh'), /\/data\/memory/u);
   assert.match(await read('docker/profiles/web/pnpm-workspace.yaml'), /ssh2: true/u);
   assert.match(await read('docker/profiles/web/cordis.patch.yml'), /storageScope: custom/u);
   assert.match(await read('docker/profiles/web/cordis.patch.yml'), /dataDir: \/data\/memory\/mnemon/u);
   const compatibility = JSON.parse(await read('docker/profiles/web/compatibility.json'));
-  assert.deepEqual(compatibility['@xmanrui/dsh-im@5.8.0'], ['0.2.2-alpha.2']);
-  assert.deepEqual(compatibility['dsh-context@0.78.1'], ['0.2.2-alpha.2']);
+  assert.deepEqual(compatibility[`@xmanrui/dsh-im@${pin('@xmanrui/dsh-im')}`], ['0.2.2-alpha.2']);
+  assert.deepEqual(compatibility[`dsh-context@${pin('dsh-context')}`], ['0.2.2-alpha.2']);
   await assert.rejects(read('docker/profiles/web/pnpm-lock.yaml'));
 });
 
 test('deployment examples carry the memory root and MCP mount shape', async () => {
-  assert.match(await read('deploy/docker/compose.yaml'), /DSH_MEMORY_ROOT: \/data\/memory/u);
-  assert.match(await read('deploy/kubernetes/dsh-web.yaml'), /name: DSH_MEMORY_ROOT/u);
+  assert.match(await read('deploy/docker/compose.yaml'), /dsh-web-data:\/data/u);
+  assert.match(await read('deploy/kubernetes/dsh-web.yaml'), /mountPath: \/data/u);
   const mcp = await read('deploy/docker/cordis.patch.mcp.example.yml');
   for (const id of ['mcp-search', 'mcp-cluster', 'mcp-home']) assert.match(mcp, new RegExp(`id: ${id}`, 'u'));
   assert.match(mcp, /Authorization: "Bearer </u);

@@ -236,7 +236,7 @@ async function manager() {
       JSON.stringify({ url: entry.url, version: '0.28.2' }), 180_000);
     const installedBody = JSON.parse(installed.text);
     check(installed.status === 200 && installedBody.ok === true,
-      `Pinned plugin market install (status ${installed.status}: ${String(installedBody.error ?? installedBody.detail ?? '').slice(0, 160)})`);
+      `Pinned plugin market install (status ${installed.status})`);
     // Exercise the exact SAME shipped market adapter against the actual remote manager,
     // not a mock. Existing installs require native remove + add; direct add is refused.
     const adapterURL = new URL('lib/official-desktop.js', pathToFileURL(runtimeRequire.resolve('dshmarket/package.json')));

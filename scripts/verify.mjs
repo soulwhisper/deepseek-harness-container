@@ -246,6 +246,8 @@ const customManagers = JSON.parse(await text(fragmentPaths[0])).customManagers;
 const groupRules = JSON.parse(await text(fragmentPaths[1])).packageRules;
 const packageRules = JSON.parse(await text(fragmentPaths[2])).packageRules;
 assert.equal([...groupRules, ...packageRules].some(rule => rule.automerge === true), false, 'Renovate must never automerge');
+assert.ok(packageRules.some(rule => rule.matchDepNames?.includes('buildx') && rule.enabled === false),
+  'Renovate must not digest-pin the Buildx with.version input');
 assert.ok(packageRules.some(rule => rule.addLabels?.includes('review/required')), 'Renovate PRs require human review');
 for (const dep of ['@deepseek-ai/dsh', 'flizzywine/dsh-tavern']) {
   assert.ok(customManagers.some(manager => manager.depNameTemplate === dep), `Renovate must track ${dep}`);

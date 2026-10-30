@@ -14,6 +14,16 @@
       "platformAutomerge": false
     },
     {
+      "description": "The Buildx `with.version` input is a release version, not an action ref; pinning it as a digest always fails the branch.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepNames": [
+        "buildx"
+      ],
+      "enabled": false
+    },
+    {
       "description": "Node digest, pnpm and Dockerfile syntax are coupled build pins. Update deliberately with the image and locks.",
       "matchFileNames": [
         "docker/web.Dockerfile",

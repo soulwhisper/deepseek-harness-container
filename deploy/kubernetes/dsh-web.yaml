@@ -133,7 +133,6 @@ spec:
         # - name: profile-patch
         #   secret:
         #     secretName: dsh-web-profile-patch
-        #     optional: true
         - name: tmp
           emptyDir:
             medium: Memory

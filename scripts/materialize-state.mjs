@@ -362,9 +362,11 @@ export async function materializeState(options = {}) {
       if (YAML.stringify(before) === YAML.stringify(after)) continue;
       try {
         await access(overlay, constants.W_OK);
-      } catch {
+      } catch (error) {
         // Deployment-injected overlays may be read-only. Leave them untouched;
-        // the migration of writable profile state must still complete.
+        // the migration of writable profile state must still complete. A real
+        // permission error must not silently preserve obsolete rows.
+        if (error.code !== 'EROFS') throw error;
         continue;
       }
       if (/!!js|(^|\n)\s*#/u.test(text)) {

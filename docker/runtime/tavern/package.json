@@ -3,7 +3,7 @@
   "version": "0.2.1-rc.2-r2",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.25.0",
+  "packageManager": "pnpm@11.28.9",
   "engines": { "node": "24.22.1" },
   "dependencies": {
     "@deepseek-ai/cordis-plugin-group": "1.0.5",

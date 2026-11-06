@@ -25,7 +25,7 @@ Use the native architecture matching the runner or host. CI builds
 
 | Target | Result |
 | --- | --- |
-| `web` | Final Web image: DSH rc + bundled Web plugins + required forward-auth |
+| `web` | Final Web image: DSH 0.2.2-rc.1 + bundled Web plugins + required forward-auth |
 | `tavern` | Final Tavern image: pinned source workspace + pruned profile + ecosystem |
 | `web-application` | Web-only final-stage base; never shared with Tavern |
 | `tavern-application` | Tavern-only final-stage base; never shared with Web |

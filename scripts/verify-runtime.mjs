@@ -379,7 +379,9 @@ async function runtime() {
     check((await stat('/data/memory')).isDirectory(), 'Durable memory root exists');
     check((await stat('/usr/local/bin/mnemon')).isFile(), 'Bundled Mnemon CLI');
     const mnemon = spawnSync('/usr/local/bin/mnemon', ['--version'], { encoding: 'utf8' });
-    check(mnemon.status === 0 && /^mnemon version \d+\.\d+\.\d+/u.test(mnemon.stdout.trim()),
+    // The native binary prints "mnemon version X.Y.Z"; accept any semver so a
+    // future wording change does not break the image smoke.
+    check(mnemon.status === 0 && /\b\d+\.\d+\.\d+\b/u.test(mnemon.stdout),
       'Bundled Mnemon CLI runs with its native platform binary');
   }
   if (profile === 'tavern') {

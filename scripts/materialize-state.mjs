@@ -180,7 +180,10 @@ async function mergeCompatibilityDefaults(target, source) {
   if (!current || typeof current !== 'object' || Array.isArray(current)) throw new Error('Existing compatibility file must be an object');
   let changed = false;
   for (const [key, value] of Object.entries(seed)) {
-    if (Object.hasOwn(current, key)) continue;
+    // Seed keys are distribution-owned exemptions for the exact plugin
+    // versions this image ships. Replace their values so a DSH upgrade reaches
+    // existing volumes; keys added by the owner remain untouched.
+    if (Object.hasOwn(current, key) && JSON.stringify(current[key]) === JSON.stringify(value)) continue;
     current[key] = value;
     changed = true;
   }

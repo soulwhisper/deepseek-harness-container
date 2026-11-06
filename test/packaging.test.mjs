@@ -101,7 +101,12 @@ test('migration adds new Web profile defaults without overwriting user rows', as
   const patch = join(options.home, 'profiles/web/cordis.patch.yml');
   const compatibility = join(options.home, 'profiles/web/compatibility.json');
   await writeFile(patch, '[ { id: user, config: { keep: true, expr: !!js process.env.OWNER_EXPR } } ]\n');
-  await writeFile(compatibility, JSON.stringify({ 'owner-plugin@1.0.0': ['0.2.2-rc.1'] }));
+  // A seed-owned key already present on the volume must be updated, not
+  // skipped: this is how a new DSH exemption reaches an existing profile.
+  await writeFile(compatibility, JSON.stringify({
+    'owner-plugin@1.0.0': ['0.2.2-rc.1'],
+    'dsh-context@0.82.0': ['0.2.2-alpha.2'],
+  }));
   await writeFile(join(options.home, '.distribution-state.json'),
     JSON.stringify({ schema: 1, distribution: 'old', profile: 'web' }));
   assert.equal((await materializeState({ ...options, action: 'apply' })).action, 'migrated');

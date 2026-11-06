@@ -149,7 +149,8 @@ LABEL org.opencontainers.image.source="https://github.com/soulwhisper/deepseek-h
 
 FROM web-application AS web
 USER root
-RUN npm install --global --ignore-scripts @mnemon-dev/mnemon@0.2.13
+RUN npm install --global --ignore-scripts @mnemon-dev/mnemon@0.2.13 \
+    && /usr/local/bin/mnemon --version
 USER 1000:1000
 ENV DSH_PROFILE=web
 COPY --from=web-build /opt/dsh /opt/dsh

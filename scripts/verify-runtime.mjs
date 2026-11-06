@@ -378,6 +378,9 @@ async function runtime() {
     check(manifest.dependencies['@linxin666/dsh-ssh'] === '0.4.15', 'Bundled SSH plugin');
     check((await stat('/data/memory')).isDirectory(), 'Durable memory root exists');
     check((await stat('/usr/local/bin/mnemon')).isFile(), 'Bundled Mnemon CLI');
+    const mnemon = spawnSync('/usr/local/bin/mnemon', ['--version'], { encoding: 'utf8' });
+    check(mnemon.status === 0 && /^mnemon version \d+\.\d+\.\d+/u.test(mnemon.stdout.trim()),
+      'Bundled Mnemon CLI runs with its native platform binary');
   }
   if (profile === 'tavern') {
     check(!Object.hasOwn(manifest.dependencies, 'dsh-tavern-comfy'), 'Legacy Tavern image package removed');

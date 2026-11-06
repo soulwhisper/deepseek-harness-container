@@ -29,7 +29,7 @@ const tavernDockerfile = await text('docker/tavern.Dockerfile');
 assert.match(webDockerfile, new RegExp(`org\\.opencontainers\\.image\\.version="${versions.distribution}"`, 'u'));
 assert.match(tavernDockerfile, new RegExp(`org\\.opencontainers\\.image\\.version="${versions.tavern.version}"`, 'u'));
 assert.match(versions.dsh.commit, /^[a-f0-9]{40}$/u);
-assert.equal(versions.webDsh?.version, '0.2.2-alpha.2');
+assert.equal(versions.webDsh?.version, '0.2.2-rc.1');
 assert.equal(versions.tavern.theme?.version, versions.dsh.version);
 assert.match(versions.tavern.commit, /^[a-f0-9]{40}$/u);
 assert.match(versions.tavern.routesSha256, /^[a-f0-9]{64}$/u);
@@ -135,7 +135,7 @@ for (const path of ['patches/wrongbook/patch-all.mjs', 'patches/wrongbook/patch-
 }
 assert.match(await text('.agents/skills/dsh-maintainer/SKILL.md'), /patches\/wrongbook\/patch-all\.mjs/u,
   'Maintainer skill records the wrongbook patch upgrade check');
-assert.match(await text('scripts/materialize-profiles.mjs'), /dependencies\['dsh-context'\] = '0\.78\.1'/u,
+assert.match(await text('scripts/materialize-profiles.mjs'), /dependencies\['dsh-context'\] = '0\.82\.0'/u,
   'Web bundles a known dsh-context release');
 assert.match(webDockerfile, /pnpm --dir \/opt\/dsh\/seed\/profiles\/web install --no-frozen-lockfile/u,
   'The Web profile is resolved at build time; its digest is the reproducibility boundary');

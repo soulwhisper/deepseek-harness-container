@@ -236,7 +236,7 @@ Rules:
 - Install `dsh-context` as a normal dependency in the generated Web profile,
   not in `/opt/dsh/runtime`.
 - Add it to `dsh.profile.bundles` and the Web profile compatibility exemption
-  where its upstream `compatibility.dshReleases` map lacks the current alpha.
+  where its upstream `compatibility.dshReleases` map lacks the current release line.
 - Keep its runtime peers as immutable links.
 - Verify the installed package still declares `dsh.bundle` and a compatible
   current DSH release.

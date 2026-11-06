@@ -17,35 +17,35 @@ The distribution applies an exact-hash host-webserver pre-dispatch gate and
 plugin-manager policy patch; these changes are not upstream endorsements.
 patches/dsh/upstream-MIT-LICENSE preserves the upstream license text.
 
-DeepSeek Harness 0.2.2-alpha.2 (Web image)
-Source: https://www.npmjs.com/package/@deepseek-ai/dsh/v/0.2.2-alpha.2
+DeepSeek Harness 0.2.2-rc.1 (Web image)
+Source: https://www.npmjs.com/package/@deepseek-ai/dsh/v/0.2.2-rc.1
 MIT License
 Copyright (c) 2026 DeepSeek
-The Web image applies the same exact-hash host/manager/boot gate for the alpha
-runtime. The npm package and its dependency tree retain their upstream license
-files.
+The Web image applies the same exact-hash host/manager/boot gate for the
+release-candidate runtime. The npm package and its dependency tree retain
+their upstream license files.
 
-DSH Market 1.73.5
-Source: https://github.com/dsh-market/dsh-market/tree/d797f38834c53a97a5827651f60ab35a461b44d3
+DSH Market 1.73.12
+Source: https://github.com/dsh-market/dsh-market/tree/19641d22a69b63063bb9b67a5f67a0dcb72703a0
 MIT License
 Copyright (c) 2026 fkysly and dsh-market contributors
 patches/market/patch-market.mjs records the reviewed artifact hashes.
 
 Bundled Web profile components (Web image only; installed package LICENSE files
 are retained in the writable profile):
-dsh-context 0.78.1 — Apache License 2.0
+dsh-context 0.82.0 — Apache License 2.0
 Source: https://github.com/bowenliang123/dsh-context
-dsh-mnemon 0.5.37 — MIT License
+dsh-mnemon 0.5.41 — MIT License
 Source: https://github.com/mnemon-dev/mnemon
 @mnemon-dev/mnemon 0.2.13 — Apache License 2.0
 Source: https://www.npmjs.com/package/@mnemon-dev/mnemon
-@michengai/dsh-automation 1.0.13 — Apache License 2.0
+@michengai/dsh-automation 1.0.18 — Apache License 2.0
 Source: https://www.npmjs.com/package/@michengai/dsh-automation
 @xmanrui/dsh-im 5.8.0 — MIT License
 Source: https://www.npmjs.com/package/@xmanrui/dsh-im
-dsh-better-sidebar 0.28.2 — MIT License
+dsh-better-sidebar 0.30.1 — MIT License
 Source: https://github.com/omdsh-dev/DSH-better-sidebar
-@linxin666/dsh-ssh 0.4.12 — Apache License 2.0
+@linxin666/dsh-ssh 0.4.15 — Apache License 2.0
 Source: https://www.npmjs.com/package/@linxin666/dsh-ssh
 
 Caveman skill — Apache License 2.0

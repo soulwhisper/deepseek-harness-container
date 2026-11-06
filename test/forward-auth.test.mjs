@@ -365,7 +365,7 @@ test('host patch installer rejects mixed DSH runtime versions', async t => {
   t.after(() => rm(root, { recursive: true, force: true }));
   for (const [name, version] of [
     ['dsh-host-webserver', '0.2.1-rc.2'],
-    ['dsh-plugin-manager', '0.2.2-alpha.2'],
+    ['dsh-plugin-manager', '0.2.2-rc.1'],
   ]) {
     const dir = join(root, 'node_modules/@deepseek-ai', name);
     await mkdir(dir, { recursive: true });

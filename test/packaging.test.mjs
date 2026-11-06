@@ -96,12 +96,12 @@ test('migration adds new Web profile defaults without overwriting user rows', as
   await writeFile(join(options.seed, 'profiles/web/cordis.patch.yml'),
     '- id: mnemon\n  config:\n    dataDir: /data/memory/mnemon\n');
   await writeFile(join(options.seed, 'profiles/web/compatibility.json'),
-    JSON.stringify({ 'dsh-context@0.78.1': ['0.2.2-alpha.2'] }));
+    JSON.stringify({ 'dsh-context@0.82.0': ['0.2.2-rc.1'] }));
   assert.equal((await materializeState(options)).action, 'seeded');
   const patch = join(options.home, 'profiles/web/cordis.patch.yml');
   const compatibility = join(options.home, 'profiles/web/compatibility.json');
   await writeFile(patch, '[ { id: user, config: { keep: true, expr: !!js process.env.OWNER_EXPR } } ]\n');
-  await writeFile(compatibility, JSON.stringify({ 'owner-plugin@1.0.0': ['0.2.2-alpha.2'] }));
+  await writeFile(compatibility, JSON.stringify({ 'owner-plugin@1.0.0': ['0.2.2-rc.1'] }));
   await writeFile(join(options.home, '.distribution-state.json'),
     JSON.stringify({ schema: 1, distribution: 'old', profile: 'web' }));
   assert.equal((await materializeState({ ...options, action: 'apply' })).action, 'migrated');
@@ -110,8 +110,8 @@ test('migration adds new Web profile defaults without overwriting user rows', as
   assert.ok(rows.some(row => row.id === 'mnemon'));
   assert.match(await readFile(patch, 'utf8'), /!!js process\.env\.OWNER_EXPR/u);
   const merged = JSON.parse(await readFile(compatibility, 'utf8'));
-  assert.deepEqual(merged['owner-plugin@1.0.0'], ['0.2.2-alpha.2']);
-  assert.deepEqual(merged['dsh-context@0.78.1'], ['0.2.2-alpha.2']);
+  assert.deepEqual(merged['owner-plugin@1.0.0'], ['0.2.2-rc.1']);
+  assert.deepEqual(merged['dsh-context@0.82.0'], ['0.2.2-rc.1']);
 });
 
 test('migration refuses a permission-denied overlay that still needs cleanup', async t => {

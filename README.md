@@ -4,13 +4,13 @@ English | [简体中文](README.zh-CN.md)
 
 An independent, self-packaged [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) distribution for a **single shared owner behind a verified forward-auth edge**. It ships two OCI images, an independently maintained forward-auth gate, explicit state and backup boundaries, and no desktop stack.
 
-> DSH `0.2.2-alpha.2` (Web) and `0.2.1-rc.2` (Tavern) are developer previews, not audited production platforms. A working login does not prove the edge, plugins, model credentials, backups or agent sandbox are safe. Never expose the native listener directly.
+> DSH `0.2.2-rc.1` (Web) and `0.2.1-rc.2` (Tavern) are developer previews, not audited production platforms. A working login does not prove the edge, plugins, model credentials, backups or agent sandbox are safe. Never expose the native listener directly.
 
 ## Images
 
 | Image | Release tag | Profile |
 | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.2-alpha.2-r1` | `web-0.2.2-alpha.2-r1` | DSH Web alpha + `dshmarket` + `dsh-context` + `dsh-mnemon` + automation/IM/sidebar/SSH + required forward-auth |
+| `ghcr.io/soulwhisper/dsh-web:0.2.2-rc.1-r1` | `web-0.2.2-rc.1-r1` | DSH Web rc + `dshmarket` + `dsh-context` + `dsh-mnemon` + automation/IM/sidebar/SSH + required forward-auth |
 | `ghcr.io/soulwhisper/dsh-tavern:3.1.3` | `tavern-3.1.3` | Custom Tavern workspace + forward-auth + pinned manager-protected ecosystem |
 
 Web images use the distribution revision (`<dsh-version>-rN` when the image
@@ -79,7 +79,7 @@ docker volume create dsh-web-cache
 docker volume create dsh-web-logs
 docker volume create dsh-web-backups
 
-export IMAGE=ghcr.io/soulwhisper/dsh-web:0.2.2-alpha.2-r1
+export IMAGE=ghcr.io/soulwhisper/dsh-web:0.2.2-rc.1-r1
 export ALLOWED_SUBJECTS='your-stable-owner-id'
 
 docker run --detach --name dsh-web --restart unless-stopped \

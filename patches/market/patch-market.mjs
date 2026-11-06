@@ -4,9 +4,9 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const version = '1.73.5';
-const originalHash = '951b2fffa7dc8d0498bed7120d9e3c7dbec61a32f72c1b88f477e9feef8ef534';
-const patchedHash = 'ecd8e98b637292bcf17c0085ef9ed2f0819518114b8b09ebef4e5279b2cebc1f';
+const version = '1.73.12';
+const originalHash = '3c7a9717144a1b50c3196e640b7bff0673c84862ba411067e1a3501d5ed2f2fb';
+const patchedHash = '1bdecdc5fb6e52933f848c6107c177636951fbdee04d8fc51e22b4df9cff80b9';
 const original = `            host.effect(() => {
                 const restoreTrustedHosts = useTrustedHosts(ctx);
                 const disposeRoutes = mountMarketRoutes(host, resolved, undefined, agentsLookupOf(ctx));
@@ -17,7 +17,7 @@ const original = `            host.effect(() => {
             }, 'dsh-market: http routes');`;
 const replacement = `            host.effect(() => {
                 // The distribution owns package admission; never bypass it via a CLI subprocess.
-                const runtime = createOfficialDesktopRuntime(() => hostCtx.get('pluginManager'), resolved.profile, resolved.profileDirectory);
+                const runtime = createOfficialDesktopRuntime(() => hostCtx.get('pluginManager'), resolved.profile, resolved.profileDirectory, hostPackageManagerOf(profileContext));
                 const restoreTrustedHosts = useTrustedHosts(ctx);
                 const disposeRoutes = mountMarketRoutes(host, resolved, runtime, agentsLookupOf(ctx));
                 return async () => {

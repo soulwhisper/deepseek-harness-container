@@ -213,14 +213,14 @@ async function manager() {
   if (process.env.DSH_PROFILE === 'web') {
     const status = await request('/dsh-market/status', headers, 'GET', undefined, 30_000);
     const state = JSON.parse(status.text);
-    check(status.status === 200 && state.version === '1.73.5' && state.pnpm === true
+    check(status.status === 200 && state.version === '1.73.12' && state.pnpm === true
       && state.agentGuardAvailable === true, 'Real market/native-manager availability');
     const forbidden = await request('/dsh-market/uninstall', headers, 'POST', JSON.stringify({ name: protectedName }), 180_000);
     const refusal = JSON.parse(forbidden.text);
     check(forbidden.status >= 400 && refusal.ok !== true
       && /management-required|not-removable/u.test(JSON.stringify(refusal)), 'Market cannot remove required forward-auth');
-    // The Web profile bundles the sidebar at 0.28.2. Remove it through the
-    // market first so the pinned 0.28.2 install exercises a real install instead
+    // The Web profile bundles the sidebar at 0.30.1. Remove it through the
+    // market first so the pinned 0.30.1 install exercises a real install instead
     // of the manager's already-installed refusal.
     const removedBundled = await request('/dsh-market/uninstall', headers, 'POST',
       JSON.stringify({ name: 'dsh-better-sidebar' }), 180_000);
@@ -233,7 +233,7 @@ async function manager() {
       plugin.npm === 'dsh-better-sidebar' || plugin.name === 'dsh-better-sidebar');
     check(typeof entry?.url === 'string', 'Real curated sidebar catalog entry');
     const installed = await request('/dsh-market/install', headers, 'POST',
-      JSON.stringify({ url: entry.url, version: '0.28.2' }), 180_000);
+      JSON.stringify({ url: entry.url, version: '0.30.1' }), 180_000);
     const installedBody = JSON.parse(installed.text);
     check(installed.status === 200 && installedBody.ok === true,
       `Pinned plugin market install (status ${installed.status})`);
@@ -258,15 +258,15 @@ async function manager() {
     };
     const adapter = createOfficialDesktopRuntime(() => actualManager, 'web', '/data/dsh/profiles/web');
     try {
-      const reinstalled = await adapter.runPlugin('web', ['add', 'dsh-better-sidebar@0.28.2']);
+      const reinstalled = await adapter.runPlugin('web', ['add', 'dsh-better-sidebar@0.30.1']);
       check(reinstalled.exitCode === 0 && calls.filter(method => method === 'installBundle').length === 2
         && calls.includes('removeBundle'), 'Real adapter/native-manager exact-version reinstall');
     } finally { await adapter.dispose(); }
     const updated = await request('/dsh-market/update', headers, 'POST',
-      JSON.stringify({ name: 'dsh-better-sidebar', force: true, compatVersion: '0.28.2' }), 180_000);
+      JSON.stringify({ name: 'dsh-better-sidebar', force: true, compatVersion: '0.30.1' }), 180_000);
     const update = JSON.parse(updated.text);
     check(updated.status === 200 && update.ok === true && update.skipped === 'current'
-      && update.version === '0.28.2', 'Exact-current market update is honestly a no-op');
+      && update.version === '0.30.1', 'Exact-current market update is honestly a no-op');
   }
   const after = await rpc('listBundles', {});
   check(after.some(bundle => bundle.name === protectedName && bundle.enabled), 'forward-auth remains selected after mutation attempts');
@@ -374,8 +374,8 @@ async function runtime() {
     : ['@soulwhisper/dsh-forward-auth', 'dsh-tavern-wrongbook', 'dsh-tavern-knock-knock', 'narrative-anchor'];
   for (const name of expected) check(Object.hasOwn(manifest.dependencies, name), 'Required profile package');
   if (profile === 'web') {
-    check(manifest.dependencies['dsh-context'] === '0.78.1', 'Bundled dsh-context release');
-    check(manifest.dependencies['@linxin666/dsh-ssh'] === '0.4.12', 'Bundled SSH plugin');
+    check(manifest.dependencies['dsh-context'] === '0.82.0', 'Bundled dsh-context release');
+    check(manifest.dependencies['@linxin666/dsh-ssh'] === '0.4.15', 'Bundled SSH plugin');
     check((await stat('/data/memory')).isDirectory(), 'Durable memory root exists');
     check((await stat('/usr/local/bin/mnemon')).isFile(), 'Bundled Mnemon CLI');
   }

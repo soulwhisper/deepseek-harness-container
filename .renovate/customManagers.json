@@ -15,7 +15,7 @@
     },
     {
       "customType": "regex",
-      "description": "Web DSH alpha version pinned in versions.json",
+      "description": "Web DSH version pinned in versions.json",
       "managerFilePatterns": [
         "/(^|/)versions\\.json$/"
       ],

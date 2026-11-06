@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1@sha256:ecfaec9ed6d810b56388c508f4121597bfbba70d41a6dfeee4d8cad5f295fc32
 # Independent Web release recipe. It intentionally shares no stage with
-# tavern.Dockerfile: Web follows the alpha line and its plugins while Tavern
+# tavern.Dockerfile: Web follows the 0.2.2 line and its plugins while Tavern
 # stays pinned to its own DSH/Tavern/theme graph.
 ARG NODE_IMAGE=node:24.22.1-trixie-slim@sha256:43b9ba1142b8dcf33fa8f922ca1be85714adc444e0586c7cf7726daaeabc1bea
 FROM ${NODE_IMAGE} AS tools
@@ -35,7 +35,7 @@ COPY docs/source-build.md docs/regulations.md /docs/
 
 FROM tools AS runtime-build
 ARG TARGETARCH
-# Web runtime is deliberately not lock-pinned: the alpha plugin set is
+# Web runtime is deliberately not lock-pinned: the plugin set is
 # resolved at image-build time and the published digest is the boundary.
 WORKDIR /opt/dsh/docker/runtime
 COPY docker/runtime/web/package.json docker/runtime/web/pnpm-workspace.yaml ./
@@ -145,7 +145,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 CMD ["nod
 ENTRYPOINT ["/usr/bin/tini", "--", "/opt/dsh/scripts/entrypoint.sh"]
 LABEL org.opencontainers.image.source="https://github.com/soulwhisper/deepseek-harness-container" \
       org.opencontainers.image.vendor="soulwhisper" \
-      io.github.soulwhisper.distribution.version="0.2.2-alpha.2-r1"
+      io.github.soulwhisper.distribution.version="0.2.2-rc.1-r1"
 
 FROM web-application AS web
 USER root
@@ -156,6 +156,6 @@ COPY --from=web-build /opt/dsh /opt/dsh
 COPY docker/skills/ /opt/dsh/distribution-source/docker/skills/
 COPY --from=web-build /usr/local/bin/rtk /usr/local/bin/rtk
 COPY --from=web-build /usr/local/share/rtk /usr/local/share/rtk
-LABEL org.opencontainers.image.title="DeepSeek Harness Web alpha with dshmarket, dsh-context, memory and plugins" \
-      org.opencontainers.image.version="0.2.2-alpha.2-r1" \
+LABEL org.opencontainers.image.title="DeepSeek Harness Web rc with dshmarket, dsh-context, memory and plugins" \
+      org.opencontainers.image.version="0.2.2-rc.1-r1" \
       org.opencontainers.image.licenses="Apache-2.0 AND MIT"

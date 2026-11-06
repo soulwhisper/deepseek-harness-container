@@ -183,6 +183,10 @@ async function manager() {
     check(context?.enabled === true && context.installed === true
       && context.availability === 'profile' && context.removable === true
       && context.readOnlyReason === undefined, 'dsh-context is profile-owned and removable');
+    const mnemon = before.find(bundle => bundle.name === 'dsh-mnemon');
+    check(mnemon?.enabled === true && mnemon.installed === true
+      && mnemon.availability === 'profile' && mnemon.removable === true
+      && mnemon.readOnlyReason === undefined, 'dsh-mnemon is profile-owned and updatable');
   } else {
     for (const name of ['dsh-better-sidebar', 'dsh-tavern-wrongbook', 'narrative-anchor']) {
       const bundle = before.find(item => item.name === name);

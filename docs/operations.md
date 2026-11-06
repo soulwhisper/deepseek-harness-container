@@ -190,11 +190,14 @@ or agent sandbox.
 
 ## Plugin updates
 
-Distribution-owned DSH, forward-auth, guard patches and bundled baseline packages
-change through reviewed source/lock updates and a rebuilt image. User-added Web
-plugins go through the native manager and its explicit script approvals; the
-market is not a privileged installer. Tavern core requires its pinned custom
-workspace recipe; runtime `plugin add` of the core is not supported.
+Distribution-owned DSH, forward-auth, guard patches, the market and the bundled
+Mnemon CLI at `/usr/local/bin/mnemon` change through reviewed source/lock
+updates and a rebuilt image. Bundled Web profile plugins (`dsh-context`,
+`dsh-mnemon`, automation, IM, sidebar and SSH) are installed as writable profile
+packages, so the native manager and each plugin's own Check versions path can
+update them, and removals persist. The market and forward-auth are runtime
+links, not profile packages. Tavern core requires its pinned custom workspace
+recipe; runtime `plugin add` of the core is not supported.
 
 Changing an image tag does not approve a state migration, update a community
 plugin or prove compatibility. Startup installs nothing.

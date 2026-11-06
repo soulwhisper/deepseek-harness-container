@@ -102,9 +102,10 @@ test('migration adds new Web profile defaults without overwriting user rows', as
   const compatibility = join(options.home, 'profiles/web/compatibility.json');
   await writeFile(patch, '[ { id: user, config: { keep: true, expr: !!js process.env.OWNER_EXPR } } ]\n');
   // A seed-owned key already present on the volume must be updated, not
-  // skipped: this is how a new DSH exemption reaches an existing profile.
+  // skipped: this is how a new DSH exemption reaches an existing profile. The
+  // owner-added key is not in the seed and must keep its distinct value.
   await writeFile(compatibility, JSON.stringify({
-    'owner-plugin@1.0.0': ['0.2.2-rc.1'],
+    'owner-plugin@1.0.0': ['0.2.2-alpha.2'],
     'dsh-context@0.82.0': ['0.2.2-alpha.2'],
   }));
   await writeFile(join(options.home, '.distribution-state.json'),
@@ -115,7 +116,7 @@ test('migration adds new Web profile defaults without overwriting user rows', as
   assert.ok(rows.some(row => row.id === 'mnemon'));
   assert.match(await readFile(patch, 'utf8'), /!!js process\.env\.OWNER_EXPR/u);
   const merged = JSON.parse(await readFile(compatibility, 'utf8'));
-  assert.deepEqual(merged['owner-plugin@1.0.0'], ['0.2.2-rc.1']);
+  assert.deepEqual(merged['owner-plugin@1.0.0'], ['0.2.2-alpha.2']);
   assert.deepEqual(merged['dsh-context@0.82.0'], ['0.2.2-rc.1']);
 });
 

@@ -11,15 +11,24 @@ const rc2Hashes = Object.freeze({
   manager: '1b8bf9eb266d7b3b7f899175e3f435c89ed8baa8aabc677212759f8c6cd23132',
   boot: '5135179ac810e4f626f32ec3bdc3293dc7d2028e8aa92e5e0c006f1a33b78e76',
 });
-// The Web image follows the alpha line. Keep exact hashes per release; a
-// new alpha still requires a deliberate adapter, not an anchor-only guess.
+// The Web image follows the 0.2.2 line. Keep exact hashes per release; a
+// new alpha or release candidate still requires a deliberate adapter, not an
+// anchor-only guess.
 const alphaHashes = Object.freeze({
   host: '81a85ab619d8977e090e23124fd4e0e135c944c99b8b199eadea615532f2b2e3',
   types: '09b09157e6187d0d12270549a2564dc7f392fb617b3c9617d3b4f72ddad5c87d',
   manager: '2aa5aa509376fb4cf1fb344a19076b61c8eb30c0f836c1f3dd1729ed23f7464e',
   boot: 'dbe13b8cbfe6a183efab4cb363bbcbc35e4ee171b5f8c798390d0371ca9ea4ff',
 });
-const hashSets = Object.freeze({ '0.2.1-rc.2': rc2Hashes, '0.2.2-alpha.2': alphaHashes });
+// 0.2.2-rc.1 keeps the alpha host/types bytes, but its manager moved to the
+// official-bundles PROTECTED_PLUGINS set and app-boot changed.
+const rc1Hashes = Object.freeze({
+  host: '81a85ab619d8977e090e23124fd4e0e135c944c99b8b199eadea615532f2b2e3',
+  types: '09b09157e6187d0d12270549a2564dc7f392fb617b3c9617d3b4f72ddad5c87d',
+  manager: '6f0fdc6a6e4cd2bc9d969ba582636729ade450e415f0fc20bbef9da3f65823f3',
+  boot: '346f832224737cd9ab1b5e37d111ae232fdd78b5ab892fa3179c112baf6f0a22',
+});
+const hashSets = Object.freeze({ '0.2.1-rc.2': rc2Hashes, '0.2.2-alpha.2': alphaHashes, '0.2.2-rc.1': rc1Hashes });
 export const upstreamVersion = '0.2.1-rc.2';
 export const sourceHashes = rc2Hashes;
 export const supportedVersions = Object.freeze(Object.keys(hashSets));
@@ -44,7 +53,7 @@ export function patchSource(kind, source, version = upstreamVersion) {
     source = replaceOnce(source, 'const requiredStartupEntryIds = new Set([', 'const requiredStartupEntryIds = new Set([\n\t"distribution-forward-auth",');
     source = replaceOnce(source, '\t\tawait auditStartupEntries(ctx, binName);\n\t\treturn ctx;', '\t\tawait auditStartupEntries(ctx, binName);\n\t\tctx.provide("distributionStartupReady", true);\n\t\treturn ctx;');
   } else if (kind === 'manager') {
-    if (version === '0.2.2-alpha.2') source = patchManagerAlpha(source);
+    if (version === '0.2.2-alpha.2' || version === '0.2.2-rc.1') source = patchManagerAlpha(source);
     else {
       source = replaceOnce(source, 'const protectedModules = new Set([', 'const protectedModules = new Set([\n\t"@soulwhisper/dsh-forward-auth",\n\t"@deepseek-ai/dsh-app-boot",');
       source = replaceOnce(source, '\t\t\tthis.profile = ctx.profileContext;', '\t\t\tthis.profile = ctx.profileContext;\n\t\t\tfor (const name of readProfileManifest("dsh", this.profile.dir).dshTavern?.managedDependencies ?? []) protectedModules.add(name);');

@@ -18,7 +18,7 @@ captured at one consistent point. Encrypt the archive and restrict access.
 | Path | Class | Contents | Independent backup | Loss acceptable |
 | --- | --- | --- | --- | --- |
 | `/data/dsh` | Durable state | Profiles, sessions, storages, attachments, `.credentials.yaml`, anonymous ID, Tavern `profile-data`, distribution marker | **Required, encrypted** | No |
-| `/data/home` | Durable state/config | `HOME`, XDG config/data, pnpm home, shell/tool config | Required | No |
+| `/data/home` | Durable state/config | `HOME`, XDG config/data, pnpm home, shell/tool config, global Mnemon `USER.md` | Required | No |
 | `/data/memory` | Durable user memory | Mnemon spaces, `MEMORY.md`, memory indexes and skills | **Required, encrypted** | No |
 | `/workspace` | Durable user data | User projects, generated files, shell cwd content | **Required, consistent with `/data/dsh`** | No |
 | `/cache` | Rebuildable cache | `XDG_CACHE_HOME`, npm cache, DSH cache via `$DSH_HOME/cache` symlink | No | Yes; emptyDir or separate cache volume |
@@ -54,13 +54,22 @@ explicit, and `scripts/materialize-state.mjs` rejects a backup root inside
 ## Memory
 
 The bundled `dsh-mnemon` profile defaults to `storageScope: custom` with
-`dataDir: /data/memory/mnemon`. A profile overlay replaces the whole Mnemon
-configuration, so keep `dataDir` under `/data` if you override it; otherwise
-memory can fall outside the backup. Memory is durable user data inside `/data`,
-not plugin code. Back it up with
+`dataDir: /data/memory/mnemon` and `runtimeUserScope: global`. A profile
+overlay replaces the whole Mnemon configuration, so keep `dataDir` under
+`/data` if you override it; otherwise memory can fall outside the backup.
+Memory is durable user data inside `/data`, not plugin code. Back it up with
 `/data/dsh` and `/workspace` at the same point. `remoteAccess: trusted-host`
 is set in the Web profile so a trusted-edge session can manage memory; it does
 not replace forward-auth.
+
+The Web image bundles the Mnemon CLI at `/usr/local/bin/mnemon`, and the profile
+points `cliPath` at it. Only Mnemon Native Memory Spaces need the CLI; runtime
+memory and Project Documents work without it. The plugin and CLI create their
+data directories on demand, including the native store database; there is no
+`mnemon init` step. With `runtimeUserScope: global`, the runtime `USER.md` lives
+under `$HOME/.mnemon/runtime` (durable `/data/home`), while `MEMORY.md`,
+documents, indexes and Memory Spaces live under `/data/memory/mnemon`. Back up
+both roots.
 
 Do not place `/data/memory` on an `emptyDir`, and do not treat the profile
 package directory as memory storage. Plugin upgrades may replace code and

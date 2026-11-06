@@ -5,7 +5,7 @@ requires an explicit design review, tests and updated pins.
 
 ## Compatibility
 
-- DSH `0.2.2-alpha.2` (Web) and `0.2.1-rc.2` (Tavern) are developer previews, not audited production platforms.
+- DSH `0.2.2-rc.1` (Web) and `0.2.1-rc.2` (Tavern) are developer previews, not audited production platforms.
 - `versions.json`, the pinned Tavern runtime/profile lock and the two independent
   Dockerfiles are the compatibility boundary. The Web profile is build-resolved
   and has no committed lock. Do not assume every upstream alpha/RC or plugin

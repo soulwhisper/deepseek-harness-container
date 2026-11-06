@@ -7,7 +7,7 @@ boundary, and which repository changes are allowed to affect which upstream.
 
 | Image | Release tag | Profile | Purpose |
 | --- | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.2-alpha.2-r1` | `web-0.2.2-alpha.2-r1` | DSH Web alpha, `dshmarket`, `dsh-context`, `dsh-mnemon`, automation/IM/sidebar/SSH, required forward-auth | General DSH Web with owner-approved community plugins |
+| `ghcr.io/soulwhisper/dsh-web:0.2.2-rc.1-r1` | `web-0.2.2-rc.1-r1` | DSH Web rc, `dshmarket`, `dsh-context`, `dsh-mnemon`, automation/IM/sidebar/SSH, required forward-auth | General DSH Web with owner-approved community plugins |
 | `ghcr.io/soulwhisper/dsh-tavern:3.1.3` | `tavern-3.1.3` | Custom Tavern workspace, forward-auth, ecosystem | Dedicated Tavern instance |
 
 Both images use Node 24/glibc, UID/GID `1000:1000`, `tini`, a read-only root

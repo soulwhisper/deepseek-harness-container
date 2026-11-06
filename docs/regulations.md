@@ -33,13 +33,13 @@ is Apache-2.0; bundled upstream components keep their own licenses.
 | --- | --- | --- |
 | DeepSeek Harness | MIT | Host/manager/app-boot patched at build time; upstream notice retained |
 | DSH Market | MIT | Managed-runtime bridge patch applied |
-| `dsh-context` 0.78.1 | Apache-2.0 | Web only; packaged LICENSE retained |
-| `dsh-mnemon` 0.5.37 | MIT | Web only; packaged LICENSE retained |
+| `dsh-context` 0.82.0 | Apache-2.0 | Web only; packaged LICENSE retained |
+| `dsh-mnemon` 0.5.41 | MIT | Web only; packaged LICENSE retained |
 | `@mnemon-dev/mnemon` 0.2.13 CLI | Apache-2.0 | Web only; installed globally with its LICENSE |
-| `@michengai/dsh-automation` 1.0.13 | Apache-2.0 | Web only; packaged LICENSE retained |
+| `@michengai/dsh-automation` 1.0.18 | Apache-2.0 | Web only; packaged LICENSE retained |
 | `@xmanrui/dsh-im` 5.8.0 | MIT | Web only; packaged LICENSE retained |
-| `dsh-better-sidebar` 0.28.2 | MIT | Web only; packaged LICENSE retained |
-| `@linxin666/dsh-ssh` 0.4.12 | Apache-2.0 | Web only; packaged LICENSE retained |
+| `dsh-better-sidebar` 0.30.1 | MIT | Web only; packaged LICENSE retained |
+| `@linxin666/dsh-ssh` 0.4.15 | Apache-2.0 | Web only; packaged LICENSE retained |
 | Caveman skill | Apache-2.0 | Web only; fetched from the latest upstream GitHub release tag at build time (not `main`); `LICENSE` and `NOTICE` retained in the skill seed |
 | RTK OSS | Apache-2.0 | Web only; `rtk-oss-*` release asset only; the BUSL-1.1 edition is not bundled; LICENSE retained |
 | Tavern ecosystem packages | MIT | Installed in the Tavern image only |

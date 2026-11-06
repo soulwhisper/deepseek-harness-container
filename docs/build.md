@@ -25,12 +25,12 @@ Use the native architecture matching the runner or host. CI builds
 
 | Target | Result |
 | --- | --- |
-| `web` | Final Web image: DSH alpha + bundled Web plugins + required forward-auth |
+| `web` | Final Web image: DSH 0.2.2-rc.1 + bundled Web plugins + required forward-auth |
 | `tavern` | Final Tavern image: pinned source workspace + pruned profile + ecosystem |
 | `web-application` | Web-only final-stage base; never shared with Tavern |
 | `tavern-application` | Tavern-only final-stage base; never shared with Web |
 | `profile-locks` | Maintainer-only Tavern lock export; the Web profile deliberately has no committed lock |
-| `runtime-build` | Patched runtime dependency closure; Web alpha and Tavern rc.2 are separate |
+| `runtime-build` | Patched runtime dependency closure; Web rc.1 and Tavern rc.2 are separate |
 | `distribution-source` | Image-specific whitelisted build/source payload |
 | `tavern-source` | Pinned Tavern checkout plus exact-hash and wrongbook host patches |
 
@@ -142,7 +142,7 @@ profile state. The Web plugin set is installed at image-build time.
 ### Build-resolved Web inputs
 
 The Web runtime and profile deliberately have **no committed lock**. `versions.json`
-pins the Web DSH alpha and `dshmarket`; the plugin recipe pins the initial
+pins the Web DSH rc and `dshmarket`; the plugin recipe pins the initial
 plugin releases used to build the image. Caveman and RTK are resolved from
 their latest release tags at build time:
 
@@ -152,7 +152,7 @@ their latest release tags at build time:
 | Caveman skill | `JuliusBrussee/caveman` latest GitHub release tag, `skills/caveman/SKILL.md` | Web only. The tag is resolved at build time, then fetched into `/opt/dsh/seed/skills/caveman`; upstream `LICENSE` and a `SOURCE` record are included. The moving `main` branch is not used |
 | RTK binary | `rtk-ai/rtk` latest release, **`rtk-oss-*` Apache-2.0 edition** | Web only. Checksum-verified and installed at `/usr/local/bin/rtk`; the BUSL-1.1 asset is never used |
 
-The Web runtime and profile use a `minimumReleaseAge: 60` cooldown; exact alpha
+The Web runtime and profile use a `minimumReleaseAge: 60` cooldown; exact release-candidate
 and plugin releases are currently older than that window. Tavern keeps its
 established `0` because its runtime/profile locks are committed and only human
 lock updates change bytes; do not carry that exception into a floating profile.
@@ -165,7 +165,7 @@ replaceable; `/data/memory` and the rest of `/data` are the durable boundary.
 The manager protects only `@soulwhisper/dsh-forward-auth` on Web. Tavern's
 pinned bundle set remains protected. `docker/profiles/web/compatibility.json`
 contains exact package@version -> DSH-version exemptions only where an upstream
-plugin still lacks an alpha release record; each exemption is a reviewed risk,
+plugin still lacks a release record for the current DSH line; each exemption is a reviewed risk,
 not a wildcard. Because the Web install is a Docker layer,
 use a clean builder when you deliberately want to refresh build inputs; release
 CI builds on clean runners.

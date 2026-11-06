@@ -36,8 +36,8 @@ test('Web profile bundles memory and integration plugins without a committed loc
   assert.match(await read('docker/profiles/web/cordis.patch.yml'), /storageScope: custom/u);
   assert.match(await read('docker/profiles/web/cordis.patch.yml'), /dataDir: \/data\/memory\/mnemon/u);
   const compatibility = JSON.parse(await read('docker/profiles/web/compatibility.json'));
-  assert.deepEqual(compatibility[`@xmanrui/dsh-im@${pin('@xmanrui/dsh-im')}`], ['0.2.2-alpha.2']);
-  assert.deepEqual(compatibility[`dsh-context@${pin('dsh-context')}`], ['0.2.2-alpha.2']);
+  assert.deepEqual(compatibility[`@xmanrui/dsh-im@${pin('@xmanrui/dsh-im')}`], ['0.2.2-rc.1']);
+  assert.deepEqual(compatibility[`dsh-context@${pin('dsh-context')}`], ['0.2.2-rc.1']);
   await assert.rejects(read('docker/profiles/web/pnpm-lock.yaml'));
 });
 

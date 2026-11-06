@@ -1,10 +1,10 @@
 {
   "schemaVersion": 2,
-  "distribution": "0.2.2-alpha.2-r1",
+  "distribution": "0.2.2-rc.1-r1",
   "registry": "ghcr.io/soulwhisper",
   "release": {
     "web": {
-      "tag": "web-0.2.2-alpha.2-r1",
+      "tag": "web-0.2.2-rc.1-r1",
       "image": "dsh-web"
     },
     "tavern": {
@@ -22,7 +22,7 @@
     "version": "0.2.1-rc.2",
     "commit": "687f282e8625c6b8d11ff58211a90524be2e4317"
   },
-  "market": "1.73.5",
+  "market": "1.73.12",
   "tavern": {
     "repository": "https://github.com/flizzywine/dsh-tavern.git",
     "version": "3.1.3",
@@ -42,6 +42,6 @@
     "narrative-anchor": "github:ActivityTime/narrative-anchor#v1.0.1"
   },
   "webDsh": {
-    "version": "0.2.2-alpha.2"
+    "version": "0.2.2-rc.1"
   }
 }

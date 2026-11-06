@@ -8,8 +8,8 @@ anchor mismatch is a build failure.
 
 | Patch | Upstream pin | What it does |
 | --- | --- | --- |
-| `patches/dsh/patch-host.mjs` | DSH `0.2.1-rc.2` (Tavern) and `0.2.2-alpha.2` (Web) | Adds the mandatory pre-dispatch gate, startup-readiness marker and manager protection. Hashes four upstream files per release: host, types, manager and boot. |
-| `patches/market/patch-market.mjs` | dshmarket `1.73.5` | Gives the Web market an `OfficialDesktopRuntime` backed by `pluginManager`, so package operations use manager admission instead of the CLI path. |
+| `patches/dsh/patch-host.mjs` | DSH `0.2.1-rc.2` (Tavern) and `0.2.2-rc.1` (Web) | Adds the mandatory pre-dispatch gate, startup-readiness marker and manager protection. Hashes four upstream files per release: host, types, manager and boot. |
+| `patches/market/patch-market.mjs` | dshmarket `1.73.12` | Gives the Web market an `OfficialDesktopRuntime` backed by `pluginManager`, so package operations use manager admission instead of the CLI path. |
 | `patches/tavern/patch-tavern.mjs` | Tavern commit `5deb1ef377240d0f41808a8e346040ff1def31d1` | Adds the exact public-Origin exception and applies the theme font-limit change. Verifies route and theme hashes. |
 | `patches/wrongbook/patch-all.mjs` | Tavern commit `5deb1ef377240d0f41808a8e346040ff1def31d1` | Applies the wrongbook host patches whose anchors still match the pinned source: MVU pure-API tests and timeout body retention. Other upstream wrongbook patches are reported as not applicable. |
 | Tavern profile patch | `dsh-better-sidebar@0.28.0` | Fixes the thread seed boundary so a resume does not drop pre-resume history. Applied by pnpm from the Tavern recipe and pinned by the lock's `patch_hash`. |

@@ -195,9 +195,13 @@ Mnemon CLI at `/usr/local/bin/mnemon` change through reviewed source/lock
 updates and a rebuilt image. Bundled Web profile plugins (`dsh-context`,
 `dsh-mnemon`, automation, IM, sidebar and SSH) are installed as writable profile
 packages, so the native manager and each plugin's own Check versions path can
-update them, and removals persist. The market and forward-auth are runtime
-links, not profile packages. Tavern core requires its pinned custom workspace
-recipe; runtime `plugin add` of the core is not supported.
+update them. Removals persist across normal starts and runtime use; an explicit
+`DSH_STATE_MIGRATION=apply` run re-adds the seed's bundled plugins. A plugin
+update can be newer than the pinned Mnemon CLI: the CLI is image-owned, is
+replaced only by a rebuilt image, and its own Check versions entry cannot write
+the read-only image path. The market and forward-auth are runtime links, not
+profile packages. Tavern core requires its pinned custom workspace recipe;
+runtime `plugin add` of the core is not supported.
 
 Changing an image tag does not approve a state migration, update a community
 plugin or prove compatibility. Startup installs nothing.

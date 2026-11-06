@@ -186,7 +186,7 @@ async function manager() {
     const mnemon = before.find(bundle => bundle.name === 'dsh-mnemon');
     check(mnemon?.enabled === true && mnemon.installed === true
       && mnemon.availability === 'profile' && mnemon.removable === true
-      && mnemon.readOnlyReason === undefined, 'dsh-mnemon is profile-owned and updatable');
+      && mnemon.readOnlyReason === undefined, 'dsh-mnemon is profile-owned and removable');
   } else {
     for (const name of ['dsh-better-sidebar', 'dsh-tavern-wrongbook', 'narrative-anchor']) {
       const bundle = before.find(item => item.name === name);

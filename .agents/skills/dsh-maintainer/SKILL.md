@@ -70,9 +70,9 @@ directory is seeded into the Web image as user-facing skills.
   `materialize-state` must let existing approvals override seed defaults. Do
   not pre-approve a dependency just because a plugin is popular; one key
   authorizes every dependent plugin in that profile.
-- The distribution patch disables the account UI, account controller and
-  assistant-message feedback rows. Keep them disabled by default; the edge
-  remains Authentik/forward-auth, not a local login.
+- Do not add row-level `disabled` patches for the DeepSeek account UI/login or
+  message feedback. They did not work and are not part of the trust boundary;
+  the edge remains Authentik/forward-auth, not a local login.
 - Tavern native bundles are immutable like forward-auth:
   - `versions.json` + committed lock pin the packages
   - the native bundle set is installed into the immutable seed profile

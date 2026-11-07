@@ -353,14 +353,6 @@ async function runtime() {
     check(dump.status === 0, 'Profile composition dump');
     check(/id: session-log-deepseek\n  name: [^\n]+\n  config:\n    enabled: false/u.test(dump.stdout),
       'Official-API Session-log upload is opt-in');
-    check(/id: ui-settings-account\n  name: [^\n]+\n  disabled: true/u.test(dump.stdout),
-      'DeepSeek account UI is hidden by default');
-    check(/id: account-controller\n  name: [^\n]+\n  disabled: true/u.test(dump.stdout),
-      'DeepSeek account login API is disabled by default');
-    check(/id: message-feedback\n  name: [^\n]+\n(?:  config:\n(?:    [^\n]*\n)+)?  disabled: true/u.test(dump.stdout),
-      'Message feedback host is disabled by default');
-    check(/id: ui-message-feedback\n  name: [^\n]+\n  disabled: true/u.test(dump.stdout),
-      'Message feedback UI is disabled by default');
     check(/id: ui-settings-models\n  name: [^\n]+\n  config:\n    credentialOnboarding: false/u.test(dump.stdout),
       'Automatic credential onboarding is off by default');
     if (profile === 'web') {

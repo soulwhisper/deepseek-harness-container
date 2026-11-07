@@ -473,14 +473,6 @@ test('forward-auth bundle keeps privacy defaults and exposes optional skill root
   const entry = id => patch.find(row => row.id === id);
   assert.equal(entry('session-log-deepseek')?.name, '@deepseek-ai/dsh-session-log-deepseek');
   assert.equal(entry('session-log-deepseek')?.config?.enabled, false);
-  assert.equal(entry('ui-settings-account')?.name, '@deepseek-ai/dsh-client-ui-settings-account');
-  assert.equal(entry('ui-settings-account')?.disabled, true);
-  assert.equal(entry('account-controller')?.name, '@deepseek-ai/dsh-api-account-controller');
-  assert.equal(entry('account-controller')?.disabled, true);
-  assert.equal(entry('message-feedback')?.name, '@deepseek-ai/dsh-message-feedback');
-  assert.equal(entry('message-feedback')?.disabled, true);
-  assert.equal(entry('ui-message-feedback')?.name, '@deepseek-ai/dsh-client-ui-message-feedback');
-  assert.equal(entry('ui-message-feedback')?.disabled, true);
   assert.equal(entry('ui-settings-models')?.config?.credentialOnboarding, false);
   const skills = entry('skill-filesystem');
   assert.equal(skills?.name, '@deepseek-ai/dsh-skill-filesystem');

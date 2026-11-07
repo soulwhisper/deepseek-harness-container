@@ -50,7 +50,8 @@ assert.ok(await present('docker/runtime/tavern/pnpm-lock.yaml'), 'The Tavern run
 const tavernRuntime = JSON.parse(await text('docker/runtime/tavern/package.json'));
 assert.equal(tavernRuntime.dependencies['@deepseek-ai/dsh'], versions.dsh.version);
 assert.equal(tavernRuntime.dependencies.sharp, '0.34.5', 'Tavern runtime pins the native asset-library dependency');
-assert.match(await text('docker/runtime/tavern/pnpm-workspace.yaml'), /^  sharp: false$/mu,
+const tavernRuntimeWorkspace = parse(await text('docker/runtime/tavern/pnpm-workspace.yaml'));
+assert.equal(tavernRuntimeWorkspace.allowBuilds?.sharp, false,
   'sharp install script is explicitly denied; the prebuilt optional package is used');
 const runtimeLock = parse(await text('docker/runtime/tavern/pnpm-lock.yaml'));
 assert.ok(runtimeLock.importers?.['.'], 'Committed Tavern runtime dependency closure');

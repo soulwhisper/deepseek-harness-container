@@ -32,12 +32,18 @@ function request(path, headers = {}, method = 'GET', body, deadline = 10_000, bo
         else chunks.push(chunk);
       });
       res.on('end', () => {
+        finish();
         const bytes = Buffer.concat(chunks);
         resolve({ status: res.statusCode, headers: res.headers, text: bytes.toString('utf8'), bytes });
       });
+      res.on('error', error => { finish(); reject(error); });
     });
+    // req.setTimeout is an inactivity timeout; enforce the total wall-clock
+    // deadline as well so a trickling response cannot keep the probe alive.
+    const wallClock = setTimeout(() => req.destroy(new Error('HTTP deadline')), deadline);
+    const finish = () => clearTimeout(wallClock);
     req.setTimeout(deadline, () => req.destroy(new Error('HTTP deadline')));
-    req.on('error', reject);
+    req.on('error', error => { finish(); reject(error); });
     req.end(body);
   });
 }
@@ -218,10 +224,14 @@ async function manager() {
       // A bundle row can be named by a relative module path (dsh-asset-library
       // uses ./lib/index.js), so match the declared bundle rows as well as the
       // package name. Both read-only reasons mean the manager cannot change it.
-      const row = rows.find(item => item.moduleName === name)
-        ?? rows.find(item => (bundle?.rows ?? []).some(bundleRow => bundleRow.moduleName === item.moduleName));
-      check(['management-required', 'unaddressable'].includes(row?.readOnlyReason),
-        `Pinned Tavern plugin row is read-only: ${name} (${row?.readOnlyReason ?? 'editable'})`);
+      const bundleRows = bundle?.rows ?? [];
+      const packageRows = rows.filter(item => item.moduleName === name);
+      const matched = packageRows.length > 0
+        ? packageRows
+        : rows.filter(item => bundleRows.some(bundleRow => bundleRow.moduleName === item.moduleName));
+      check(matched.length > 0
+        && matched.every(row => ['management-required', 'unaddressable'].includes(row.readOnlyReason)),
+        `Pinned Tavern plugin rows are read-only: ${name}`);
     }
   }
   for (const [method, args] of [
@@ -475,6 +485,6 @@ try {
 } catch (error) {
   const label = ['trusted', 'untrusted', 'runtime', 'manager', 'arch'].includes(mode) ? mode : 'probe';
   if (error?.code === 'ERR_ASSERTION' && typeof error.message === 'string') console.error(`FAIL ${label}: ${error.message}`);
-  else console.error(`FAIL ${label}: probe failed at ${probeStage}; details withheld`);
+  else console.error(`FAIL ${label}: probe failed${mode === 'trusted' ? ` at ${probeStage}` : ''}; details withheld`);
   process.exitCode = 1;
 }

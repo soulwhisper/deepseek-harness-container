@@ -102,7 +102,9 @@ path. Upgrades remain manual and supervised.
 This distribution does not migrate removed Tavern ecosystem packages:
 `dsh-tavern-wrongbook`, `dsh-tavern-knock-knock` and `narrative-anchor` can
 remain in an existing profile because it is merged, not rebuilt. Start from a
-clean `/data/dsh` profile to get the native 3.2 bundle set.
+clean `/data/dsh` profile to get the native 3.2 bundle set. This discards
+sessions, credentials and Tavern data in `/data/dsh`; keep the step 2 snapshot
+and move the old profile aside rather than deleting it.
 
 If migration fails, do not start DSH or retry blindly. Restore the pre-upgrade
 `/data` and `/workspace` snapshots into separate volumes. Do not attach the old

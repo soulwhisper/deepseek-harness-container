@@ -56,7 +56,7 @@ export function patchSource(kind, source, version = upstreamVersion) {
     if (version === '0.2.2-alpha.2' || version === '0.2.2-rc.1') source = patchManagerAlpha(source);
     else {
       source = replaceOnce(source, 'const protectedModules = new Set([', 'const protectedModules = new Set([\n\t"@soulwhisper/dsh-forward-auth",\n\t"@deepseek-ai/dsh-app-boot",');
-      source = replaceOnce(source, '\t\t\tthis.profile = ctx.profileContext;', '\t\t\tthis.profile = ctx.profileContext;\n\t\t\tfor (const name of readProfileManifest("dsh", this.profile.dir).dshTavern?.managedDependencies ?? []) protectedModules.add(name);');
+      source = replaceOnce(source, '\t\t\tthis.profile = ctx.profileContext;', '\t\t\tthis.profile = ctx.profileContext;\n\t\t\tfor (const name of readProfileManifest("dsh", this.profile.dir).dshTavern?.managedDependencies ?? []) protectedModules.add(name);\n\t\t\tfor (const name of readProfileManifest("dsh", this.profile.dir).dshTavern?.managedBundles ?? []) {\n\t\t\t\ttry { for (const row of this.bundleRows(name)) protectedModules.add(row.name); } catch {}\n\t\t\t}');
       source = replaceOnce(source, 'protectsManager(name) {', 'protectsManager(name) {\n\t\t\tif (name === "@soulwhisper/dsh-forward-auth") return true;\n\t\t\tconst tavernBundles = readProfileManifest("dsh", this.profile.dir).dshTavern?.managedBundles;\n\t\t\tif (Array.isArray(tavernBundles) && tavernBundles.includes(name)) return true;');
       source = replaceOnce(source, 'const known = specPackageName(spec, before, this.profile.dir);', 'const known = specPackageName(spec, before, this.profile.dir);\n\t\t\t\tif (known !== undefined && protectedModules.has(known)) throw new ManagementFailure("management-required");');
     }

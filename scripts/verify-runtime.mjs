@@ -218,8 +218,8 @@ async function manager() {
       // A bundle row can be named by a relative module path (dsh-asset-library
       // uses ./lib/index.js), so match the declared bundle rows as well as the
       // package name. Both read-only reasons mean the manager cannot change it.
-      const moduleNames = new Set([name, ...(bundle?.rows ?? []).map(row => row.moduleName)]);
-      const row = rows.find(item => moduleNames.has(item.moduleName));
+      const row = rows.find(item => item.moduleName === name)
+        ?? rows.find(item => (bundle?.rows ?? []).some(bundleRow => bundleRow.moduleName === item.moduleName));
       check(['management-required', 'unaddressable'].includes(row?.readOnlyReason),
         `Pinned Tavern plugin row is read-only: ${name} (${row?.readOnlyReason ?? 'editable'})`);
     }

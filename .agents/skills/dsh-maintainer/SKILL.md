@@ -76,7 +76,9 @@ directory is seeded into the Web image as user-facing skills.
 - Tavern native bundles are immutable like forward-auth:
   - `versions.json` + committed lock pin the packages
   - the native bundle set is installed into the immutable seed profile
-  - `dshTavern.managedBundles` is manager-protected
+  - `dshTavern.managedBundles` is manager-protected, including bundle
+    patch rows whose `name` is a relative path; the manager patch adds their
+    anchored module names to the protected set
   - pinned plugin rows are read-only (`management-required` or
     `unaddressable`)
   - startup restores missing pinned manifest entries and seed links

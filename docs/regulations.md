@@ -42,21 +42,21 @@ is Apache-2.0; bundled upstream components keep their own licenses.
 | `@linxin666/dsh-ssh` 0.4.15 | Apache-2.0 | Web only; packaged LICENSE retained |
 | Caveman skill | Apache-2.0 | Web only; fetched from the latest upstream GitHub release tag at build time (not `main`); `LICENSE` and `NOTICE` retained in the skill seed |
 | RTK OSS | Apache-2.0 | Web only; `rtk-oss-*` release asset only; the BUSL-1.1 edition is not bundled; LICENSE retained |
-| Tavern ecosystem packages | MIT | Installed in the Tavern image only |
 | Tavern bundled scene-image plugin | MIT | Inside the Tavern source; installed into Tavern data on first boot; package LICENSE retained |
+| sharp 0.34.5 | Apache-2.0 | Tavern runtime; native dependency of the Tavern asset library; LICENSE retained in the runtime closure |
 | Tavern itself | **AGPL-3.0-only** | Not Apache-2.0 or MIT |
 
 Installed dependency trees retain their packaged license files. The root
-[NOTICE](../NOTICE) records the DSH, market, ecosystem, Tavern and inspiration
-notices. An OCI SBOM is an inventory, not a substitute for those licenses.
+[NOTICE](../NOTICE) records the DSH, market, Tavern and inspiration notices. An OCI SBOM is an inventory, not a substitute for those licenses.
 The Web image retains the bundled plugins' license/notice files under the
 writable Web profile `node_modules` seed, the global Mnemon CLI package under
 `/usr/local/lib/node_modules/@mnemon-dev/mnemon`, Caveman under the skill seed,
 and RTK under `/usr/local/share/rtk`. Tavern does not include them.
 
-The distribution patches DSH Host/manager/app-boot and applies the recorded
-Tavern route/theme modifications. Those modifications are not upstream
-endorsements.
+The distribution patches DSH Host/manager/app-boot, verifies the recorded
+Tavern route/theme hashes and applies upstream's installer font-limit helper to
+the host theme. The Tavern route source is not modified. Those changes are not
+upstream endorsements.
 
 ## Tavern corresponding source
 
@@ -68,8 +68,7 @@ The Tavern image retains:
 - an authenticated archive at `/opt/dsh/source/tavern.tar.gz`, served at
   `/distribution/source.tar.gz` through the mandatory forward-auth gate;
 - `DSH_SOURCE_URL`, identifying the distribution revision;
-- the exact route/theme hashes in `versions.json` and the vendored wrongbook
-  host-patch anchors under `distribution/patches/wrongbook/`.
+- the exact route/theme hashes in `versions.json`.
 
 The archive contains the Tavern source and the whitelisted distribution build
 inputs, including `distribution/docs/source-build.md` and
@@ -77,10 +76,11 @@ inputs, including `distribution/docs/source-build.md` and
 workspace data, installed `node_modules`, Git object databases, test/smoke
 harnesses, deploy examples or CI workflows.
 
-The authenticated download route is visible in the Tavern UI. Keep it accessible
-to users of a deployed modified version. If you modify or redistribute Tavern,
-preserve the AGPL license, notices, complete corresponding source, build recipe
-and visible source offer. Distribution Apache-2.0 licensing does not replace the
+The authenticated download route is served at `/distribution/source.tar.gz`;
+the image does not inject a notice into the Tavern index. Keep the route
+accessible to users of a deployed modified version. If you modify or redistribute
+Tavern, preserve the AGPL license, notices, complete corresponding source, build
+recipe and corresponding-source download. Distribution Apache-2.0 licensing does not replace the
 Tavern AGPL license. See [Corresponding source](source-build.md).
 
 ## Reproducibility and attestations

@@ -122,7 +122,6 @@ async function trusted() {
   const response = JSON.parse(inventory.text);
   check(response.type === 'server-response' && response.result?.ok === true, 'Native inventory RPC result');
   if (process.env.DSH_PROFILE === 'tavern') {
-    check(page.text.includes('/distribution/source.tar.gz'), 'Visible Tavern source download');
     check((await request('/distribution/source.tar.gz')).status === 403, 'Source route remains guarded');
     const source = await request('/distribution/source.tar.gz', headers);
     const sourceHead = await request('/distribution/source.tar.gz', headers, 'HEAD');
@@ -188,7 +187,8 @@ async function manager() {
       && mnemon.availability === 'profile' && mnemon.removable === true
       && mnemon.readOnlyReason === undefined, 'dsh-mnemon is profile-owned and removable');
   } else {
-    for (const name of ['dsh-better-sidebar', 'dsh-tavern-wrongbook', 'narrative-anchor']) {
+    for (const name of ['dsh-better-sidebar', 'dsh-dream-skin', 'dsh-tavern-plugin',
+      'dsh-tavern-remote', 'dsh-asset-library', 'dsh-tavern-stage']) {
       const bundle = before.find(item => item.name === name);
       check(bundle?.enabled === true && bundle.installed === true
         && (bundle.removable === false || bundle.readOnlyReason === 'management-required'),
@@ -199,7 +199,8 @@ async function manager() {
   const authRow = rows.find(row => row.moduleName === protectedName);
   check(typeof authRow?.entryId === 'string', 'Native forward-auth inventory entry');
   if (process.env.DSH_PROFILE === 'tavern') {
-    for (const name of ['dsh-better-sidebar', 'dsh-tavern-wrongbook', 'narrative-anchor']) {
+    for (const name of ['dsh-better-sidebar', 'dsh-dream-skin', 'dsh-tavern-plugin',
+      'dsh-tavern-remote', 'dsh-asset-library', 'dsh-tavern-stage']) {
       const row = rows.find(item => item.moduleName === name);
       check(row?.readOnlyReason === 'management-required', `Pinned Tavern plugin row is read-only: ${name}`);
     }
@@ -375,8 +376,19 @@ async function runtime() {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const profileRequire = createRequire(manifestPath);
   const expected = profile === 'web' ? ['@soulwhisper/dsh-forward-auth', 'dshmarket', 'dsh-context', 'dsh-mnemon', '@michengai/dsh-automation', '@xmanrui/dsh-im', 'dsh-better-sidebar', '@linxin666/dsh-ssh']
-    : ['@soulwhisper/dsh-forward-auth', 'dsh-tavern-wrongbook', 'dsh-tavern-knock-knock', 'narrative-anchor'];
+    : ['@soulwhisper/dsh-forward-auth', 'dsh-better-sidebar', 'dsh-dream-skin', 'dsh-tavern-plugin',
+      'dsh-tavern-remote', 'dsh-asset-library', 'dsh-tavern-stage'];
   for (const name of expected) check(Object.hasOwn(manifest.dependencies, name), 'Required profile package');
+  if (profile === 'tavern') {
+    for (const name of ['dsh-tavern-wrongbook', 'dsh-tavern-knock-knock', 'narrative-anchor']) {
+      check(!Object.hasOwn(manifest.dependencies, name), `Removed ecosystem package is absent: ${name}`);
+      check(!manifest.dsh.profile.bundles.includes(name), `Removed ecosystem bundle is absent: ${name}`);
+    }
+    for (const name of ['dsh-web-mobile', 'dsh-pocket']) {
+      check(!Object.hasOwn(manifest.dependencies, name), `Intentionally dropped package is absent: ${name}`);
+      check(!manifest.dsh.profile.bundles.includes(name), `Intentionally dropped bundle is absent: ${name}`);
+    }
+  }
   if (profile === 'web') {
     check(manifest.dependencies['dsh-context'] === '0.82.0', 'Bundled dsh-context release');
     check(manifest.dependencies['@linxin666/dsh-ssh'] === '0.4.15', 'Bundled SSH plugin');
@@ -415,26 +427,15 @@ async function runtime() {
   if (profile === 'tavern') {
     check((await stat('/opt/apps/dsh-tavern/node_modules/jsdom')).isDirectory(), 'Tavern workspace dependency');
     check((await stat('/opt/apps/dsh-tavern/LICENSE')).isFile(), 'Tavern original license');
+    check((await stat('/opt/apps/dsh-tavern/node_modules/sharp/package.json')).isFile(),
+      'Tavern asset-library sharp dependency linked');
+    const sharp = spawnSync(process.execPath, ['--input-type=module', '-e', "import('sharp').then(m => { if (!m.default) process.exit(1) })"],
+      { cwd: '/opt/apps/dsh-tavern', encoding: 'utf8' });
+    check(sharp.status === 0, 'Tavern asset-library sharp loads');
     const bundled = JSON.parse(await readFile('/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-tavern-image-bundled/BUNDLED-VERSION.json', 'utf8'));
-    check(bundled.name === 'dsh-tavern-image' && bundled.version === '3.1.1', 'Tavern bundled scene-image version');
+    check(bundled.name === 'dsh-tavern-image' && bundled.version === '3.4.0', 'Tavern bundled scene-image version');
     const installed = JSON.parse(await readFile('/data/dsh/profile-data/tavern/data/plugins/dsh-tavern-image/package.json', 'utf8'));
-    check(installed.name === 'dsh-tavern-image' && installed.version === '3.1.1', 'Tavern bundled scene-image install');
-    const hostPatches = await readFile('/opt/apps/dsh-tavern/tavern-plugin/lib/domain/tavern-helper-scripts.js', 'utf8');
-    check(!hostPatches.includes('chat.mvu?.enabled === true ||')
-      && hostPatches.includes('projectTavernHelperScripts(helperScripts).scripts.length > 0'),
-      'Tavern wrongbook MVU pure-API patch applied');
-    const timeoutBody = await readFile('/opt/apps/dsh-tavern/tavern-plugin/lib/domain/card-response-test.js', 'utf8');
-    check(timeoutBody.includes('_lastText') && timeoutBody.includes('textNote'),
-      'Tavern wrongbook timeout-body patch applied');
-    for (const path of ['/opt/dsh/seed/tavern-tools/mvu-api-test/patch-all.mjs',
-      '/data/dsh/profile-data/tavern/data/tools/mvu-api-test/patch-all.mjs']) {
-      check((await stat(path)).isFile(), `Wrongbook host-patch tool present: ${path}`);
-    }
-    const patchStatus = spawnSync(process.execPath,
-      ['/data/dsh/profile-data/tavern/data/tools/mvu-api-test/patch-all.mjs', '--strict'],
-      { encoding: 'utf8', env: { ...process.env, TAVERN_APP: '/opt/apps/dsh-tavern' } });
-    check(patchStatus.status === 0 && patchStatus.stdout.includes('全部就位'),
-      'Wrongbook host patches are already image-applied');
+    check(installed.name === 'dsh-tavern-image' && installed.version === '3.4.0', 'Tavern bundled scene-image install');
     const archive = spawnSync('tar', ['-tzf', process.env.DSH_SOURCE_ARCHIVE], { encoding: 'utf8' });
     check(archive.status === 0 && archive.stdout.includes('dsh-tavern/LICENSE')
       && archive.stdout.includes('dsh-tavern/tavern-plugin/src/')
@@ -443,8 +444,8 @@ async function runtime() {
       && archive.stdout.includes('distribution/docs/regulations.md')
       && archive.stdout.includes('distribution/patches/dsh/patch-host.mjs')
       && archive.stdout.includes('distribution/patches/tavern/patch-tavern.mjs')
-      && archive.stdout.includes('distribution/patches/wrongbook/patch-all.mjs')
-      && archive.stdout.includes('distribution/scripts/seed-tavern-tools.mjs')
+      && !archive.stdout.includes('distribution/patches/wrongbook/')
+      && !archive.stdout.includes('distribution/scripts/seed-tavern-tools.mjs')
       && !archive.stdout.includes('distribution/test/')
       && !archive.stdout.includes('distribution/scripts/smoke.mjs')
       && !archive.stdout.includes('distribution/deploy/')

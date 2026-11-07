@@ -50,8 +50,10 @@ for (const profile of ['web', 'tavern'].filter(name => !process.env.DSH_BUILD_PR
     dependencies['dsh-dream-skin'] = `link:${source}/tavern-plugin/packages/dsh-dream-skin`;
     dependencies['dsh-tavern-plugin'] = `link:${source}/tavern-plugin`;
     dependencies['dsh-tavern-remote'] = `link:${source}/tavern-plugin/packages/dsh-tavern-remote`;
-    Object.assign(dependencies, versions.ecosystem);
-    bundles.push('dsh-better-sidebar', 'dsh-dream-skin', 'dsh-tavern-plugin', 'dsh-tavern-remote', ...Object.keys(versions.ecosystem));
+    dependencies['dsh-asset-library'] = `link:${source}/tavern-plugin/packages/dsh-asset-library`;
+    dependencies['dsh-tavern-stage'] = `link:${source}/tavern-plugin/packages/dsh-tavern-stage`;
+    bundles.push('dsh-better-sidebar', 'dsh-dream-skin', 'dsh-tavern-plugin', 'dsh-tavern-remote',
+      'dsh-asset-library', 'dsh-tavern-stage');
     manifest.dshTavern = {
       source, dataRoot: '/data/dsh/profile-data/tavern/data', host: 'cli',
       dshVersion: versions.dsh.version, managedBundles: [...bundles],

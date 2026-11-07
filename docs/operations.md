@@ -208,6 +208,6 @@ plugin or prove compatibility. Startup installs nothing.
 
 ## Source offer
 
-The Tavern UI source link and `/distribution/source.tar.gz` must remain available
-to users. See [Licensing](regulations.md) and
-[Corresponding source](source-build.md).
+The authenticated `/distribution/source.tar.gz` route must remain available to
+users. The image does not inject a source notice into the Tavern UI. See
+[Licensing](regulations.md) and [Corresponding source](source-build.md).

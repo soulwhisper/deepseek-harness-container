@@ -11,13 +11,19 @@ test('Web and Tavern recipes are independent and do not leak assets', async () =
 
   assert.match(web, /COPY docker\/runtime\/web\/package\.json/u);
   assert.match(web, /--no-frozen-lockfile/u);
-  assert.doesNotMatch(web, /dsh-tavern|wrongbook|tavern\/pnpm-lock|seed-tavern/u);
+  assert.doesNotMatch(web, /dsh-tavern|tavern\/pnpm-lock|seed-tavern|wrongbook/u);
   assert.doesNotMatch(web, /FROM (?:tavern|web)-application AS tavern/u);
 
   assert.match(tavern, /--frozen-lockfile/u);
-  assert.match(tavern, /patches\/wrongbook\/patch-all\.mjs/u);
+  assert.match(tavern, /baf74b9d60d55404bd2553113c1e8f585afa5c5a/u);
+  assert.doesNotMatch(tavern, /wrongbook|seed-tavern-tools/u);
   assert.doesNotMatch(tavern, /dsh-context|dsh-mnemon|dsh-ssh|dshmarket|docker\/skills|rtk-oss/u);
   assert.doesNotMatch(tavern, /FROM web-application/u);
+
+  const recipe = await read('scripts/materialize-profiles.mjs');
+  assert.match(recipe, /dependencies\['dsh-asset-library'\]/u);
+  assert.match(recipe, /dependencies\['dsh-tavern-stage'\]/u);
+  assert.doesNotMatch(recipe, /versions\.ecosystem/u);
 
   assert.match(web, new RegExp(`version="${versions.distribution}"`, 'u'));
   assert.match(tavern, new RegExp(`version="${versions.tavern.version}"`, 'u'));

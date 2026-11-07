@@ -25,13 +25,12 @@ COPY docker/profiles/tavern /docker/profiles/tavern
 COPY docker/profiles/distribution.patch.yml /docker/profiles/distribution.patch.yml
 COPY patches/dsh /patches/dsh
 COPY patches/tavern /patches/tavern
-COPY patches/wrongbook /patches/wrongbook
 COPY plugins/forward-auth /plugins/forward-auth
 COPY --chmod=0755 scripts/entrypoint.sh /scripts/entrypoint.sh
 COPY scripts/materialize-state.mjs scripts/normalize-locks.mjs \
      scripts/materialize-profiles.mjs scripts/floating-bundles.mjs \
      scripts/readiness.mjs scripts/finalize-profile.mjs scripts/link-tavern-core.mjs \
-     scripts/seed-tavern-plugins.mjs scripts/seed-tavern-tools.mjs /scripts/
+     scripts/seed-tavern-plugins.mjs /scripts/
 COPY versions.json package.json pnpm-lock.yaml LICENSE NOTICE README.md README.zh-CN.md /
 COPY docs/source-build.md docs/regulations.md /docs/
 
@@ -54,24 +53,21 @@ COPY versions.json /opt/dsh/versions.json
 COPY scripts/entrypoint.sh scripts/materialize-state.mjs scripts/normalize-locks.mjs \
      scripts/materialize-profiles.mjs scripts/floating-bundles.mjs scripts/readiness.mjs \
      scripts/finalize-profile.mjs scripts/link-tavern-core.mjs scripts/seed-tavern-plugins.mjs \
-     scripts/seed-tavern-tools.mjs /opt/dsh/scripts/
+     /opt/dsh/scripts/
 RUN chmod 0755 /opt/dsh/scripts/entrypoint.sh
 COPY docker/profiles/tavern/pnpm-workspace.yaml /opt/dsh/profiles/tavern/pnpm-workspace.yaml
 COPY docker/profiles/distribution.patch.yml /opt/dsh/profiles/distribution.patch.yml
 
 FROM runtime-build AS tavern-source
 COPY patches/tavern /opt/dsh/patches/tavern
-COPY patches/wrongbook /opt/dsh/patches/wrongbook
 WORKDIR /opt/apps/dsh-tavern
 RUN git init . \
     && git remote add origin https://github.com/flizzywine/dsh-tavern.git \
-    && git fetch --depth=1 origin 5deb1ef377240d0f41808a8e346040ff1def31d1 \
+    && git fetch --depth=1 origin baf74b9d60d55404bd2553113c1e8f585afa5c5a \
     && git checkout --detach FETCH_HEAD \
-    && test "$(git rev-parse HEAD)" = 5deb1ef377240d0f41808a8e346040ff1def31d1 \
+    && test "$(git rev-parse HEAD)" = baf74b9d60d55404bd2553113c1e8f585afa5c5a \
     && rm -rf .git \
-    && node /opt/dsh/patches/tavern/patch-tavern.mjs \
-    && TAVERN_APP=/opt/apps/dsh-tavern node /opt/dsh/patches/wrongbook/patch-all.mjs \
-         --apply --strict --no-backup
+    && node /opt/dsh/patches/tavern/patch-tavern.mjs
 
 # Maintainer-only lock generation for the Tavern profile. The Web profile has
 # no committed lock by design and is not generated here.
@@ -84,8 +80,6 @@ FROM scratch AS profile-locks
 COPY --from=profile-lock-builder /opt/dsh/seed/profiles/tavern/pnpm-lock.yaml /profiles/tavern/pnpm-lock.yaml
 
 FROM tavern-source AS tavern-build
-RUN mkdir -p /opt/dsh/seed/tavern-tools \
-    && cp -a /opt/dsh/patches/wrongbook /opt/dsh/seed/tavern-tools/mvu-api-test
 RUN pnpm install --frozen-lockfile --prod=false \
     && node /opt/dsh/scripts/link-tavern-core.mjs
 COPY docker/profiles/tavern/pnpm-lock.yaml /opt/dsh/profiles/tavern/pnpm-lock.yaml
@@ -130,6 +124,6 @@ COPY --from=tavern-build /opt/dsh /opt/dsh
 COPY --from=tavern-build /opt/apps/dsh-tavern /opt/apps/dsh-tavern
 RUN test "${#IMAGE_REVISION}" -eq 40 && test -z "$(printf '%s' "$IMAGE_REVISION" | tr -d '0-9a-f')"
 LABEL org.opencontainers.image.title="DeepSeek Harness Tavern with forward-auth" \
-      org.opencontainers.image.version="3.1.3" \
+      org.opencontainers.image.version="3.2" \
       org.opencontainers.image.licenses="Apache-2.0 AND MIT AND AGPL-3.0-only" \
-      io.github.soulwhisper.dsh-tavern.commit="5deb1ef377240d0f41808a8e346040ff1def31d1"
+      io.github.soulwhisper.dsh-tavern.commit="baf74b9d60d55404bd2553113c1e8f585afa5c5a"

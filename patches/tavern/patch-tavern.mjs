@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -15,18 +15,24 @@ export async function verifyTheme(directory, expected) {
   }
 }
 
-export function patchRoutes(text, expectedHash) {
+// Tavern 3.2 already rejects cross-origin calls in its route gate. The
+// distribution claims no route modification: it pins the exact upstream file
+// and verifies the gate plus the paid/capability same-origin checks are still
+// present. A hash or anchor mismatch is a build failure.
+export function verifyRoutes(text, expectedHash) {
   const hash = createHash('sha256').update(text).digest('hex');
   if (hash !== expectedHash) throw new Error(`Tavern route source mismatch: ${hash}`);
-  const anchor = '        const origin = req.headers.origin\n';
-  const added = `${anchor}        // The raw forward-auth gate enforces peer/subject. Keep the public-Origin fence\n        // independent: neither forwarded headers nor an arbitrary Host grant it.\n        let trustedPublicOrigin = false\n        try {\n          const publicUrl = new URL(process.env.DSH_PUBLIC_URL)\n          trustedPublicOrigin = typeof origin === 'string' && origin === publicUrl.origin\n            && req.headers.host === publicUrl.host\n            && req.headers['sec-fetch-site'] !== 'cross-site'\n        } catch {}\n`;
-  if (text.split(anchor).length !== 2) throw new Error('Tavern Origin anchor changed');
-  text = text.replace(anchor, added);
-  const staticGuard = 'if (readsStaticAsset && !localOrOpaqueOrigin) {';
-  const genericGuard = 'if (!readsCachedAsset && !readsStaticAsset && !readsOfficialMvu && !readsFullTemplate && !readsRuntimeAsset && !readsClientAsset && !readsPluginAsset && !sceneSameOrigin && typeof origin';
-  if (!text.includes(staticGuard) || !text.includes(genericGuard)) throw new Error('Tavern route guards changed');
-  return text.replace(staticGuard, 'if (readsStaticAsset && !localOrOpaqueOrigin && !trustedPublicOrigin) {')
-    .replace(genericGuard, genericGuard.replace('&& typeof origin', '&& !trustedPublicOrigin && typeof origin'));
+  const gates = [
+    "        const sameOrigin = origin === 'http://' + req.headers.host || origin === 'https://' + req.headers.host\n",
+    "        if (origin && !sameOrigin && !(cookieFree && origin === 'null')) {\n",
+    "        if ((figureVoiceRoute || assetGenerationRoute) && (!sameOrigin || req.headers['sec-fetch-site'] && req.headers['sec-fetch-site'] !== 'same-origin')) {\n",
+  ];
+  for (const gate of gates) {
+    if (text.split(gate).length !== 2) {
+      throw new Error(`Tavern route gate changed: ${gate.trim()}`);
+    }
+  }
+  return text;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -35,7 +41,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const file = join(source, 'tavern-plugin/lib/http/routes.js');
   const theme = '/opt/dsh/runtime/node_modules/@deepseek-ai/dsh-client-ui-theme';
   await verifyTheme(theme, versions.tavern.theme);
-  await writeFile(file, patchRoutes(await readFile(file, 'utf8'), versions.tavern.routesSha256));
+  verifyRoutes(await readFile(file, 'utf8'), versions.tavern.routesSha256);
+  // Upstream's profile installer calls this helper after installing the host
+  // theme. This image builds the profile itself, so apply the same upstream
+  // step here instead of running bin/profile-installation.mjs.
   const { patchThemeFontLimit } = await import(`${source}/bin/theme-font-limit.mjs`);
   if (patchThemeFontLimit(theme) === null) throw new Error('Tavern theme helper declined the pinned theme version');
 }

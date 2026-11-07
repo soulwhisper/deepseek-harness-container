@@ -11,7 +11,7 @@
 | 镜像 | Release 标签 | Profile |
 | --- | --- | --- |
 | `ghcr.io/soulwhisper/dsh-web:0.2.2-rc.1-r1` | `web-0.2.2-rc.1-r1` | DSH Web rc + `dshmarket` + `dsh-context` + `dsh-mnemon` + 自动化/IM/侧栏/SSH + 必需 forward-auth |
-| `ghcr.io/soulwhisper/dsh-tavern:3.1.3` | `tavern-3.1.3` | 自定义 Tavern workspace + forward-auth + 固定且受 manager 保护的配套插件 |
+| `ghcr.io/soulwhisper/dsh-tavern:3.2` | `tavern-3.2` | 自定义 Tavern workspace + forward-auth + 原生且受 manager 保护的 bundle |
 
 Web 镜像使用 distribution revision（DSH 版本不变时以 `-rN` 区分镜像变更），Tavern 跟随 dsh-tavern；两者独立发版。镜像使用 Node 24/glibc、UID/GID `1000:1000`、单一具体 IP 的 `3080` 监听和只读根文件系统。Web 镜像会 seed Caveman、RTK skill，安装 RTK OSS binary，并在可写的 Web profile 中打包 `dsh-context`、`dsh-mnemon`、自动化、IM、侧栏与 SSH 插件。`/data/memory` 是持久记忆目录；插件代码与 `/data/dsh` profile 可替换。Tavern 使用独立、不继承 Web 的配方，完全不接收这些资产。forward-auth bundle 与 Tavern 固定管理的 bundle 受 manager 保护。Web 不提交 runtime/profile lock，部署应使用发布 digest；Tavern 仍保持固定。详见 [build](docs/build.md)。
 

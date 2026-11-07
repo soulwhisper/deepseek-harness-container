@@ -41,9 +41,9 @@ version/profile or an unrecognized layout is refused unless you explicitly set
 
 ## Distribution defaults
 
-The distribution bundle sets privacy and account-menu defaults for both Web and
-Tavern. They are bundle defaults: the active profile's own `cordis.patch.yml`
-is applied afterwards and may override them.
+The distribution bundle sets privacy defaults for both Web and Tavern. They
+are bundle defaults: the active profile's own `cordis.patch.yml` is applied
+afterwards and may override them.
 
 - **Official-model Session-log upload is off by default.** The
   `session-log-deepseek` plugin remains loaded, but
@@ -51,11 +51,9 @@ is applied afterwards and may override them.
   DeepSeek API requests while `enabled` is `false`. Enable it in **Settings →
   General → Upload Session Log when using the official model API** if you want
   the upload; the switch persists an override in the active profile.
-- **The DeepSeek Platform account UI, account login API and assistant-message
-  feedback surface are disabled by default.** This hides the account sign-in,
-  billing, Like/Dislike and `/feedback` paths. API-key providers and model
-  settings remain available. This is not the Authentik/forward-auth edge: keep
-  the forward-auth gate enabled; it is the access-control boundary.
+- **Model credential onboarding is opt-in by default.** API-key providers and
+  model settings remain available. This is not the Authentik/forward-auth edge:
+  keep the forward-auth gate enabled; it is the access-control boundary.
 - **Skill roots are native by default.** The preset providers discover
   `<workspace>/.dsh/skills`, `<workspace>/.agents/skills`, `$DSH_HOME/skills`
   and `$DSH_AGENTS_HOME/skills`. `DSH_SKILL_DIRS` is optional and adds extra
@@ -74,18 +72,6 @@ restate every key the row owns:
   name: '@deepseek-ai/dsh-session-log-deepseek'
   config:
     enabled: true
-- id: ui-settings-account
-  name: '@deepseek-ai/dsh-client-ui-settings-account'
-  disabled: false
-- id: account-controller
-  name: '@deepseek-ai/dsh-api-account-controller'
-  disabled: false
-- id: message-feedback
-  name: '@deepseek-ai/dsh-message-feedback'
-  disabled: false
-- id: ui-message-feedback
-  name: '@deepseek-ai/dsh-client-ui-message-feedback'
-  disabled: false
 ```
 
 Do not add conflicting rows to the launcher `--patch` overlay
@@ -112,6 +98,13 @@ The migration creates a local rollback copy under `DSH_BACKUP_ROOT`
 It is a convenience for immediate rollback while the migration is supervised.
 Treat it as best-effort: the snapshot from step 2 is the authoritative rollback
 path. Upgrades remain manual and supervised.
+
+This distribution does not migrate removed Tavern ecosystem packages:
+`dsh-tavern-wrongbook`, `dsh-tavern-knock-knock` and `narrative-anchor` can
+remain in an existing profile because it is merged, not rebuilt. Start from a
+clean `/data/dsh` profile to get the native 3.2 bundle set. This discards
+sessions, credentials and Tavern data in `/data/dsh`; keep the step 2 snapshot
+and move the old profile aside rather than deleting it.
 
 If migration fails, do not start DSH or retry blindly. Restore the pre-upgrade
 `/data` and `/workspace` snapshots into separate volumes. Do not attach the old
@@ -208,6 +201,7 @@ plugin or prove compatibility. Startup installs nothing.
 
 ## Source offer
 
-The Tavern UI source link and `/distribution/source.tar.gz` must remain available
-to users. See [Licensing](regulations.md) and
-[Corresponding source](source-build.md).
+The authenticated `/distribution/source.tar.gz` route must remain visibly
+available to users. The image does not inject a source notice into the Tavern UI;
+link the authenticated route from the deployment UI or operator documentation.
+See [Licensing](regulations.md) and [Corresponding source](source-build.md).

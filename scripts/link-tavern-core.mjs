@@ -15,3 +15,12 @@ for (const name of runtimeNames) {
   await rm(join(source, name), { recursive: true, force: true });
   await symlink(join(runtime, name), join(source, name));
 }
+// dsh-asset-library imports sharp lazily for SVG/thumbnail decoding. The
+// upstream lock links that package without installing its native dependency,
+// so expose the runtime-pinned sharp copy from the Tavern source tree.
+const runtimeRoot = '/opt/dsh/runtime/node_modules';
+const sourceRoot = '/opt/apps/dsh-tavern/node_modules';
+for (const name of ['sharp']) {
+  await rm(join(sourceRoot, name), { recursive: true, force: true });
+  await symlink(join(runtimeRoot, name), join(sourceRoot, name));
+}

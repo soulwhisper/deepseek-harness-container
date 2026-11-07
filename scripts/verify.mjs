@@ -49,14 +49,16 @@ assert.equal(await present('docker/runtime/web/pnpm-lock.yaml'), false,
 assert.ok(await present('docker/runtime/tavern/pnpm-lock.yaml'), 'The Tavern runtime lock remains committed');
 const tavernRuntime = JSON.parse(await text('docker/runtime/tavern/package.json'));
 assert.equal(tavernRuntime.dependencies['@deepseek-ai/dsh'], versions.dsh.version);
+assert.equal(tavernRuntime.dependencies.sharp, '0.34.5', 'Tavern runtime pins the native asset-library dependency');
+const tavernRuntimeWorkspace = parse(await text('docker/runtime/tavern/pnpm-workspace.yaml'));
+assert.equal(tavernRuntimeWorkspace.allowBuilds?.sharp, false,
+  'sharp install script is explicitly denied; the prebuilt optional package is used');
 const runtimeLock = parse(await text('docker/runtime/tavern/pnpm-lock.yaml'));
 assert.ok(runtimeLock.importers?.['.'], 'Committed Tavern runtime dependency closure');
-for (const [name, spec] of Object.entries(versions.ecosystem)) {
-  assert.match(name, /^[a-z][a-z0-9-]*$/u);
-  assert.match(spec, /^github:[^/]+\/[^#]+#[^#]+$/u);
-}
-assert.equal(Object.hasOwn(versions.ecosystem, 'dsh-tavern-comfy'), false,
-  'Tavern image plugin is bundled with Tavern, not a profile dependency');
+assert.equal(Object.hasOwn(versions, 'ecosystem'), false,
+  'Tavern profile follows the native 3.2 bundle set; no distribution ecosystem list');
+assert.match(tavernDockerfile, /baf74b9d60d55404bd2553113c1e8f585afa5c5a/u,
+  'Tavern source is pinned to the 3.2 commit');
 assert.match(tavernDockerfile, /scripts\/seed-tavern-plugins\.mjs/u,
   'Tavern bundled plugin seed script is shipped in the image');
 assert.equal(await present('docker/profiles/web/pnpm-lock.yaml'), false,
@@ -67,6 +69,12 @@ assert.ok(tavernLock.importers?.['.'], 'Committed Tavern profile lock required; 
 assert.equal(relativeLinkCount(tavernLockText), 0, 'Tavern lock link versions must be absolute; run scripts/normalize-locks.mjs');
 assert.doesNotMatch(tavernLockText, /node-addon-system-(?:linux|darwin|win32)-/u,
   'Tavern lock must not contain architecture-specific overrides');
+assert.doesNotMatch(tavernLockText, /dsh-tavern-wrongbook|dsh-tavern-knock-knock|narrative-anchor/u,
+  'Tavern lock carries no removed ecosystem packages');
+for (const name of ['dsh-asset-library', 'dsh-tavern-stage']) {
+  assert.match(tavernLockText, new RegExp(`\\n      ${name}:\\n`, 'u'),
+    `Tavern lock includes native package ${name}`);
+}
 // Keep local patches, the forward-auth plugin, image build, scaffold and
 // examples in separate trees so an upstream break stays local to its surface.
 async function present(path) { try { await access(join(root, path)); return true; } catch { return false; } }
@@ -85,10 +93,8 @@ for (const path of ['docker/web.Dockerfile', 'docker/tavern.Dockerfile',
   'docker/profiles/web/cordis.patch.yml', 'docker/profiles/web/compatibility.json',
   'docker/skills/README', 'docker/skills/rtk/SKILL.md',
   'patches/dsh/patch-host.mjs', 'patches/market/patch-market.mjs', 'patches/tavern/patch-tavern.mjs',
-  'patches/wrongbook/patch-all.mjs', 'patches/wrongbook/patch-mvu-api.mjs',
-  'patches/wrongbook/patch-timeout-body.mjs',
   'plugins/forward-auth/index.mjs', 'scripts/normalize-locks.mjs', 'scripts/floating-bundles.mjs',
-  'scripts/seed-tavern-plugins.mjs', 'scripts/seed-tavern-tools.mjs',
+  'scripts/seed-tavern-plugins.mjs',
   'scripts/field-test.mjs', 'test/packaging.test.mjs',
   'deploy/docker/compose.yaml', 'deploy/docker/cordis.patch.mcp.example.yml', 'deploy/kubernetes/dsh-web.yaml',
   'docs/index.md', 'docs/architecture.md', 'docs/constraints.md', 'docs/build.md', 'docs/deploy.md',
@@ -120,21 +126,23 @@ assert.doesNotMatch(dockerfile, /scripts\/smoke\.mjs|test\/|deploy\/|\.github\//
 assert.doesNotMatch(dockerfile, /pnpm --dir \/opt\/dsh\/runtime add dsh-context/u,
   'dsh-context must not be installed into the immutable runtime');
 assert.doesNotMatch(dockerfile, /patch-host\.mjs --repair/u, 'Runtime plugin installs must not require patch repair');
-assert.match(dockerfile, /patches\/wrongbook\/patch-all\.mjs/u,
-  'Tavern build invokes the vendored wrongbook host patches');
-assert.match(dockerfile, /--apply --strict --no-backup/u,
-  'Wrongbook patches are applied strictly at build time, without source backups');
-assert.match(dockerfile, /scripts\/seed-tavern-tools\.mjs/u,
-  'Tavern seeds the wrongbook patch tool into user data');
-assert.match(await text('scripts/entrypoint.sh'), /seed-tavern-tools\.mjs/u,
-  'Tavern startup seeds the wrongbook patch tool');
-for (const path of ['patches/wrongbook/patch-all.mjs', 'patches/wrongbook/patch-mvu-api.mjs',
-  'patches/wrongbook/patch-timeout-body.mjs', 'scripts/seed-tavern-tools.mjs']) {
-  assert.doesNotMatch(await text(path), /C:\/Users|C:\\Users/u,
-    `Distribution-owned paths must not retain upstream workstation paths: ${path}`);
-}
-assert.match(await text('.agents/skills/dsh-maintainer/SKILL.md'), /patches\/wrongbook\/patch-all\.mjs/u,
-  'Maintainer skill records the wrongbook patch upgrade check');
+assert.doesNotMatch(dockerfile, /wrongbook|seed-tavern-tools/u,
+  'Tavern build carries no distribution ecosystem tooling');
+assert.doesNotMatch(await text('scripts/entrypoint.sh'), /seed-tavern-tools/u,
+  'Tavern startup seeds no wrongbook tooling');
+assert.doesNotMatch(await text('.agents/skills/dsh-maintainer/SKILL.md'),
+  /dsh-tavern-wrongbook|dsh-tavern-knock-knock|narrative-anchor/u,
+  'Maintainer skill records the native Tavern profile without the removed ecosystem');
+assert.doesNotMatch(tavernLockText, /dsh-web-mobile|dsh-pocket/u,
+  'Intentionally dropped mobile/pocket packages stay out of the Tavern lock');
+assert.doesNotMatch(await text('scripts/materialize-profiles.mjs'), /dsh-web-mobile|dsh-pocket/u,
+  'Intentionally dropped mobile/pocket packages stay out of the Tavern profile recipe');
+assert.match(await text('scripts/materialize-profiles.mjs'), /dependencies\['dsh-asset-library'\]/u,
+  'Tavern profile includes the native asset library');
+assert.match(await text('scripts/materialize-profiles.mjs'), /dependencies\['dsh-tavern-stage'\]/u,
+  'Tavern profile includes the native stage bundle');
+assert.match(await text('scripts/link-tavern-core.mjs'), /'sharp'/u,
+  'Tavern source receives the runtime-pinned sharp dependency');
 assert.match(await text('scripts/materialize-profiles.mjs'), /dependencies\['dsh-context'\] = '0\.82\.0'/u,
   'Web bundles a known dsh-context release');
 assert.match(webDockerfile, /pnpm --dir \/opt\/dsh\/seed\/profiles\/web install --no-frozen-lockfile/u,
@@ -161,6 +169,8 @@ assert.doesNotMatch(webDockerfile, /floating-bundles\.mjs add web/u,
   'Web plugins are bundled from the manifest, not a floating build-time add');
 assert.match(webDockerfile, /dsh-mnemon|seed\/skills\/caveman/u,
   'Web image carries the bundled plugin and skill profile');
+assert.match(await text('patches/dsh/patch-host.mjs'), /bundleRows\(name\)/u,
+  'Managed bundle patch rows are added to the protected module set');
 assert.match(await text('patches/dsh/patch-host.mjs'), /dshTavern\?\.managedBundles/u,
   'Manager protects the pinned Tavern bundle set');
 assert.match(await text('scripts/materialize-state.mjs'), /managedDependencies/u,

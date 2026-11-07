@@ -59,8 +59,8 @@ directory is seeded into the Web image as user-facing skills.
 - The Web image owns the **bundled** Web assets: `dsh-context`, `dsh-mnemon`,
   automation, IM, sidebar and SSH plugins, plus the Caveman skill seed and RTK
   OSS binary. `/data/memory` is durable user memory.
-- The Tavern image owns none of those Web assets. Its profile keeps the pinned
-  Tavern distribution and ecosystem only.
+- The Tavern image owns none of those Web assets. Its profile keeps the native
+  Tavern 3.2 bundle set only.
 - Web and Tavern have independent Dockerfiles (`web.Dockerfile`,
   `tavern.Dockerfile`), runtime closures and final application stages
   (`web-application`, `tavern-application`). Do not reintroduce a shared
@@ -70,28 +70,40 @@ directory is seeded into the Web image as user-facing skills.
   `materialize-state` must let existing approvals override seed defaults. Do
   not pre-approve a dependency just because a plugin is popular; one key
   authorizes every dependent plugin in that profile.
-- The distribution patch disables the account UI, account controller and
-  assistant-message feedback rows. Keep them disabled by default; the edge
-  remains Authentik/forward-auth, not a local login.
-- Tavern pinned ecosystem is immutable like forward-auth:
+- Do not add row-level `disabled` patches for the DeepSeek account UI/login or
+  message feedback. They did not work and are not part of the trust boundary;
+  the edge remains Authentik/forward-auth, not a local login.
+- Tavern native bundles are immutable like forward-auth:
   - `versions.json` + committed lock pin the packages
-  - the package set is installed into the immutable seed profile
-  - `dshTavern.managedBundles` is manager-protected
-  - pinned plugin rows are `management-required`
+  - the native bundle set is installed into the immutable seed profile
+  - `dshTavern.managedBundles` is manager-protected, including bundle
+    patch rows whose `name` is a relative path; the manager patch adds their
+    anchored module names to the protected set
+  - pinned plugin rows are read-only (`management-required` or
+    `unaddressable`)
   - startup restores missing pinned manifest entries and seed links
-  - `dsh-tavern-knock-knock` has no `dsh.bundle`; it is dependency-only
 - `scripts/verify-runtime.mjs` must keep asserting the Tavern absences, the
-  protected pinned bundles, and the Web assets.
-- The source notice is injected before `</body>` or `</html>` and carries the
-  `data-dsh-distribution-source` marker. Do not go back to appending after
-  `</html>` or relying on the first literal `</body>` only; built indexes may
-  be uppercase or omit the body close.
+  protected native bundles, and the Web assets.
+- The Tavern image does not inject a source notice into the index. The archive
+  route remains `GET /distribution/source.tar.gz`; keep it authenticated and
+  available. Do not reintroduce `tapIndex` notice injection.
+- `patches/tavern/patch-tavern.mjs` applies upstream's
+  `bin/theme-font-limit.mjs` helper. Upstream's `bin/profile-installation.mjs`
+  also runs it after installing the host theme. This is upstream installation
+  behavior, not a distribution-authored theme change; the container must
+  replicate it because it builds the profile itself.
 - The base `distribution-source` payload excludes `docker/skills/`. The Web
   final stage adds those sources only to the Web payload; Tavern has neither
   active skills nor skill source files.
 - The repository maintainer skill under `.agents/` is excluded from the Docker
   build context and must never appear in either image.
-- Do not remove Tavern's own ecosystem packages when tightening this boundary.
+- Do not add a distribution ecosystem list back. Keep Tavern on the native 3.2
+  bundle set and do not move those packages into the Web bundled path.
+- Do not add state-migration cleanup for removed ecosystem bundles. Each install
+  is presumed clean; a generic obsolete-package list risks deleting user-owned
+  packages. Keep `materialize-state` cleanup to the reviewed legacy auth and
+  `dsh-tavern-comfy` cases already present. A merged existing profile can keep
+  prior ecosystem entries; document that carry-forward instead of deleting them.
 
 ## Immutable layout
 
@@ -100,36 +112,45 @@ directory is seeded into the Web image as user-facing skills.
 - Keep `/opt` entries short and explicit; only `/opt/dsh` and `/opt/apps`
   should remain at the top level.
 
-## Tavern pinned ecosystem
+## Tavern native bundle set
 
-These are pinned, not floating, and are installed only in the Tavern seed
-profile:
+The Tavern profile uses the native `flizzywine/dsh-tavern` 3.2 bundles, not a
+distribution-maintained ecosystem list:
 
-| Package | Bundle ID | Note |
-| --- | --- | --- |
-| `dsh-tavern-wrongbook` | `dsh-tavern-wrongbook` | Bundle |
-| `narrative-anchor` | `narrative-anchor` | Bundle |
-| `dsh-better-sidebar` | `better-sidebar` | Bundle; has its own duplicate-mount guard |
-| `dsh-tavern-knock-knock` | none | Dependency-only; no `dsh.bundle` |
+| Package | Note |
+| --- | --- |
+| `dsh-better-sidebar` 0.28.0 | Native bundle; pinned patch for thread history |
+| `dsh-dream-skin` | Native bundle linked from the source |
+| `dsh-tavern-plugin` | Native bundle linked from the source |
+| `dsh-tavern-remote` | Native bundle linked from the source |
+| `dsh-asset-library` | Native bundle linked from the source |
+| `dsh-tavern-stage` | Native bundle linked from the source |
 
-`dsh-tavern-image` 3.1.1 is bundled inside the Tavern source and installed by
+`dsh-tavern-image` 3.4.0 is bundled inside the Tavern source and installed by
 `scripts/seed-tavern-plugins.mjs` into Tavern `data/plugins`; it is not a
-profile package. Do not add `dsh-tavern-comfy` or `dsh-tavern-image` back to
-`versions.ecosystem`. The authoritative version is
+profile package. Do not add `dsh-tavern-comfy` or `dsh-tavern-image` back to the
+profile. The authoritative version is
 `tavern-plugin/packages/dsh-tavern-image-bundled/BUNDLED-VERSION.json` at the
 pinned commit; update this note and `NOTICE` when it changes.
 
-Bundle IDs are unique. Keep the bundle order stable, especially around
-`dsh-better-sidebar` and aggregate bundles. Do not move these packages to the
-Web bundled path or into the writable market set.
+Bundle IDs are unique. Keep the bundle order stable. Do not move these packages
+to the Web bundled path or into the writable market set.
+
+Upstream's `dsh-web-mobile` bundle and `dsh-pocket` dev dependency are
+intentionally dropped from this container distribution. Do not add them back to
+the Tavern profile, lock or workspace patch set.
+
+The runtime pins `sharp 0.34.5` and `link-tavern-core.mjs` links it into the
+Tavern source tree. Upstream's linked `dsh-asset-library` declares that native
+dependency but its profile lock does not install it. Do not remove it without
+replacing the native SVG/thumbnail decode path.
 
 ## Tavern version bumps and Renovate PRs
 
 `versions.tavern.version` is the upstream **release tag** without the `v`, not
 the upstream in-tree `package.json` version. Upstream publishes npm from the
-tag (v3.1.3 → 3.1.3), while the checked-out tree may already declare a newer
-integration version (v3.1.3 ships `package.json` 3.2.0). Keep the release-tag
-identity for the image, OCI label and release tag.
+tag (v3.2 → 3.2). Keep the release-tag identity for the image, OCI label and
+release tag.
 
 A Tavern bump is a coupled pin update. A version-only Renovate PR is
 intentionally incomplete and must not be merged.
@@ -143,16 +164,14 @@ intentionally incomplete and must not be merged.
 2. Recompute `tavern.routesSha256` from that exact commit and re-check every
    anchor in `patches/tavern/patch-tavern.mjs`. Never weaken a hash or anchor to
    make a build pass.
-3. Check `bin/theme-font-limit.mjs`, `config/dsh-compatibility.json` and
+3. Check `bin/theme-font-limit.mjs`, `config/dsh-compatibility.json`,
+   the native bundle list in `package.json`, and
    `tavern-plugin/packages/dsh-tavern-image-bundled/BUNDLED-VERSION.json`.
-   The wrongbook host patches must also be re-checked; see below.
 4. Update every coupled surface:
    - `versions.json`: `release.tavern.tag`, `tavern.version`, `commit`,
      `routesSha256`, `upstreamTag`
-   - `docker/tavern.Dockerfile`: Tavern commit check, OCI label, and the
-     `patches/wrongbook` invocation
-   - `NOTICE`: Tavern version/source commit, bundled scene-image version and
-     the vendored wrongbook patch notice
+   - `docker/tavern.Dockerfile`: Tavern commit check and OCI label
+   - `NOTICE`: Tavern version/source commit and bundled scene-image version
    - `docs/patches.md`, `docs/source-build.md`: source commit and patch list
    - `README.md`, `README.zh-CN.md`, `docs/index.md`, `docs/architecture.md`
    - `deploy/docker/compose.yaml`, `deploy/docker/.env.example`
@@ -171,8 +190,8 @@ intentionally incomplete and must not be merged.
 ### Renovate PR handling
 
 - Renovate only rewrites `tavern.upstreamTag`; it cannot update the commit,
-  hashes, locks, labels, docs or the wrongbook patches. A version-only PR is
-  expected to fail `scripts/verify.mjs`.
+  hashes, locks, labels or docs. A version-only PR is expected to fail
+  `scripts/verify.mjs`.
 - Treat the PR as an upstream signal. Close it as superseded and open a manual
   `release/dsh-tavern-<version>` PR from `main`. Do not push to a `renovate/*`
   branch; a rebase can reset it.
@@ -181,35 +200,6 @@ intentionally incomplete and must not be merged.
 - Keep `automerge: false` and `review/required`; humans own the release tag.
 - If an upstream tag moves, the pinned commit remains the source of truth. Do
   not change the Dockerfile to fetch a moving tag.
-
-### Wrongbook host-patch tool
-
-`dsh-tavern-wrongbook` looks for its host-patch runner at
-`<tavern data>/tools/mvu-api-test/patch-all.mjs` and runs `--apply` at startup.
-That model assumes a writable desktop Tavern checkout. In this image
-`/opt/apps/dsh-tavern` is immutable, so the supported patches are applied during
-the image build and the same tool is seeded at startup when absent in Tavern
-data only for status reporting.
-
-Vendored subset: `patches/wrongbook/` from wrongbook v1.33.0 `debug/`.
-
-- Included: MVU pure-API tests (`patch-mvu-api.mjs`) and timeout body retention
-  (`patch-timeout-body.mjs`).
-- Not included: the client helper/frame/workshop set, the two reasoning-channel
-  patches, and the card-local `generate` patch. They target an older Tavern
-  client/turn tree or user card data; `patch-all.mjs` lists them as not
-  applicable.
-- Build gate:
-  `TAVERN_APP=/opt/apps/dsh-tavern node patches/wrongbook/patch-all.mjs --apply --strict --no-backup`
-- Runtime seed: `/opt/dsh/seed/tavern-tools/mvu-api-test/` →
-  `$DSH_HOME/profile-data/tavern/data/tools/mvu-api-test/` at startup when
-  absent. Recognized upstream/image-managed copies are migrated or refreshed;
-  a custom `patch-all.mjs` is preserved.
-- Runtime `--apply` must be a no-op. Do not try to patch `/opt/apps` at runtime.
-- On every Tavern bump, run the status/apply gate against the new source. If an
-  anchor is unknown, port it deliberately or remove it from `PATCHES`; never
-  ship a guessed anchor. Update `patches/wrongbook/SOURCE`, `NOTICE` and
-  `docs/patches.md` when the subset changes.
 
 ## Build-resolved Web inputs
 
@@ -294,14 +284,15 @@ node scripts/verify.mjs
 node --test test/*.test.mjs
 ```
 
-For a Tavern pin change, also preflight the wrongbook patches against a
-throwaway checkout of the pinned commit:
+For a Tavern pin change, print the route hash from a throwaway checkout and
+compare it with `versions.json` `tavern.routesSha256`. The build also runs
+`patches/tavern/patch-tavern.mjs`, which checks the same hash and the gate
+anchors:
 
 ```text
-TAVERN_APP=/tmp/dsh-tavern-checkout node patches/wrongbook/patch-all.mjs --apply --strict
+git -C /tmp/dsh-tavern-checkout show HEAD:tavern-plugin/lib/http/routes.js | sha256sum
 ```
 
-The Tavern image build runs the same gate against the immutable source. Then
-push and use GitHub Actions. Do not claim image/test completion from source
-inspection alone. Do not run a full local image build unless the user explicitly
-asks for it.
+Then push and use GitHub Actions. Do not claim image/test completion from
+source inspection alone. Do not run a full local image build unless the user
+explicitly asks for it.

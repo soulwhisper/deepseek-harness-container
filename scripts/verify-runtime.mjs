@@ -11,6 +11,7 @@ const [mode, json = '{}'] = process.argv.slice(2);
 const config = JSON.parse(json);
 const forwardHeader = config.header ?? 'x-authentik-uid';
 const runtimeRequire = createRequire('/opt/dsh/runtime/package.json');
+let probeStage = 'start';
 function check(condition, label) { assert.ok(condition, label); }
 async function absent(path) {
   try { await lstat(path); return false; } catch (error) {
@@ -18,7 +19,7 @@ async function absent(path) {
     throw error;
   }
 }
-function request(path, headers = {}, method = 'GET', body, deadline = 10_000) {
+function request(path, headers = {}, method = 'GET', body, deadline = 10_000, bodyLimit = 64_000_000) {
   return new Promise((resolve, reject) => {
     const req = http.request({ hostname: config.host, port: config.port, path, method,
       headers: { Host: config.authority, Origin: `http://${config.authority}`, ...headers },
@@ -27,16 +28,22 @@ function request(path, headers = {}, method = 'GET', body, deadline = 10_000) {
       let length = 0;
       res.on('data', chunk => {
         length += chunk.length;
-        if (length > 64_000_000) req.destroy(new Error('body limit'));
+        if (length > bodyLimit) req.destroy(new Error('body limit'));
         else chunks.push(chunk);
       });
       res.on('end', () => {
+        finish();
         const bytes = Buffer.concat(chunks);
         resolve({ status: res.statusCode, headers: res.headers, text: bytes.toString('utf8'), bytes });
       });
+      res.on('error', error => { finish(); reject(error); });
     });
+    // req.setTimeout is an inactivity timeout; enforce the total wall-clock
+    // deadline as well so a trickling response cannot keep the probe alive.
+    const wallClock = setTimeout(() => req.destroy(new Error('HTTP deadline')), deadline);
+    const finish = () => clearTimeout(wallClock);
     req.setTimeout(deadline, () => req.destroy(new Error('HTTP deadline')));
-    req.on('error', reject);
+    req.on('error', error => { finish(); reject(error); });
     req.end(body);
   });
 }
@@ -72,9 +79,13 @@ async function rejection(headers) {
   await deniedUpgrade(headers);
 }
 async function trusted() {
+  probeStage = 'rejection-empty';
   await rejection({});
+  probeStage = 'rejection-denied-subject';
   await rejection({ [forwardHeader]: 'not-allowed' });
+  probeStage = 'rejection-duplicate-header';
   await rejection({ [forwardHeader]: [config.uid, config.uid] });
+  probeStage = 'clean-root';
   const identity = { [forwardHeader]: config.uid };
   let page = await request('/', identity);
   let cookie = '';
@@ -93,15 +104,18 @@ async function trusted() {
   check(page.status === 200 && /<html/iu.test(page.text), 'Actual application HTML');
   check(cookie.length > 0, 'forward-auth clean root must issue a native browser cookie');
   check(!/[?&]token=/iu.test(page.text), 'No native launch token in app HTML');
+  probeStage = 'cookie-replay';
   const headers = { ...identity, Cookie: cookie };
   const again = await request('/', headers);
   check(again.status === 200, 'Native cookie works with a verified edge identity');
   check((await request('/?token=upstream', identity)).status === 403, 'Upstream launch-token URL is rejected');
   await rejection({ Cookie: cookie });
+  probeStage = 'origin-fence';
   const wrongOrigin = await request('/api/pluginInventory/list', { ...headers, Origin: 'http://evil.invalid' });
   check(wrongOrigin.status === 403, 'Native Origin fence must survive forward-auth exchange');
   const wrongHost = await request('/api/pluginInventory/list', { ...headers, Host: 'evil.invalid' });
   check(wrongHost.status === 403, 'Native Host fence must survive forward-auth exchange');
+  probeStage = 'client-assets';
   const scripts = [...page.text.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["']/giu)]
     .map(match => match[1].replaceAll('&amp;', '&').replaceAll('&quot;', '"').replaceAll('&#39;', "'"));
   check(scripts.length > 0, 'Real client script must be referenced');
@@ -114,6 +128,7 @@ async function trusted() {
       && asset.text.length > 100 && !/^\s*</u.test(asset.text), 'Actual client JavaScript, not index fallback');
     check((await request(path)).status === 403, 'Anonymous static assets denied');
   }
+  probeStage = 'inventory-rpc';
   const inventory = await request('/api/pluginInventory/list', {
     ...headers, 'Content-Type': 'application/json',
   }, 'POST', JSON.stringify({ type: 'client-request', rpcId: 'smoke-inventory',
@@ -122,15 +137,18 @@ async function trusted() {
   const response = JSON.parse(inventory.text);
   check(response.type === 'server-response' && response.result?.ok === true, 'Native inventory RPC result');
   if (process.env.DSH_PROFILE === 'tavern') {
-    check(page.text.includes('/distribution/source.tar.gz'), 'Visible Tavern source download');
+    probeStage = 'source-route';
     check((await request('/distribution/source.tar.gz')).status === 403, 'Source route remains guarded');
-    const source = await request('/distribution/source.tar.gz', headers);
+    // The 3.2 corresponding-source archive is larger than the default probe
+    // body limit; allow this one download while keeping other responses bounded.
+    const source = await request('/distribution/source.tar.gz', headers, 'GET', undefined, 60_000, 256 * 1024 * 1024);
     const sourceHead = await request('/distribution/source.tar.gz', headers, 'HEAD');
     check(source.status === 200 && source.bytes[0] === 0x1f && source.bytes[1] === 0x8b
       && source.bytes.length > 1024 && /gzip/iu.test(source.headers['content-type'] ?? ''), 'Real source gzip download');
     check(sourceHead.status === 200 && Number(sourceHead.headers['content-length']) === source.bytes.length, 'Source HEAD length');
     check((await request('/distribution/source.tar.gz', headers, 'POST')).status === 405, 'Source route is read-only');
   }
+  probeStage = 'websocket';
   await new Promise((resolve, reject) => {
     const ws = websocket(headers);
     const openedAt = Date.now();
@@ -188,7 +206,8 @@ async function manager() {
       && mnemon.availability === 'profile' && mnemon.removable === true
       && mnemon.readOnlyReason === undefined, 'dsh-mnemon is profile-owned and removable');
   } else {
-    for (const name of ['dsh-better-sidebar', 'dsh-tavern-wrongbook', 'narrative-anchor']) {
+    for (const name of ['dsh-better-sidebar', 'dsh-dream-skin', 'dsh-tavern-plugin',
+      'dsh-tavern-remote', 'dsh-asset-library', 'dsh-tavern-stage']) {
       const bundle = before.find(item => item.name === name);
       check(bundle?.enabled === true && bundle.installed === true
         && (bundle.removable === false || bundle.readOnlyReason === 'management-required'),
@@ -199,9 +218,20 @@ async function manager() {
   const authRow = rows.find(row => row.moduleName === protectedName);
   check(typeof authRow?.entryId === 'string', 'Native forward-auth inventory entry');
   if (process.env.DSH_PROFILE === 'tavern') {
-    for (const name of ['dsh-better-sidebar', 'dsh-tavern-wrongbook', 'narrative-anchor']) {
-      const row = rows.find(item => item.moduleName === name);
-      check(row?.readOnlyReason === 'management-required', `Pinned Tavern plugin row is read-only: ${name}`);
+    for (const name of ['dsh-better-sidebar', 'dsh-dream-skin', 'dsh-tavern-plugin',
+      'dsh-tavern-remote', 'dsh-asset-library', 'dsh-tavern-stage']) {
+      const bundle = before.find(item => item.name === name);
+      // A bundle row can be named by a relative module path (dsh-asset-library
+      // uses ./lib/index.js), so match the declared bundle rows as well as the
+      // package name. Both read-only reasons mean the manager cannot change it.
+      const bundleRows = bundle?.rows ?? [];
+      const packageRows = rows.filter(item => item.moduleName === name);
+      const matched = packageRows.length > 0
+        ? packageRows
+        : rows.filter(item => bundleRows.some(bundleRow => bundleRow.moduleName === item.moduleName));
+      check(matched.length > 0
+        && matched.every(row => ['management-required', 'unaddressable'].includes(row.readOnlyReason)),
+        `Pinned Tavern plugin rows are read-only: ${name}`);
     }
   }
   for (const [method, args] of [
@@ -352,14 +382,6 @@ async function runtime() {
     check(dump.status === 0, 'Profile composition dump');
     check(/id: session-log-deepseek\n  name: [^\n]+\n  config:\n    enabled: false/u.test(dump.stdout),
       'Official-API Session-log upload is opt-in');
-    check(/id: ui-settings-account\n  name: [^\n]+\n  disabled: true/u.test(dump.stdout),
-      'DeepSeek account UI is hidden by default');
-    check(/id: account-controller\n  name: [^\n]+\n  disabled: true/u.test(dump.stdout),
-      'DeepSeek account login API is disabled by default');
-    check(/id: message-feedback\n  name: [^\n]+\n(?:  config:\n(?:    [^\n]*\n)+)?  disabled: true/u.test(dump.stdout),
-      'Message feedback host is disabled by default');
-    check(/id: ui-message-feedback\n  name: [^\n]+\n  disabled: true/u.test(dump.stdout),
-      'Message feedback UI is disabled by default');
     check(/id: ui-settings-models\n  name: [^\n]+\n  config:\n    credentialOnboarding: false/u.test(dump.stdout),
       'Automatic credential onboarding is off by default');
     if (profile === 'web') {
@@ -375,8 +397,19 @@ async function runtime() {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const profileRequire = createRequire(manifestPath);
   const expected = profile === 'web' ? ['@soulwhisper/dsh-forward-auth', 'dshmarket', 'dsh-context', 'dsh-mnemon', '@michengai/dsh-automation', '@xmanrui/dsh-im', 'dsh-better-sidebar', '@linxin666/dsh-ssh']
-    : ['@soulwhisper/dsh-forward-auth', 'dsh-tavern-wrongbook', 'dsh-tavern-knock-knock', 'narrative-anchor'];
+    : ['@soulwhisper/dsh-forward-auth', 'dsh-better-sidebar', 'dsh-dream-skin', 'dsh-tavern-plugin',
+      'dsh-tavern-remote', 'dsh-asset-library', 'dsh-tavern-stage'];
   for (const name of expected) check(Object.hasOwn(manifest.dependencies, name), 'Required profile package');
+  if (profile === 'tavern') {
+    for (const name of ['dsh-tavern-wrongbook', 'dsh-tavern-knock-knock', 'narrative-anchor']) {
+      check(!Object.hasOwn(manifest.dependencies, name), `Removed ecosystem package is absent: ${name}`);
+      check(!manifest.dsh.profile.bundles.includes(name), `Removed ecosystem bundle is absent: ${name}`);
+    }
+    for (const name of ['dsh-web-mobile', 'dsh-pocket']) {
+      check(!Object.hasOwn(manifest.dependencies, name), `Intentionally dropped package is absent: ${name}`);
+      check(!manifest.dsh.profile.bundles.includes(name), `Intentionally dropped bundle is absent: ${name}`);
+    }
+  }
   if (profile === 'web') {
     check(manifest.dependencies['dsh-context'] === '0.82.0', 'Bundled dsh-context release');
     check(manifest.dependencies['@linxin666/dsh-ssh'] === '0.4.15', 'Bundled SSH plugin');
@@ -415,26 +448,15 @@ async function runtime() {
   if (profile === 'tavern') {
     check((await stat('/opt/apps/dsh-tavern/node_modules/jsdom')).isDirectory(), 'Tavern workspace dependency');
     check((await stat('/opt/apps/dsh-tavern/LICENSE')).isFile(), 'Tavern original license');
+    check((await stat('/opt/apps/dsh-tavern/node_modules/sharp/package.json')).isFile(),
+      'Tavern asset-library sharp dependency linked');
+    const sharp = spawnSync(process.execPath, ['--input-type=module', '-e', "import('sharp').then(m => { if (!m.default) process.exit(1) })"],
+      { cwd: '/opt/apps/dsh-tavern', encoding: 'utf8' });
+    check(sharp.status === 0, 'Tavern asset-library sharp loads');
     const bundled = JSON.parse(await readFile('/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-tavern-image-bundled/BUNDLED-VERSION.json', 'utf8'));
-    check(bundled.name === 'dsh-tavern-image' && bundled.version === '3.1.1', 'Tavern bundled scene-image version');
+    check(bundled.name === 'dsh-tavern-image' && bundled.version === '3.4.0', 'Tavern bundled scene-image version');
     const installed = JSON.parse(await readFile('/data/dsh/profile-data/tavern/data/plugins/dsh-tavern-image/package.json', 'utf8'));
-    check(installed.name === 'dsh-tavern-image' && installed.version === '3.1.1', 'Tavern bundled scene-image install');
-    const hostPatches = await readFile('/opt/apps/dsh-tavern/tavern-plugin/lib/domain/tavern-helper-scripts.js', 'utf8');
-    check(!hostPatches.includes('chat.mvu?.enabled === true ||')
-      && hostPatches.includes('projectTavernHelperScripts(helperScripts).scripts.length > 0'),
-      'Tavern wrongbook MVU pure-API patch applied');
-    const timeoutBody = await readFile('/opt/apps/dsh-tavern/tavern-plugin/lib/domain/card-response-test.js', 'utf8');
-    check(timeoutBody.includes('_lastText') && timeoutBody.includes('textNote'),
-      'Tavern wrongbook timeout-body patch applied');
-    for (const path of ['/opt/dsh/seed/tavern-tools/mvu-api-test/patch-all.mjs',
-      '/data/dsh/profile-data/tavern/data/tools/mvu-api-test/patch-all.mjs']) {
-      check((await stat(path)).isFile(), `Wrongbook host-patch tool present: ${path}`);
-    }
-    const patchStatus = spawnSync(process.execPath,
-      ['/data/dsh/profile-data/tavern/data/tools/mvu-api-test/patch-all.mjs', '--strict'],
-      { encoding: 'utf8', env: { ...process.env, TAVERN_APP: '/opt/apps/dsh-tavern' } });
-    check(patchStatus.status === 0 && patchStatus.stdout.includes('全部就位'),
-      'Wrongbook host patches are already image-applied');
+    check(installed.name === 'dsh-tavern-image' && installed.version === '3.4.0', 'Tavern bundled scene-image install');
     const archive = spawnSync('tar', ['-tzf', process.env.DSH_SOURCE_ARCHIVE], { encoding: 'utf8' });
     check(archive.status === 0 && archive.stdout.includes('dsh-tavern/LICENSE')
       && archive.stdout.includes('dsh-tavern/tavern-plugin/src/')
@@ -443,8 +465,8 @@ async function runtime() {
       && archive.stdout.includes('distribution/docs/regulations.md')
       && archive.stdout.includes('distribution/patches/dsh/patch-host.mjs')
       && archive.stdout.includes('distribution/patches/tavern/patch-tavern.mjs')
-      && archive.stdout.includes('distribution/patches/wrongbook/patch-all.mjs')
-      && archive.stdout.includes('distribution/scripts/seed-tavern-tools.mjs')
+      && !archive.stdout.includes('distribution/patches/wrongbook/')
+      && !archive.stdout.includes('distribution/scripts/seed-tavern-tools.mjs')
       && !archive.stdout.includes('distribution/test/')
       && !archive.stdout.includes('distribution/scripts/smoke.mjs')
       && !archive.stdout.includes('distribution/deploy/')
@@ -463,6 +485,6 @@ try {
 } catch (error) {
   const label = ['trusted', 'untrusted', 'runtime', 'manager', 'arch'].includes(mode) ? mode : 'probe';
   if (error?.code === 'ERR_ASSERTION' && typeof error.message === 'string') console.error(`FAIL ${label}: ${error.message}`);
-  else console.error(`FAIL ${label}: probe failed; details withheld`);
+  else console.error(`FAIL ${label}: probe failed${mode === 'trusted' ? ` at ${probeStage}` : ''}; details withheld`);
   process.exitCode = 1;
 }

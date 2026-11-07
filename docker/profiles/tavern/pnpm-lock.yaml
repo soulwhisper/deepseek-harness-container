@@ -328,27 +328,24 @@ importers:
       '@soulwhisper/dsh-forward-auth':
         specifier: link:/opt/dsh/runtime/node_modules/@soulwhisper/dsh-forward-auth
         version: link:/opt/dsh/runtime/node_modules/@soulwhisper/dsh-forward-auth
+      dsh-asset-library:
+        specifier: link:/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-asset-library
+        version: link:/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-asset-library
       dsh-better-sidebar:
         specifier: 0.28.0
         version: 0.28.0(patch_hash=4f54fe004a0c388c920fb4827618d7795673580b54a583675b959a2b3fa7fac6)
       dsh-dream-skin:
         specifier: link:/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-dream-skin
         version: link:/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-dream-skin
-      dsh-tavern-knock-knock:
-        specifier: github:dearacknowl/dsh-tavern-knock-knock#v0.7.1
-        version: https://codeload.github.com/dearacknowl/dsh-tavern-knock-knock/tar.gz/c05699d741caf7fd330856df0b877a6f0a5626d8
       dsh-tavern-plugin:
         specifier: link:/opt/apps/dsh-tavern/tavern-plugin
         version: link:/opt/apps/dsh-tavern/tavern-plugin
       dsh-tavern-remote:
         specifier: link:/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-tavern-remote
         version: link:/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-tavern-remote
-      dsh-tavern-wrongbook:
-        specifier: github:XGUIMAX/dsh-tavern-wrongbook#v1.33.0
-        version: https://codeload.github.com/XGUIMAX/dsh-tavern-wrongbook/tar.gz/13cfdb032aa47eb6288960c80e6ebd26a66e5c3a
-      narrative-anchor:
-        specifier: github:ActivityTime/narrative-anchor#v1.0.1
-        version: https://codeload.github.com/ActivityTime/narrative-anchor/tar.gz/657488d97a09e96728c93bd171c9d7e9e22aa15d
+      dsh-tavern-stage:
+        specifier: link:/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-tavern-stage
+        version: link:/opt/apps/dsh-tavern/tavern-plugin/packages/dsh-tavern-stage
 
 packages:
 
@@ -803,15 +800,6 @@ packages:
       '@huanlin/dsh-plugin-better-locale':
         optional: true
 
-  dsh-tavern-knock-knock@https://codeload.github.com/dearacknowl/dsh-tavern-knock-knock/tar.gz/c05699d741caf7fd330856df0b877a6f0a5626d8:
-    resolution: {gitHosted: true, integrity: sha512-R8UOnrLVKlOCDXHnKgICPjBnq3LKqGzcmxmpdrqSUMRl5CCDkDnwze9XJjbytb3rS0VTNRZp7uhH48wlx3SgNg==, tarball: https://codeload.github.com/dearacknowl/dsh-tavern-knock-knock/tar.gz/c05699d741caf7fd330856df0b877a6f0a5626d8}
-    version: 0.7.1
-
-  dsh-tavern-wrongbook@https://codeload.github.com/XGUIMAX/dsh-tavern-wrongbook/tar.gz/13cfdb032aa47eb6288960c80e6ebd26a66e5c3a:
-    resolution: {gitHosted: true, integrity: sha512-dR1RHLRm+cJieBuyB+9h3eE9igIgE3EtKKaKVztTfErB1z0THLbYcIfIq67VWPrbIYk3SxpnpijfjN2CMJCAbQ==, tarball: https://codeload.github.com/XGUIMAX/dsh-tavern-wrongbook/tar.gz/13cfdb032aa47eb6288960c80e6ebd26a66e5c3a}
-    version: 1.33.0
-    engines: {node: '>=18'}
-
   es-toolkit@1.52.0:
     resolution: {integrity: sha512-XTNEJQh1tY1ZJVcf6ayP/2n4ZPyaHlW2FWs7xvw5ddPuhUVjLD3olQVQS7kf58JbAB48iL0uL/jerTrjtV3lDA==}
 
@@ -858,11 +846,6 @@ packages:
 
   mermaid@11.17.2:
     resolution: {integrity: sha512-V6K3C8EBdEsPFZXSKMJe6ppQOENxuHARr9GvHX4hh47lAbhMRD9qf4oEK7LoaRQxULMa80/qt5gHO73aCleBBg==}
-
-  narrative-anchor@https://codeload.github.com/ActivityTime/narrative-anchor/tar.gz/657488d97a09e96728c93bd171c9d7e9e22aa15d:
-    resolution: {gitHosted: true, integrity: sha512-4NAv3e10JDIg9rE5ylZMiz4quIGledUQXPMwsi2ip5I0gMS+jQi416jbfgdKoqmBTo/HgyFVdprH/UwEKp3Pjg==, tarball: https://codeload.github.com/ActivityTime/narrative-anchor/tar.gz/657488d97a09e96728c93bd171c9d7e9e22aa15d}
-    version: 1.0.1
-    engines: {node: '>=18'}
 
   package-manager-detector@1.9.0:
     resolution: {integrity: sha512-zAMfbta9nPA8AKkA4WdmNAT8R8s6Dk0/xwPsqNnRidMFcLo1YkLuPDTgs2f64XdzS8vbLNnoJ+uUIkgbz7oRHA==}
@@ -1620,10 +1603,6 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  dsh-tavern-knock-knock@https://codeload.github.com/dearacknowl/dsh-tavern-knock-knock/tar.gz/c05699d741caf7fd330856df0b877a6f0a5626d8: {}
-
-  dsh-tavern-wrongbook@https://codeload.github.com/XGUIMAX/dsh-tavern-wrongbook/tar.gz/13cfdb032aa47eb6288960c80e6ebd26a66e5c3a: {}
-
   es-toolkit@1.52.0: {}
 
   fastdom@1.0.12:
@@ -1680,11 +1659,6 @@ snapshots:
       stylis: 4.4.0
       ts-dedent: 2.3.0
       uuid: 14.0.3
-
-  narrative-anchor@https://codeload.github.com/ActivityTime/narrative-anchor/tar.gz/657488d97a09e96728c93bd171c9d7e9e22aa15d:
-    dependencies:
-      '@deepseek-ai/dsh-agent': link:../../../runtime/node_modules/@deepseek-ai/dsh-agent
-      '@deepseek-ai/schemastery': link:../../../runtime/node_modules/@deepseek-ai/schemastery
 
   package-manager-detector@1.9.0: {}
 

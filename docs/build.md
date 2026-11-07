@@ -26,13 +26,13 @@ Use the native architecture matching the runner or host. CI builds
 | Target | Result |
 | --- | --- |
 | `web` | Final Web image: DSH 0.2.2-rc.1 + bundled Web plugins + required forward-auth |
-| `tavern` | Final Tavern image: pinned source workspace + pruned profile + ecosystem |
+| `tavern` | Final Tavern image: pinned source workspace + native profile bundles |
 | `web-application` | Web-only final-stage base; never shared with Tavern |
 | `tavern-application` | Tavern-only final-stage base; never shared with Web |
 | `profile-locks` | Maintainer-only Tavern lock export; the Web profile deliberately has no committed lock |
 | `runtime-build` | Patched runtime dependency closure; Web rc.1 and Tavern rc.2 are separate |
 | `distribution-source` | Image-specific whitelisted build/source payload |
-| `tavern-source` | Pinned Tavern checkout plus exact-hash and wrongbook host patches |
+| `tavern-source` | Pinned Tavern checkout plus exact-hash route/theme verification |
 
 ## Authentication variants
 
@@ -119,7 +119,7 @@ entries are user state: a distribution migration preserves them and uses the
 seed as the lower-precedence default. Do not pre-approve a package just because
 a plugin is popular.
 
-Tavern's pinned ecosystem is separate and remains manager-protected. Do not
+Tavern's native bundle set is separate and remains manager-protected. Do not
 pre-approve a package globally just because one plugin needs it: an
 `allowBuilds` key authorizes every plugin in that profile that depends on the
 same script owner.
@@ -171,20 +171,16 @@ use a clean builder when you deliberately want to refresh build inputs; release
 CI builds on clean runners.
 
 The only required startup entry is `distribution-forward-auth`. On Tavern, the
-pinned ecosystem listed in `dshTavern.managedBundles` is immutable in the same
-sense as forward-auth: the manager refuses disable/remove operations and the
-startup materializer restores missing manifest entries and seed links. The
-pinned `dsh-tavern-knock-knock` package has no `dsh.bundle`; it remains an
-immutable dependency only. Web-only bundled plugins and skills are removable
-and are not protected by the manager.
-
-The Tavern build also applies the supported `dsh-tavern-wrongbook` host patches
-to the immutable source. The wrongbook runner is seeded at startup when absent
-at `$DSH_HOME/profile-data/tavern/data/tools/mvu-api-test` for status reporting;
-recognized upstream/image-managed copies are migrated and custom copies are
-preserved. It must be a no-op at runtime because `/opt/apps` is read-only. The
-build fails if a retained patch anchor no longer matches. See
-[Upstream patches](patches.md#wrongbook-host-patches).
+native 3.2 bundle set listed in `dshTavern.managedBundles` is immutable in the
+same sense as forward-auth: the manager refuses disable/remove operations and
+the startup materializer restores missing manifest entries and seed links.
+Web-only bundled plugins and skills are removable and are not protected by the
+manager. The profile keeps upstream's native bundle set except
+`dsh-web-mobile` and `dsh-pocket`, which this container distribution
+intentionally drops; the only distribution addition is the required
+forward-auth bundle. The Tavern runtime also pins `sharp 0.34.5` and links it
+into the Tavern source tree, because upstream's linked `dsh-asset-library`
+declares that native dependency without installing it.
 
 ## Pins and locks
 
@@ -206,10 +202,11 @@ the `profile-locks` artifact, reviews the Tavern file, commits it under
 at build time and must not acquire a committed lock.
 
 Tavern routes and theme files are pinned by SHA-256 in `versions.json`.
-`patches/tavern/patch-tavern.mjs` validates the theme package name/version and
-the exact `lib/index.js` and `lib/client.js` hashes before invoking the upstream
-theme helper. A changed upstream file is a build failure, not a warning or a
-silent skip. See [Upstream patches](patches.md).
+`patches/tavern/patch-tavern.mjs` validates the route gate and theme package
+name/version plus the exact `lib/index.js` and `lib/client.js` hashes, then runs
+upstream's installer font-limit helper. The route source is not modified. A
+changed upstream file is a build failure, not a warning or a silent skip. See
+[Upstream patches](patches.md).
 
 ## Runtime defaults
 

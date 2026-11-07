@@ -1,4 +1,4 @@
-import { lstat, readdir, readFile, readlink, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { lstat, readdir, readlink, realpath, rm, symlink } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -32,31 +32,7 @@ async function normalize(dir) {
 
 export async function finalizeProfile(root) {
   if (!root) throw new Error('Usage: finalize-profile.mjs PROFILE_DIRECTORY');
-  const modules = join(root, 'node_modules');
-  await normalize(modules);
-
-  // Ecosystem packages are installed as dependencies, but some do not declare
-  // dsh.bundle and DSH intentionally skips them at startup. Keep them available
-  // to Tavern's own loader and do not advertise them as startup bundles.
-  const versions = JSON.parse(await readFile('/opt/dsh/versions.json', 'utf8'));
-  const ecosystem = new Set(Object.keys(versions.ecosystem ?? {}));
-  const manifestPath = join(root, 'package.json');
-  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
-  const bundles = manifest.dsh?.profile?.bundles;
-  if (Array.isArray(bundles)) {
-    const kept = [];
-    for (const name of bundles) {
-      if (!ecosystem.has(name)) { kept.push(name); continue; }
-      const pkg = JSON.parse(await readFile(join(modules, name, 'package.json'), 'utf8'));
-      if (pkg.dsh?.bundle !== undefined) kept.push(name);
-      else console.log(`profile: ${name} declares no dsh.bundle; retained as a dependency only`);
-    }
-    if (kept.length !== bundles.length) {
-      manifest.dsh.profile.bundles = kept;
-      if (Array.isArray(manifest.dshTavern?.managedBundles)) manifest.dshTavern.managedBundles = kept;
-      await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o644 });
-    }
-  }
+  await normalize(join(root, 'node_modules'));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

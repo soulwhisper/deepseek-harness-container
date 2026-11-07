@@ -46,7 +46,6 @@ RUN pnpm install --no-frozen-lockfile --prod \
     && mkdir -p /opt/dsh/docker/runtime/node_modules/@soulwhisper/dsh-forward-auth \
     && cp -a /opt/dsh/plugins/forward-auth/. /opt/dsh/docker/runtime/node_modules/@soulwhisper/dsh-forward-auth/ \
     && grep -q "session-log-deepseek" /opt/dsh/docker/runtime/node_modules/@soulwhisper/dsh-forward-auth/cordis.patch.yml \
-    && grep -q "message-feedback" /opt/dsh/docker/runtime/node_modules/@soulwhisper/dsh-forward-auth/cordis.patch.yml \
     && node /opt/dsh/patches/dsh/patch-host.mjs /opt/dsh/docker/runtime \
     && ln -s /opt/dsh/docker/runtime /opt/dsh/runtime
 RUN node -e "const {createRequire}=require('node:module'); const r=createRequire('/opt/dsh/docker/runtime/package.json'); const name='node-addon-require-builtin-linux-'+(process.arch==='arm64'?'arm64':'x64')+'-gnu'; require(r.resolve(name));"

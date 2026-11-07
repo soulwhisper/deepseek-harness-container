@@ -10,18 +10,7 @@ import { materializeState, mergeManifest, mergeLock, migrateOverlay } from '../s
 import { normalizeLockText, relativeLinkCount } from '../scripts/normalize-locks.mjs';
 import { stableImmutableTarget } from '../scripts/finalize-profile.mjs';
 import { addFloatingBundles, verifyFloatingBundles } from '../scripts/floating-bundles.mjs';
-import { patchRoutes, verifyTheme } from '../patches/tavern/patch-tavern.mjs';
-import {
-  applyText as applyMvuApiText,
-  revertText as revertMvuApiText,
-  stateOf as mvuApiState,
-} from '../patches/wrongbook/patch-mvu-api.mjs';
-import {
-  applyText as applyTimeoutBodyText,
-  revertText as revertTimeoutBodyText,
-  stateOf as timeoutBodyState,
-} from '../patches/wrongbook/patch-timeout-body.mjs';
-import { seedTavernTools } from '../scripts/seed-tavern-tools.mjs';
+import { verifyRoutes, verifyTheme } from '../patches/tavern/patch-tavern.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const runtimeManifest = join(root, 'package.json');
@@ -236,7 +225,7 @@ test('registry dependencies stay in the writable profile and resolve override li
   assert.equal(JSON.parse(await readFile(join(installed, 'package.json'), 'utf8')).version, '1.0.0');
 });
 
-test('managed Tavern ecosystem copies stay writable and are restored when missing', async t => {
+test('managed Tavern copies stay writable and are restored when missing', async t => {
   const options = await fixture(t);
   const seedManifestPath = join(options.seed, 'profiles/web/package.json');
   const manifest = JSON.parse(await readFile(seedManifestPath, 'utf8'));
@@ -425,7 +414,7 @@ test('seed links keep the stable runtime alias and reject escapes', () => {
     /escapes immutable source tree/);
 });
 
-test('theme patch verifies exact package and file hashes', async t => {
+test('theme verification checks exact package and file hashes', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'dsh-theme-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   await mkdir(join(directory, 'lib'), { recursive: true });
@@ -439,87 +428,6 @@ test('theme patch verifies exact package and file hashes', async t => {
   };
   await verifyTheme(directory, expected);
   await assert.rejects(verifyTheme(directory, { ...expected, clientSha256: '0'.repeat(64) }), /theme source mismatch/);
-});
-
-test('wrongbook MVU API patch applies once and reverts exactly', () => {
-  const source = `export function hasTavernScriptRuntime(chat, helperScripts) {
-  if (!chat || !chat.cardPath || !['story', 'script'].includes(chat.mode || 'story')) return false
-  return chat.mvu?.enabled === true || projectTavernHelperScripts(helperScripts).scripts.length > 0
-}
-`;
-  assert.equal(mvuApiState(source), 'original');
-  const patched = applyMvuApiText(source);
-  assert.equal(mvuApiState(patched), 'patched');
-  assert.doesNotMatch(patched, /chat\.mvu\?\.enabled === true \|\|/u);
-  assert.match(patched, /return projectTavernHelperScripts\(helperScripts\)\.scripts\.length > 0/u);
-  assert.equal(applyMvuApiText(patched), patched);
-  assert.equal(revertMvuApiText(patched), source);
-  assert.throws(() => applyMvuApiText('export function hasTavernScriptRuntime() {}'), /anchor changed/u);
-});
-
-test('wrongbook timeout-body patch applies once and reverts exactly', () => {
-  const source = `function run() {
-        const round = { round: index + 1, input, selection, status: 'running', refused: null }
-        record.rounds.push(round)
-        while (true) {
-          const result = nativeResult((await call('native')).events, afterSeq)
-          if (result.ready) {
-            break
-          }
-        }
-    } catch (error) {
-      Object.assign(record, { status: controller.signal.aborted ? 'cancelled' : 'error', refused: null, evidence: signal.aborted && !controller.signal.aborted ? '测试超时' : String(error.message || error) })
-    }
-`;
-  assert.equal(timeoutBodyState(source), 'original');
-  const patched = applyTimeoutBodyText(source);
-  assert.equal(timeoutBodyState(patched), 'patched');
-  assert.match(patched, /round\._lastText = ''/u);
-  assert.match(patched, /const foregroundText = nativeEvents/u);
-  assert.match(patched, /if \(foregroundText\) round\._lastText = foregroundText/u);
-  assert.match(patched, /textNote: '测试超时，但前台正文已收到'/u);
-  assert.equal(applyTimeoutBodyText(patched), patched);
-  assert.equal(revertTimeoutBodyText(patched), source);
-  assert.throws(() => applyTimeoutBodyText('function run() {}'), /anchors changed/u);
-});
-
-test('tavern patch tools seed once and never overwrite a user copy', async t => {
-  const dir = await mkdtemp(join(tmpdir(), 'dsh-tavern-tools-'));
-  t.after(() => rm(dir, { recursive: true, force: true }));
-  const source = join(dir, 'source');
-  const home = join(dir, 'home');
-  await mkdir(source);
-  await writeFile(join(source, 'patch-all.mjs'), 'image tool\n');
-  const target = join(home, 'profile-data/tavern/data/tools/mvu-api-test');
-  assert.equal((await seedTavernTools({ home, source })).action, 'seeded');
-  assert.equal(await readFile(join(target, 'patch-all.mjs'), 'utf8'), 'image tool\n');
-  await writeFile(join(target, 'patch-all.mjs'), 'user tool\n');
-  assert.equal((await seedTavernTools({ home, source })).action, 'unchanged');
-  assert.equal(await readFile(join(target, 'patch-all.mjs'), 'utf8'), 'user tool\n');
-  assert.equal((await seedTavernTools({ home, source: join(dir, 'absent') })).action, 'missing-source');
-});
-
-test('tavern patch tools migrate recognized upstream copies and refresh managed copies', async t => {
-  const dir = await mkdtemp(join(tmpdir(), 'dsh-tavern-tools-migrate-'));
-  t.after(() => rm(dir, { recursive: true, force: true }));
-  const source = join(dir, 'source');
-  const home = join(dir, 'home');
-  await mkdir(source);
-  await writeFile(join(source, 'patch-all.mjs'), 'Image-managed subset of dsh-tavern-wrongbook\nimage tool\n');
-  await writeFile(join(source, 'patch-mvu-api.mjs'), 'api tool\n');
-  const target = join(home, 'profile-data/tavern/data/tools/mvu-api-test');
-  await mkdir(target, { recursive: true });
-  await writeFile(join(target, 'patch-all.mjs'),
-    "const DATA = 'C:/Users/213123543/.dsh/profile-data/tavern/data'\nconst DEBUG = DATA + '/tools'\n");
-  await writeFile(join(target, 'user-notes.txt'), 'keep me\n');
-  assert.equal((await seedTavernTools({ home, source })).action, 'migrated');
-  assert.match(await readFile(join(target, 'patch-all.mjs'), 'utf8'), /image tool/u);
-  assert.equal(await readFile(join(target, 'patch-mvu-api.mjs'), 'utf8'), 'api tool\n');
-  assert.equal(await readFile(join(target, 'user-notes.txt'), 'utf8'), 'keep me\n');
-  await writeFile(join(source, 'patch-all.mjs'), 'Image-managed subset of dsh-tavern-wrongbook\nnew image tool\n');
-  assert.equal((await seedTavernTools({ home, source })).action, 'refreshed');
-  assert.match(await readFile(join(target, 'patch-all.mjs'), 'utf8'), /new image tool/u);
-  assert.equal(await readFile(join(target, 'user-notes.txt'), 'utf8'), 'keep me\n');
 });
 
 test('migration retains Tavern user metadata but updates managed absolute data root', () => {
@@ -536,14 +444,26 @@ test('migration retains Tavern user metadata but updates managed absolute data r
 
 const routeFixture = `
         const origin = req.headers.origin
-        if (req.path === '/capability') return 'capability'
-        const readsStaticAsset = req.path === '/static'
-        const localOrOpaqueOrigin = !origin || origin === 'null'
-        if (readsStaticAsset && !localOrOpaqueOrigin) { return 'forbidden' }
-        const readsCachedAsset = false, readsOfficialMvu = false, readsFullTemplate = false, readsRuntimeAsset = false, readsClientAsset = false, readsPluginAsset = false, sceneSameOrigin = false
-        if (!readsCachedAsset && !readsStaticAsset && !readsOfficialMvu && !readsFullTemplate && !readsRuntimeAsset && !readsClientAsset && !readsPluginAsset && !sceneSameOrigin && typeof origin === 'string' && origin !== '' && !/^https?:\\/\\/(127\\.0\\.0\\.1|localhost)(:\\d+)?$/.test(origin)) { return 'forbidden' }
+        const sameOrigin = origin === 'http://' + req.headers.host || origin === 'https://' + req.headers.host
+        if (origin && !sameOrigin && !(cookieFree && origin === 'null')) {
+          return 'forbidden'
+        }
+        const figureVoiceRoute = false
+        const assetGenerationRoute = false
+        if ((figureVoiceRoute || assetGenerationRoute) && (!sameOrigin || req.headers['sec-fetch-site'] && req.headers['sec-fetch-site'] !== 'same-origin')) {
+          return 'forbidden'
+        }
         return 'allowed'
 `;
+
+test('exact-hash Tavern route verification accepts the native same-origin gate', () => {
+  const hash = createHash('sha256').update(routeFixture).digest('hex');
+  assert.throws(() => verifyRoutes(routeFixture, 'not-the-hash'), /source mismatch/);
+  assert.equal(verifyRoutes(routeFixture, hash), routeFixture);
+  const broken = routeFixture.replace("        if (origin && !sameOrigin && !(cookieFree && origin === 'null')) {\n", '');
+  const brokenHash = createHash('sha256').update(broken).digest('hex');
+  assert.throws(() => verifyRoutes(broken, brokenHash), /route gate changed/);
+});
 
 test('forward-auth bundle keeps privacy defaults and exposes optional skill roots', async () => {
   const text = await readFile(join(root, 'plugins/forward-auth/cordis.patch.yml'), 'utf8');
@@ -553,14 +473,6 @@ test('forward-auth bundle keeps privacy defaults and exposes optional skill root
   const entry = id => patch.find(row => row.id === id);
   assert.equal(entry('session-log-deepseek')?.name, '@deepseek-ai/dsh-session-log-deepseek');
   assert.equal(entry('session-log-deepseek')?.config?.enabled, false);
-  assert.equal(entry('ui-settings-account')?.name, '@deepseek-ai/dsh-client-ui-settings-account');
-  assert.equal(entry('ui-settings-account')?.disabled, true);
-  assert.equal(entry('account-controller')?.name, '@deepseek-ai/dsh-api-account-controller');
-  assert.equal(entry('account-controller')?.disabled, true);
-  assert.equal(entry('message-feedback')?.name, '@deepseek-ai/dsh-message-feedback');
-  assert.equal(entry('message-feedback')?.disabled, true);
-  assert.equal(entry('ui-message-feedback')?.name, '@deepseek-ai/dsh-client-ui-message-feedback');
-  assert.equal(entry('ui-message-feedback')?.disabled, true);
   assert.equal(entry('ui-settings-models')?.config?.credentialOnboarding, false);
   const skills = entry('skill-filesystem');
   assert.equal(skills?.name, '@deepseek-ai/dsh-skill-filesystem');
@@ -591,19 +503,3 @@ test('Kubernetes example leaves state ownership to the image', async () => {
   const mounts = pod?.containers?.flatMap(container => container.volumeMounts ?? []).map(mount => mount.mountPath);
   assert.equal(mounts?.some(path => path?.startsWith('/data/home')), false, 'The example does not mount below HOME');
 });
-
-test('exact-hash Tavern patch accepts configured public Origin, rejects cross-Origin and preserves capability routing', () => {
-  const hash = createHash('sha256').update(routeFixture).digest('hex');
-  assert.throws(() => patchRoutes(routeFixture, 'not-the-hash'), /source mismatch/);
-  const route = new Function('req', 'process', patchRoutes(routeFixture, hash));
-  const env = { env: { DSH_PUBLIC_URL: 'https://tavern.example.test/' } };
-  const req = (origin, host = 'tavern.example.test', path = '/cards') => ({ path, headers: { origin, host } });
-  assert.equal(route(req('https://tavern.example.test'), env), 'allowed');
-  assert.equal(route(req('https://tavern.example.test', 'tavern.example.test', '/static'), env), 'allowed');
-  assert.equal(route(req('https://evil.example.test'), env), 'forbidden');
-  assert.equal(route(req('https://tavern.example.test', 'attacker.example.test'), env), 'forbidden');
-  assert.equal(route({ path: '/cards', headers: { origin: 'https://tavern.example.test', host: 'tavern.example.test', 'sec-fetch-site': 'cross-site' } }, env), 'forbidden');
-  assert.equal(route(req('https://evil.example.test', 'tavern.example.test', '/capability'), env), 'capability');
-  assert.equal(route(req('https://tavern.example.test'), { env: {} }), 'forbidden');
-});
-

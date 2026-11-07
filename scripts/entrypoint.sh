@@ -22,7 +22,6 @@ mkdir -p "$HOME" "$DSH_AGENTS_HOME" "$XDG_CACHE_HOME" "$DSH_HOME" /data/memory /
 node /opt/dsh/scripts/materialize-state.mjs
 if [ "$DSH_PROFILE" = tavern ]; then
   node /opt/dsh/scripts/seed-tavern-plugins.mjs
-  node /opt/dsh/scripts/seed-tavern-tools.mjs
 fi
 
 # The previous image used /data/cache as XDG_CACHE_HOME. Move that legacy root

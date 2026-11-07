@@ -9,5 +9,6 @@ allowBuilds:
   '@deepseek-ai/dsh-subprocess-local': true
   koffi: true
   node-pty: true
+  sharp: false
   '@google/genai': false
   protobufjs: false

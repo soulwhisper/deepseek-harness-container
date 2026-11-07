@@ -33,7 +33,7 @@ test('Web profile bundles memory and integration plugins without a committed loc
   const recipe = await read('scripts/materialize-profiles.mjs');
   const webRecipe = recipe.slice(recipe.indexOf("if (profile === 'web')"), recipe.indexOf('} else {', recipe.indexOf("if (profile === 'web')")));
   for (const name of ['dsh-context', 'dsh-mnemon', '@michengai/dsh-automation',
-    '@xmanrui/dsh-im', 'dsh-better-sidebar', '@linxin666/dsh-ssh']) {
+    '@xmanrui/dsh-im', 'dsh-better-sidebar', '@linxin666/dsh-ssh', 'dsh-session-manager']) {
     assert.ok(webRecipe.includes(`'${name}'`), `Web recipe includes ${name}`);
   }
   const pin = name => webRecipe.match(new RegExp(`dependencies\\['${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\] = '([^']+)'`))?.[1];

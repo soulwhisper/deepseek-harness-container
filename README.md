@@ -10,7 +10,7 @@ An independent, self-packaged [DeepSeek Harness](https://github.com/deepseek-ai/
 
 | Image | Release tag | Profile |
 | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.2-rc.1-r1` | `web-0.2.2-rc.1-r1` | DSH Web rc + `dshmarket` + `dsh-context` + `dsh-mnemon` + automation/IM/sidebar/SSH + required forward-auth |
+| `ghcr.io/soulwhisper/dsh-web:0.2.2-rc.1-r2` | `web-0.2.2-rc.1-r2` | DSH Web rc + `dshmarket` + `dsh-context` + `dsh-mnemon` + automation/IM/sidebar/SSH/session-manager + required forward-auth |
 | `ghcr.io/soulwhisper/dsh-tavern:3.2` | `tavern-3.2` | Custom Tavern workspace + forward-auth + native manager-protected bundles |
 
 Web images use the distribution revision (`<dsh-version>-rN` when the image
@@ -22,8 +22,8 @@ images contain no Chromium, GUI, X11, VNC, local password database, OIDC client
 or replacement mux server.
 
 The Web image seeds the Caveman and RTK skills, installs the RTK OSS binary,
-and bundles `dsh-context`, `dsh-mnemon`, automation, IM, sidebar and SSH
-plugins in the writable Web profile. `/data/memory` is durable memory; the
+and bundles `dsh-context`, `dsh-mnemon`, automation, IM, sidebar, SSH and
+session-manager plugins in the writable Web profile. `/data/memory` is durable memory; the
 plugin code and `/data/dsh` profile remain replaceable. Tavern is a separate,
 non-inheriting recipe and receives none of these Web assets. The forward-auth
 bundle and Tavern's pinned managed bundles are manager-protected. Web has no
@@ -79,7 +79,7 @@ docker volume create dsh-web-cache
 docker volume create dsh-web-logs
 docker volume create dsh-web-backups
 
-export IMAGE=ghcr.io/soulwhisper/dsh-web:0.2.2-rc.1-r1
+export IMAGE=ghcr.io/soulwhisper/dsh-web:0.2.2-rc.1-r2
 export ALLOWED_SUBJECTS='your-stable-owner-id'
 
 docker run --detach --name dsh-web --restart unless-stopped \

@@ -57,8 +57,8 @@ directory is seeded into the Web image as user-facing skills.
 ## Web and Tavern boundary
 
 - The Web image owns the **bundled** Web assets: `dsh-context`, `dsh-mnemon`,
-  automation, IM, sidebar and SSH plugins, plus the Caveman skill seed and RTK
-  OSS binary. `/data/memory` is durable user memory.
+  automation, IM, sidebar, SSH and session-manager plugins, plus the Caveman
+  skill seed and RTK OSS binary. `/data/memory` is durable user memory.
 - The Tavern image owns none of those Web assets. Its profile keeps the native
   Tavern 3.2 bundle set only.
 - Web and Tavern have independent Dockerfiles (`web.Dockerfile`,

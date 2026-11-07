@@ -42,7 +42,8 @@ for (const profile of ['web', 'tavern'].filter(name => !process.env.DSH_BUILD_PR
     dependencies['@xmanrui/dsh-im'] = '5.8.0';
     dependencies['dsh-better-sidebar'] = '0.30.1';
     dependencies['@linxin666/dsh-ssh'] = '0.4.15';
-    bundles.push('dshmarket', 'dsh-context', 'dsh-mnemon', '@michengai/dsh-automation', '@xmanrui/dsh-im', 'dsh-better-sidebar', '@linxin666/dsh-ssh');
+    dependencies['dsh-session-manager'] = '0.7.5';
+    bundles.push('dshmarket', 'dsh-context', 'dsh-mnemon', '@michengai/dsh-automation', '@xmanrui/dsh-im', 'dsh-better-sidebar', '@linxin666/dsh-ssh', 'dsh-session-manager');
     await cp(`${root}profiles/web/cordis.patch.yml`, join(dir, 'cordis.patch.yml'));
     await cp(`${root}profiles/web/compatibility.json`, join(dir, 'compatibility.json'));
   } else {

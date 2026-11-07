@@ -14,7 +14,7 @@ state and backup boundaries, and no desktop stack.
 
 | Image | Release tag | Profile |
 | --- | --- | --- |
-| `ghcr.io/soulwhisper/dsh-web:0.2.2-rc.1-r1` | `web-0.2.2-rc.1-r1` | DSH Web rc + `dshmarket` + `dsh-context` + `dsh-mnemon` + automation/IM/sidebar/SSH + required forward-auth |
+| `ghcr.io/soulwhisper/dsh-web:0.2.2-rc.1-r2` | `web-0.2.2-rc.1-r2` | DSH Web rc + `dshmarket` + `dsh-context` + `dsh-mnemon` + automation/IM/sidebar/SSH/session-manager + required forward-auth |
 | `ghcr.io/soulwhisper/dsh-tavern:3.2` | `tavern-3.2` | Custom Tavern workspace + forward-auth + native bundles |
 
 Web images use the distribution revision (`<dsh-version>-rN` when the image

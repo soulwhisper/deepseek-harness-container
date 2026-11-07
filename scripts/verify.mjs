@@ -168,8 +168,6 @@ assert.doesNotMatch(webDockerfile, /floating-bundles\.mjs add web/u,
   'Web plugins are bundled from the manifest, not a floating build-time add');
 assert.match(webDockerfile, /dsh-mnemon|seed\/skills\/caveman/u,
   'Web image carries the bundled plugin and skill profile');
-assert.match(await text('patches/dsh/patch-host.mjs'), /bundleRows\(name\)/u,
-  'Managed bundle patch rows are protected by their resolved row names');
 assert.match(await text('patches/dsh/patch-host.mjs'), /dshTavern\?\.managedBundles/u,
   'Manager protects the pinned Tavern bundle set');
 assert.match(await text('scripts/materialize-state.mjs'), /managedDependencies/u,

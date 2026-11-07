@@ -19,7 +19,7 @@ async function absent(path) {
     throw error;
   }
 }
-function request(path, headers = {}, method = 'GET', body, deadline = 10_000) {
+function request(path, headers = {}, method = 'GET', body, deadline = 10_000, bodyLimit = 64_000_000) {
   return new Promise((resolve, reject) => {
     const req = http.request({ hostname: config.host, port: config.port, path, method,
       headers: { Host: config.authority, Origin: `http://${config.authority}`, ...headers },
@@ -28,7 +28,7 @@ function request(path, headers = {}, method = 'GET', body, deadline = 10_000) {
       let length = 0;
       res.on('data', chunk => {
         length += chunk.length;
-        if (length > 64_000_000) req.destroy(new Error('body limit'));
+        if (length > bodyLimit) req.destroy(new Error('body limit'));
         else chunks.push(chunk);
       });
       res.on('end', () => {
@@ -133,7 +133,9 @@ async function trusted() {
   if (process.env.DSH_PROFILE === 'tavern') {
     probeStage = 'source-route';
     check((await request('/distribution/source.tar.gz')).status === 403, 'Source route remains guarded');
-    const source = await request('/distribution/source.tar.gz', headers);
+    // The 3.2 corresponding-source archive is larger than the default probe
+    // body limit; allow this one download while keeping other responses bounded.
+    const source = await request('/distribution/source.tar.gz', headers, 'GET', undefined, 60_000, 256 * 1024 * 1024);
     const sourceHead = await request('/distribution/source.tar.gz', headers, 'HEAD');
     check(source.status === 200 && source.bytes[0] === 0x1f && source.bytes[1] === 0x8b
       && source.bytes.length > 1024 && /gzip/iu.test(source.headers['content-type'] ?? ''), 'Real source gzip download');

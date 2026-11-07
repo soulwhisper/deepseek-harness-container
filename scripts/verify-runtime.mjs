@@ -11,6 +11,7 @@ const [mode, json = '{}'] = process.argv.slice(2);
 const config = JSON.parse(json);
 const forwardHeader = config.header ?? 'x-authentik-uid';
 const runtimeRequire = createRequire('/opt/dsh/runtime/package.json');
+let probeStage = 'start';
 function check(condition, label) { assert.ok(condition, label); }
 async function absent(path) {
   try { await lstat(path); return false; } catch (error) {
@@ -72,9 +73,13 @@ async function rejection(headers) {
   await deniedUpgrade(headers);
 }
 async function trusted() {
+  probeStage = 'rejection-empty';
   await rejection({});
+  probeStage = 'rejection-denied-subject';
   await rejection({ [forwardHeader]: 'not-allowed' });
+  probeStage = 'rejection-duplicate-header';
   await rejection({ [forwardHeader]: [config.uid, config.uid] });
+  probeStage = 'clean-root';
   const identity = { [forwardHeader]: config.uid };
   let page = await request('/', identity);
   let cookie = '';
@@ -93,15 +98,18 @@ async function trusted() {
   check(page.status === 200 && /<html/iu.test(page.text), 'Actual application HTML');
   check(cookie.length > 0, 'forward-auth clean root must issue a native browser cookie');
   check(!/[?&]token=/iu.test(page.text), 'No native launch token in app HTML');
+  probeStage = 'cookie-replay';
   const headers = { ...identity, Cookie: cookie };
   const again = await request('/', headers);
   check(again.status === 200, 'Native cookie works with a verified edge identity');
   check((await request('/?token=upstream', identity)).status === 403, 'Upstream launch-token URL is rejected');
   await rejection({ Cookie: cookie });
+  probeStage = 'origin-fence';
   const wrongOrigin = await request('/api/pluginInventory/list', { ...headers, Origin: 'http://evil.invalid' });
   check(wrongOrigin.status === 403, 'Native Origin fence must survive forward-auth exchange');
   const wrongHost = await request('/api/pluginInventory/list', { ...headers, Host: 'evil.invalid' });
   check(wrongHost.status === 403, 'Native Host fence must survive forward-auth exchange');
+  probeStage = 'client-assets';
   const scripts = [...page.text.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["']/giu)]
     .map(match => match[1].replaceAll('&amp;', '&').replaceAll('&quot;', '"').replaceAll('&#39;', "'"));
   check(scripts.length > 0, 'Real client script must be referenced');
@@ -114,6 +122,7 @@ async function trusted() {
       && asset.text.length > 100 && !/^\s*</u.test(asset.text), 'Actual client JavaScript, not index fallback');
     check((await request(path)).status === 403, 'Anonymous static assets denied');
   }
+  probeStage = 'inventory-rpc';
   const inventory = await request('/api/pluginInventory/list', {
     ...headers, 'Content-Type': 'application/json',
   }, 'POST', JSON.stringify({ type: 'client-request', rpcId: 'smoke-inventory',
@@ -122,6 +131,7 @@ async function trusted() {
   const response = JSON.parse(inventory.text);
   check(response.type === 'server-response' && response.result?.ok === true, 'Native inventory RPC result');
   if (process.env.DSH_PROFILE === 'tavern') {
+    probeStage = 'source-route';
     check((await request('/distribution/source.tar.gz')).status === 403, 'Source route remains guarded');
     const source = await request('/distribution/source.tar.gz', headers);
     const sourceHead = await request('/distribution/source.tar.gz', headers, 'HEAD');
@@ -130,6 +140,7 @@ async function trusted() {
     check(sourceHead.status === 200 && Number(sourceHead.headers['content-length']) === source.bytes.length, 'Source HEAD length');
     check((await request('/distribution/source.tar.gz', headers, 'POST')).status === 405, 'Source route is read-only');
   }
+  probeStage = 'websocket';
   await new Promise((resolve, reject) => {
     const ws = websocket(headers);
     const openedAt = Date.now();
@@ -456,6 +467,6 @@ try {
 } catch (error) {
   const label = ['trusted', 'untrusted', 'runtime', 'manager', 'arch'].includes(mode) ? mode : 'probe';
   if (error?.code === 'ERR_ASSERTION' && typeof error.message === 'string') console.error(`FAIL ${label}: ${error.message}`);
-  else console.error(`FAIL ${label}: probe failed; details withheld`);
+  else console.error(`FAIL ${label}: probe failed at ${probeStage}; details withheld`);
   process.exitCode = 1;
 }

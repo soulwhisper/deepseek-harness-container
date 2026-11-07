@@ -68,6 +68,11 @@ installed in the pinned Tavern runtime and linked into the source tree)
 Copyright (c) 2013 Lovell Fuller and contributors
 https://github.com/lovell/sharp
 
+@img/sharp-libvips-* 1.2.4 — LGPL-3.0-or-later; prebuilt libvips and bundled
+third-party libraries. The package README contains the complete license
+inventory; the package is retained in the pinned Tavern runtime.
+https://github.com/lovell/sharp-libvips
+
 Tavern — AGPL-3.0-only
 Source: https://github.com/flizzywine/dsh-tavern/tree/baf74b9d60d55404bd2553113c1e8f585afa5c5a
 The upstream LICENSE is retained verbatim; no separate project copyright

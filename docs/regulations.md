@@ -43,7 +43,7 @@ is Apache-2.0; bundled upstream components keep their own licenses.
 | Caveman skill | Apache-2.0 | Web only; fetched from the latest upstream GitHub release tag at build time (not `main`); `LICENSE` and `NOTICE` retained in the skill seed |
 | RTK OSS | Apache-2.0 | Web only; `rtk-oss-*` release asset only; the BUSL-1.1 edition is not bundled; LICENSE retained |
 | Tavern bundled scene-image plugin | MIT | Inside the Tavern source; installed into Tavern data on first boot; package LICENSE retained |
-| sharp 0.34.5 | Apache-2.0 | Tavern runtime; native dependency of the Tavern asset library; LICENSE retained in the runtime closure |
+| sharp 0.34.5 + `@img/sharp-libvips-*` 1.2.4 | Apache-2.0; LGPL-3.0-or-later and bundled third-party licenses | Tavern runtime; native dependency of the Tavern asset library; sharp LICENSE and the libvips package README license inventory are retained in the runtime closure |
 | Tavern itself | **AGPL-3.0-only** | Not Apache-2.0 or MIT |
 
 Installed dependency trees retain their packaged license files. The root
@@ -76,11 +76,13 @@ inputs, including `distribution/docs/source-build.md` and
 workspace data, installed `node_modules`, Git object databases, test/smoke
 harnesses, deploy examples or CI workflows.
 
-The authenticated download route is served at `/distribution/source.tar.gz`;
-the image does not inject a notice into the Tavern index. Keep the route
-accessible to users of a deployed modified version. If you modify or redistribute
-Tavern, preserve the AGPL license, notices, complete corresponding source, build
-recipe and corresponding-source download. Distribution Apache-2.0 licensing does not replace the
+The authenticated download route is served at `/distribution/source.tar.gz`.
+The image deliberately does not inject a notice into the Tavern index because
+that injection did not work; the route itself is the corresponding-source offer.
+Operators must make it visibly available to network users, for example by linking
+the authenticated route from their deployment UI or documentation. If you modify
+or redistribute Tavern, preserve the AGPL license, notices, complete
+corresponding source, build recipe and corresponding-source download. Distribution Apache-2.0 licensing does not replace the
 Tavern AGPL license. See [Corresponding source](source-build.md).
 
 ## Reproducibility and attestations

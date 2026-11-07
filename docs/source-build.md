@@ -64,10 +64,12 @@ redownloading the Tavern Git tree:
 
 1. Use `distribution/` as the Docker build context.
 2. Copy `dsh-tavern/` into `distribution/local-tavern-source/`.
-3. In the `tavern-source` stage, replace the Git init/fetch/checkout and
-   `patch-tavern.mjs` invocations with a `COPY local-tavern-source/
-   /opt/apps/dsh-tavern/` step. The source is unmodified; keep the runtime
-   route/theme hash verification and the upstream font helper.
+3. In the `tavern-source` stage, replace only the Git
+   init/fetch/checkout commands with a `COPY local-tavern-source/
+   /opt/apps/dsh-tavern/` step. Keep the
+   `node /opt/dsh/patches/tavern/patch-tavern.mjs` invocation after the
+   `COPY` so route/theme hashes are verified and the upstream font helper is
+   applied.
 4. If you change the theme package, update and verify
    `versions.json.tavern.theme` first.
 5. Keep the later stages, frozen source install and profile locks unchanged.

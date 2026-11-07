@@ -99,6 +99,11 @@ It is a convenience for immediate rollback while the migration is supervised.
 Treat it as best-effort: the snapshot from step 2 is the authoritative rollback
 path. Upgrades remain manual and supervised.
 
+This distribution does not migrate removed Tavern ecosystem packages:
+`dsh-tavern-wrongbook`, `dsh-tavern-knock-knock` and `narrative-anchor` can
+remain in an existing profile because it is merged, not rebuilt. Start from a
+clean `/data/dsh` profile to get the native 3.2 bundle set.
+
 If migration fails, do not start DSH or retry blindly. Restore the pre-upgrade
 `/data` and `/workspace` snapshots into separate volumes. Do not attach the old
 image to already migrated data.
@@ -194,6 +199,7 @@ plugin or prove compatibility. Startup installs nothing.
 
 ## Source offer
 
-The authenticated `/distribution/source.tar.gz` route must remain available to
-users. The image does not inject a source notice into the Tavern UI. See
-[Licensing](regulations.md) and [Corresponding source](source-build.md).
+The authenticated `/distribution/source.tar.gz` route must remain visibly
+available to users. The image does not inject a source notice into the Tavern UI;
+link the authenticated route from the deployment UI or operator documentation.
+See [Licensing](regulations.md) and [Corresponding source](source-build.md).

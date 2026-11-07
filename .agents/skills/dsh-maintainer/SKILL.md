@@ -99,7 +99,8 @@ directory is seeded into the Web image as user-facing skills.
 - Do not add state-migration cleanup for removed ecosystem bundles. Each install
   is presumed clean; a generic obsolete-package list risks deleting user-owned
   packages. Keep `materialize-state` cleanup to the reviewed legacy auth and
-  `dsh-tavern-comfy` cases already present.
+  `dsh-tavern-comfy` cases already present. A merged existing profile can keep
+  prior ecosystem entries; document that carry-forward instead of deleting them.
 
 ## Immutable layout
 
@@ -280,14 +281,15 @@ node scripts/verify.mjs
 node --test test/*.test.mjs
 ```
 
-For a Tavern pin change, verify the route hash and gate anchors against a
-throwaway checkout of the pinned commit:
+For a Tavern pin change, print the route hash from a throwaway checkout and
+compare it with `versions.json` `tavern.routesSha256`. The build also runs
+`patches/tavern/patch-tavern.mjs`, which checks the same hash and the gate
+anchors:
 
 ```text
 git -C /tmp/dsh-tavern-checkout show HEAD:tavern-plugin/lib/http/routes.js | sha256sum
 ```
 
-`patches/tavern/patch-tavern.mjs` runs the same hash and anchor check during the
-build. Then push and use GitHub Actions. Do not claim image/test completion from
+Then push and use GitHub Actions. Do not claim image/test completion from
 source inspection alone. Do not run a full local image build unless the user
 explicitly asks for it.

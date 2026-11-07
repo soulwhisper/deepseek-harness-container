@@ -144,7 +144,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 CMD ["nod
 ENTRYPOINT ["/usr/bin/tini", "--", "/opt/dsh/scripts/entrypoint.sh"]
 LABEL org.opencontainers.image.source="https://github.com/soulwhisper/deepseek-harness-container" \
       org.opencontainers.image.vendor="soulwhisper" \
-      io.github.soulwhisper.distribution.version="0.2.2-rc.1-r1"
+      io.github.soulwhisper.distribution.version="0.2.2-rc.1-r2"
 
 FROM web-application AS web
 USER root
@@ -157,5 +157,5 @@ COPY docker/skills/ /opt/dsh/distribution-source/docker/skills/
 COPY --from=web-build /usr/local/bin/rtk /usr/local/bin/rtk
 COPY --from=web-build /usr/local/share/rtk /usr/local/share/rtk
 LABEL org.opencontainers.image.title="DeepSeek Harness Web rc with dshmarket, dsh-context, memory and plugins" \
-      org.opencontainers.image.version="0.2.2-rc.1-r1" \
+      org.opencontainers.image.version="0.2.2-rc.1-r2" \
       org.opencontainers.image.licenses="Apache-2.0 AND MIT"

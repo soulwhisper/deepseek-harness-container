@@ -100,7 +100,7 @@ candidates.
 
 Bundled Web plugins (`dshmarket`, `dsh-context`, `dsh-mnemon`,
 `@michengai/dsh-automation`, `@xmanrui/dsh-im`, `dsh-better-sidebar`,
-`@linxin666/dsh-ssh`) are added to the Web profile recipe and installed at
+`@linxin666/dsh-ssh`, `dsh-session-manager`) are added to the Web profile recipe and installed at
 image-build time. The Web runtime/profile has no committed lock: plugin updates
 are resolved at build and the published digest is the reproducibility boundary.
 Tavern remains pinned and manager-protected; only its lock is generated.
@@ -148,7 +148,7 @@ their latest release tags at build time:
 
 | Asset | Source | Build behavior |
 | --- | --- | --- |
-| Web plugins | npm releases pinned in the profile recipe | `dsh-context`, `dsh-mnemon`, automation, IM, sidebar and SSH are installed as normal profile packages; users may remove them through the manager |
+| Web plugins | npm releases pinned in the profile recipe | `dsh-context`, `dsh-mnemon`, automation, IM, sidebar, SSH and session-manager are installed as normal profile packages; users may remove them through the manager |
 | Caveman skill | `JuliusBrussee/caveman` latest GitHub release tag, `skills/caveman/SKILL.md` | Web only. The tag is resolved at build time, then fetched into `/opt/dsh/seed/skills/caveman`; upstream `LICENSE` and a `SOURCE` record are included. The moving `main` branch is not used |
 | RTK binary | `rtk-ai/rtk` latest release, **`rtk-oss-*` Apache-2.0 edition** | Web only. Checksum-verified and installed at `/usr/local/bin/rtk`; the BUSL-1.1 asset is never used |
 

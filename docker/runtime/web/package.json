@@ -1,6 +1,6 @@
 {
   "name": "@soulwhisper/dsh-container-runtime-web",
-  "version": "0.2.2-rc.1-r1",
+  "version": "0.2.2-rc.1-r2",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.25.0",

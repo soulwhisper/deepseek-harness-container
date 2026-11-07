@@ -205,6 +205,10 @@ async function manager() {
     check(mnemon?.enabled === true && mnemon.installed === true
       && mnemon.availability === 'profile' && mnemon.removable === true
       && mnemon.readOnlyReason === undefined, 'dsh-mnemon is profile-owned and removable');
+    const sessionManager = before.find(bundle => bundle.name === 'dsh-session-manager');
+    check(sessionManager?.enabled === true && sessionManager.installed === true
+      && sessionManager.availability === 'profile' && sessionManager.removable === true
+      && sessionManager.readOnlyReason === undefined, 'dsh-session-manager is profile-owned and removable');
   } else {
     for (const name of ['dsh-better-sidebar', 'dsh-dream-skin', 'dsh-tavern-plugin',
       'dsh-tavern-remote', 'dsh-asset-library', 'dsh-tavern-stage']) {
@@ -396,7 +400,7 @@ async function runtime() {
   const manifestPath = `/data/dsh/profiles/${profile}/package.json`;
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const profileRequire = createRequire(manifestPath);
-  const expected = profile === 'web' ? ['@soulwhisper/dsh-forward-auth', 'dshmarket', 'dsh-context', 'dsh-mnemon', '@michengai/dsh-automation', '@xmanrui/dsh-im', 'dsh-better-sidebar', '@linxin666/dsh-ssh']
+  const expected = profile === 'web' ? ['@soulwhisper/dsh-forward-auth', 'dshmarket', 'dsh-context', 'dsh-mnemon', '@michengai/dsh-automation', '@xmanrui/dsh-im', 'dsh-better-sidebar', '@linxin666/dsh-ssh', 'dsh-session-manager']
     : ['@soulwhisper/dsh-forward-auth', 'dsh-better-sidebar', 'dsh-dream-skin', 'dsh-tavern-plugin',
       'dsh-tavern-remote', 'dsh-asset-library', 'dsh-tavern-stage'];
   for (const name of expected) check(Object.hasOwn(manifest.dependencies, name), 'Required profile package');
@@ -413,6 +417,7 @@ async function runtime() {
   if (profile === 'web') {
     check(manifest.dependencies['dsh-context'] === '0.82.0', 'Bundled dsh-context release');
     check(manifest.dependencies['@linxin666/dsh-ssh'] === '0.4.15', 'Bundled SSH plugin');
+    check(manifest.dependencies['dsh-session-manager'] === '0.7.5', 'Bundled session-manager plugin');
     check((await stat('/data/memory')).isDirectory(), 'Durable memory root exists');
     check((await stat('/usr/local/bin/mnemon')).isFile(), 'Bundled Mnemon CLI');
     const mnemon = spawnSync('/usr/local/bin/mnemon', ['--version'], { encoding: 'utf8' });

@@ -186,7 +186,7 @@ or agent sandbox.
 Distribution-owned DSH, forward-auth, guard patches, the market and the bundled
 Mnemon CLI at `/usr/local/bin/mnemon` change through reviewed source/lock
 updates and a rebuilt image. Bundled Web profile plugins (`dsh-context`,
-`dsh-mnemon`, automation, IM, sidebar and SSH) are installed as writable profile
+`dsh-mnemon`, automation, IM, sidebar, SSH and session-manager) are installed as writable profile
 packages, so the native manager and each plugin's own Check versions path can
 update them. Removals persist across normal starts and runtime use; an explicit
 `DSH_STATE_MIGRATION=apply` run re-adds the seed's bundled plugins. A plugin

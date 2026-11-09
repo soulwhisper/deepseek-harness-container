@@ -1,5 +1,25 @@
 # DeepSeek Harness Container
 
+> [!WARNING]
+> **Status: Repository archived and unmaintained (2026-11-09).**
+>
+> This repository no longer supports shared, production, or Kubernetes deployment
+> of DeepSeek Harness. Pin the last published `dsh-web` / `dsh-tavern` digest
+> before shutdown; those images are retained for rollback and local, single-user
+> use only. They receive no new features, no guaranteed security updates, and no
+> upstream compatibility patches. Frozen images may contain known vulnerabilities.
+>
+> Do not expose these images to untrusted networks, attach cluster credentials,
+> or run them without a human in the loop. Remote incident response, cluster
+> inspection, and remediation are out of scope; use the Hermes agent for those
+> workflows. Cluster-related issues and pull requests will not be accepted.
+>
+> The local Tavern/creative workbench remains in maintenance mode. Tavern is
+> AGPL-3.0-only: retain `/opt/dsh/source/tavern.tar.gz` in the final image and
+> attach the corresponding-source archive to the final release for as long as
+> the image is distributed. Verify the final source offer with legal before
+> shutdown.
+
 English | [简体中文](README.zh-CN.md)
 
 An independent, self-packaged [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) distribution for a **single shared owner behind a verified forward-auth edge**. It ships two OCI images, an independently maintained forward-auth gate, explicit state and backup boundaries, and no desktop stack.
